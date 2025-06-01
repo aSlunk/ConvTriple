@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0.1)
+cmake_minimum_required(VERSION 3.18)
 project(IDP)
 
 set(CMAKE_CXX_STANDARD 20)
