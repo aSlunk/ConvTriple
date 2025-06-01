@@ -1,7 +1,7 @@
 include(CMakeFindDependencyMacro)
 include(FetchContent)
 
-# set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps;${CMAKE_PREFIX_PATH}")
+set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps;${CMAKE_PREFIX_PATH}")
 
 add_compile_options(-fPIC)
 add_compile_options(-Wno-unused-variable)
@@ -11,7 +11,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 ## Dependencies
 find_package(Threads REQUIRED)
-find_package(OpenSSL REQUIRED)
 find_package(Eigen3 3.3.3 REQUIRED)
 find_package(SEAL REQUIRED)
 # find_package(emp-tool REQUIRED)
