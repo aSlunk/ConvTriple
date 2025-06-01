@@ -12,7 +12,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 ## Dependencies
 find_package(Threads REQUIRED)
 find_package(Eigen3 3.3.3 REQUIRED)
-find_package(SEAL REQUIRED)
+# find_package(SEAL REQUIRED)
 # find_package(emp-tool REQUIRED)
 # find_package(emp-ot REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
