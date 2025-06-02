@@ -14,10 +14,6 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(seal)
 
-add_compile_options(
-    "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra;-Wno-unused-parameter>"
-)
-
 set(ALL_SOURCE_FILES "")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)

@@ -14,7 +14,7 @@
 
 namespace gemini {
 
-static TensorShape GetOutShape(const HomBNSS::Meta& meta) {
+static TensorShape GetOutShape [[maybe_unused]] (const HomBNSS::Meta& meta) {
     if (meta.vec_shape.dims() != 1 || meta.vec_shape.num_elements() < 1) {
         LOG(WARNING) << "invalid meta for BN";
     }

@@ -39,8 +39,9 @@ void print_results(const Result& res, const bool& header = false) {
               << res.bytes / 1'000'000.0 << "\n";
 }
 
-Result conv2d(const IO::NetIO& io, const HomConv2DSS& conv, const Tensor<uint64_t>& image,
-              const std::vector<Tensor<uint64_t>>& filters) {
+Result conv2d
+    [[maybe_unused]] (const IO::NetIO& io, const HomConv2DSS& conv, const Tensor<uint64_t>& image,
+                      const std::vector<Tensor<uint64_t>>& filters) {
     Result measures;
 
     auto start = measure::now();

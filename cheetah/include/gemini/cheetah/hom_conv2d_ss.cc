@@ -972,8 +972,8 @@ Code HomConv2DSS::postProcessInplace(seal::Plaintext& pt, std::vector<size_t>& t
     auto cntxt = context_->first_context_data();
     ENSURE_OR_RETURN(cntxt, Code::ERR_SEAL_MEMORY);
 
-    const size_t N   = cntxt->parms().poly_modulus_degree();
-    const size_t L   = cntxt->parms().coeff_modulus().size();
+    const size_t N = cntxt->parms().poly_modulus_degree();
+    // const size_t L   = cntxt->parms().coeff_modulus().size();
     const size_t len = targets.empty() ? N : targets.size();
     ENSURE_OR_RETURN(out_poly && out_buff_size >= len && len <= N, Code::ERR_DIM_MISMATCH);
 
@@ -1133,7 +1133,6 @@ Code HomConv2DSS::encryptFilters(const std::vector<Tensor<uint64_t>>& filters, c
                                  size_t nthreads) const {
     ENSURE_OR_RETURN(context_ && encryptor_ && tencoder_, Code::ERR_CONFIG);
 
-    TensorEncoder::Role encode_role = TensorEncoder::Role::none;
     std::vector<std::vector<seal::Plaintext>> polys(filters.size());
 
     for (size_t i = 0; i < filters.size(); ++i) {
