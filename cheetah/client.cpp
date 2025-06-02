@@ -12,7 +12,7 @@ using namespace gemini;
 
 namespace {
 
-constexpr char ADDRESS[11] = "127.0.0.1\0";
+// constexpr char ADDRESS[11] = "127.0.0.1\0";
 
 struct Result {
     size_t recv;
@@ -116,7 +116,7 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
 } // anonymous namespace
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
+    if (argc != 3) {
         return EXEC_FAILED;
     }
 
@@ -139,9 +139,9 @@ int main(int argc, char** argv) {
         for (int j = 0; j < R.height(); ++j)
             for (int k = 0; k < R.width(); ++k) R(i, j, k) = 1ULL << filter_prec;
 
-    IO::NetIO client(ADDRESS, PORT, true);
+    IO::NetIO client(argv[1], PORT, true);
 
-    size_t samples = std::strtoul(argv[1], NULL, 10);
+    size_t samples = std::strtoul(argv[2], NULL, 10);
     for (size_t i = 0; i < samples; ++i) {
         client.sync();
         auto measures = Protocol(client, context, hom_conv, A2, B2, R);

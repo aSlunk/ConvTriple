@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <thread>
 
 #include <gemini/cheetah/hom_conv2d_ss.h>
 #include <gemini/cheetah/tensor.h>
@@ -15,8 +16,9 @@
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;
 
-constexpr int N_THREADS = 4;
-constexpr int PORT      = 6969;
+const int N_THREADS
+    = std::thread::hardware_concurrency() == 0 ? 1 : std::thread::hardware_concurrency();
+constexpr int PORT = 6969;
 
 constexpr size_t filter_prec = 0ULL;
 
@@ -35,7 +37,7 @@ constexpr size_t n_filter = 64;
 constexpr size_t PADDING = 3;
 constexpr size_t STRIDE  = 2;
 
-constexpr gemini::Padding PAD = gemini::Padding::SAME;
+constexpr gemini::Padding PAD = PADDING == 0 ? gemini::Padding::VALID : gemini::Padding::SAME;
 
 constexpr uint64_t MOD         = PLAIN_MOD;
 constexpr uint64_t moduloMask  = MOD - 1;
@@ -82,6 +84,7 @@ seal::SEALContext init_he_context() {
 }
 
 void print_info() {
+    std::cerr << "n_threads: " << N_THREADS << "\n";
     std::cerr << "Padding: " << PADDING << "\n";
     std::cerr << "Stride: " << META.stride << "\n";
     std::cerr << "i_channel: " << META.ishape.channels() << "\n";

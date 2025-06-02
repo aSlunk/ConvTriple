@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 DEPS="$PWD/deps"
 

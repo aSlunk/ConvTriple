@@ -1,4 +1,7 @@
+.vscode/
+
 build/
 deps/
-.vscode/
+
 run.sh
+*.csv
