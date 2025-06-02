@@ -19,7 +19,8 @@ namespace {
 
 struct Result {
     size_t encryption;
-    size_t conv2d;
+    size_t step2;
+    size_t step3;
     size_t decryption;
     size_t bytes;
     Code ret;
@@ -27,12 +28,15 @@ struct Result {
 
 void print_results(const Result& res, const bool& header = false) {
     if (header)
-        std::cout << "Encryption [ms],Conv2d [s],Decryption [ms],Total [s], Bytes Send [MB]\n";
+        std::cout
+            << "Encryption [ms],Step 2 [s],Decryption [ms],Step 3 [ms],Total [s],Bytes Send [MB]\n";
 
-    double total = res.encryption / 1000.0 + res.conv2d / 1000.0 + res.decryption / 1000.0;
+    double total = res.encryption / 1'000.0 + res.step2 / 1'000.0 + res.decryption / 1'000.0
+                   + res.step3 / 1'000.0;
     total /= 1000.0;
-    std::cout << res.encryption / 1000.0 << ", " << res.conv2d / 1000000. << ", "
-              << res.decryption / 1000. << ", " << total << ", " << res.bytes / 1000000.0 << "\n";
+    std::cout << res.encryption / 1'000.0 << ", " << res.step2 / 1'000'000. << ", "
+              << res.decryption / 1'000. << ", " << res.step3 / 1'000.0 << ", " << total << ", "
+              << res.bytes / 1'000'000.0 << "\n";
 }
 
 Result conv2d(const IO::NetIO& io, const HomConv2DSS& conv, const Tensor<uint64_t>& image,
@@ -65,7 +69,7 @@ Result conv2d(const IO::NetIO& io, const HomConv2DSS& conv, const Tensor<uint64_
     Tensor<uint64_t> out;
     measures.ret
         = conv.conv2DSS(ctxts, std::vector<seal::Plaintext>(), p_filter, META, result, out);
-    measures.conv2d = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.step2 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
     if (measures.ret != Code::OK)
         return measures;
 
@@ -109,12 +113,9 @@ Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     ////////////////////////////////////////////////////////////////////////////
     // A ⊙ B
     ////////////////////////////////////////////////////////////////////////////
-    Tensor<uint64_t> AB;
-    conv.idealFunctionality(A1, B1, meta, AB);
-
     std::vector<seal::Ciphertext> result;
     IO::recv_encrypted_vector(server, context, result);
-    measures.conv2d = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.step2 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
     // Dec(M)
@@ -129,7 +130,12 @@ Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     ////////////////////////////////////////////////////////////////////////////
     // A ⊙ B + Dec(M)
     ////////////////////////////////////////////////////////////////////////////
+    start = measure::now();
+    Tensor<uint64_t> AB;
+    conv.idealFunctionality(A1, B1, meta, AB);
+
     Utils::op_inplace<uint64_t>(AB, out_tensor, [](uint64_t a, uint64_t b) { return a + b; });
+    measures.step3 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
     // auto f64_out = Utils::convert_double(out_tensor);
     // std::cout << "result:\n";
     // Utils::print_tensor(f64_out);

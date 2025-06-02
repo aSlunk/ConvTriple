@@ -16,7 +16,8 @@ namespace {
 
 struct Result {
     size_t recv;
-    size_t conv;
+    size_t step2;
+    size_t step3;
     size_t send;
     size_t bytes;
     Code ret;
@@ -24,13 +25,14 @@ struct Result {
 
 void print_results(const Result& res, const bool& header = false, std::ostream& out = std::cout) {
     if (header)
-        out << "Recv [ms],Conv2d [s],Send [ms],Total [s], Bytes Send [MB]\n";
+        out << "Recv [ms],Step 2 [s],Send [ms],Step 3 [ms],Total [s],Bytes Send [MB]\n";
 
-    double total = res.recv / 1'000.0 + res.conv / 1'000.0 + res.send / 1'000.0;
+    double total
+        = res.recv / 1'000.0 + res.step2 / 1'000.0 + res.send / 1'000.0 + res.step3 / 1'000.0;
     total /= 1'000.0;
 
-    out << res.recv / 1'000.0 << ", " << res.conv / 1'000'000. << ", " << res.send / 1'000. << ", "
-        << total << ", " << res.bytes / 1'000'000.0 << "\n";
+    out << res.recv / 1'000.0 << ", " << res.step2 / 1'000'000. << ", " << res.send / 1'000. << ", "
+        << res.step3 / 1'000.0 << ", " << total << ", " << res.bytes / 1'000'000.0 << "\n";
 }
 
 Code add_inplace(const HomConv2DSS& hom, std::vector<RLWECt>& ciphers,
@@ -92,7 +94,8 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
 
     hom_conv.add_inplace(result, result2, N_THREADS);
 
-    measures.conv = std::chrono::duration_cast<Unit>(measure::now() - start).count(); // MEASURE_END
+    measures.step2
+        = std::chrono::duration_cast<Unit>(measure::now() - start).count(); // MEASURE_END
 
     ////////////////////////////////////////////////////////////////////////////
     // Send result
@@ -104,9 +107,12 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
     ////////////////////////////////////////////////////////////////////////////
     // A2 ⊙ B2 - R
     ////////////////////////////////////////////////////////////////////////////
+    start = measure::now();
     Tensor<uint64_t> final;
     hom_conv.idealFunctionality(A2, B2, META, final);
     Utils::op_inplace<uint64_t>(final, R, [](uint64_t a, uint64_t b) -> uint64_t { return a - b; });
+    measures.step3
+        = std::chrono::duration_cast<Unit>(measure::now() - start).count(); // MEASURE END
 
     measures.bytes = client.counter;
     measures.ret   = Code::OK;

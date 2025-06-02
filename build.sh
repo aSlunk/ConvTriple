@@ -11,7 +11,7 @@ if [[ -n $1 ]]; then
     sed -i 's/\(^constexpr int PORT \+=\) [0-9]\+/\1 '$1'/' cheetah/defs.hpp
 
     if [[ -n $2 ]]; then
-        sed -i 's/\(^constexpr int N\_THREADS \+=\) [0-9]\+/\1 '$2'/' cheetah/defs.hpp
+        sed -i 's/\(^constexpr int N\_THREADS \+=\) .\+/\1 '$2'/' cheetah/defs.hpp
     fi
 fi
 
