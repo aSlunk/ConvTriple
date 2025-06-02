@@ -4,7 +4,7 @@ BUILD_TYPE=Release
 BUILD_DIR=build
 
 if [[ ! -d $BUILD_DIR ]]; then
-    cmake . -B $BUILD_DIR -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+    cmake . -B $BUILD_DIR -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DZLIB_BUILD_EXAMPLES=OFF
 fi
 
 if [[ -n $1 ]]; then

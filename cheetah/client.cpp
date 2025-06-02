@@ -35,16 +35,6 @@ void print_results(const Result& res, const bool& header = false, std::ostream& 
         << res.step3 / 1'000.0 << ", " << total << ", " << res.bytes / 1'000'000.0 << "\n";
 }
 
-Code add_inplace(const HomConv2DSS& hom, std::vector<RLWECt>& ciphers,
-                 const Tensor<uint64_t>& tensor) {
-    std::vector<RLWEPt> plains;
-    Code res = hom.encodeImage(tensor, META, plains);
-    if (res != Code::OK)
-        return res;
-
-    return hom.add_inplace(ciphers, plains);
-}
-
 Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                 const Tensor<uint64_t>& A2, const std::vector<Tensor<uint64_t>>& B2,
                 const Tensor<uint64_t>& R) {

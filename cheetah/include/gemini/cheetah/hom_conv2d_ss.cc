@@ -469,6 +469,10 @@ Code HomConv2DSS::setUp(const seal::SEALContext& context, std::optional<seal::Se
         }
 
         pk_ = std::make_shared<seal::PublicKey>(*pk);
+        if (sk)
+            encryptor_->set_public_key(*pk);
+        else
+            encryptor_ = std::make_shared<seal::Encryptor>(*context_, *pk);
     }
 
     tencoder_  = std::make_shared<TensorEncoder>(*context_);
