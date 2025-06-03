@@ -26,8 +26,8 @@ struct Result {
     Code ret;
 };
 
-void print_results(const Result& res, const bool& header = false) {
-    if (header)
+double print_results(const Result& res, const int& layer = 0) {
+    if (!layer)
         std::cout
             << "Encryption [ms],Step 2 [s],Decryption [ms],Step 3 [ms],Total [s],Bytes Send [MB]\n";
 
@@ -37,10 +37,12 @@ void print_results(const Result& res, const bool& header = false) {
     std::cout << res.encryption / 1'000.0 << ", " << res.step2 / 1'000'000. << ", "
               << res.decryption / 1'000. << ", " << res.step3 / 1'000.0 << ", " << total << ", "
               << res.bytes / 1'000'000.0 << "\n";
+
+    return total;
 }
 
 Result conv2d
-    [[maybe_unused]] (const IO::NetIO& io, const HomConv2DSS& conv, const Tensor<uint64_t>& image,
+    [[maybe_unused]] (const IO::NetIO& io, const HomConv2DSS& conv, const HomConv2DSS::Meta& META, const Tensor<uint64_t>& image,
                       const std::vector<Tensor<uint64_t>>& filters) {
     Result measures;
 
@@ -128,6 +130,8 @@ Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     if (measures.ret != Code::OK)
         return measures;
 
+    std::cerr << out_tensor.channels() << " x " << out_tensor.height() << " x " << out_tensor.width() << "\n";
+
     ////////////////////////////////////////////////////////////////////////////
     // A ⊙ B + Dec(M)
     ////////////////////////////////////////////////////////////////////////////
@@ -137,21 +141,31 @@ Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
 
     Utils::op_inplace<uint64_t>(AB, out_tensor, [](uint64_t a, uint64_t b) { return a + b; });
     measures.step3 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    // auto f64_out = Utils::convert_double(out_tensor);
-    // std::cout << "result:\n";
-    // Utils::print_tensor(f64_out);
 
     measures.bytes = server.counter;
     measures.ret   = Code::OK;
     return measures;
 }
 
+Result perform_proto(const HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context, const HomConv2DSS& hom_conv) {
+    auto A1 = Utils::init_image(meta, 5);
+    auto B1 = Utils::init_filter(meta, 2.0);
+
+    Tensor<uint64_t> R(HomConv2DSS::GetConv2DOutShape(meta));
+    R.Randomize(1000 << filter_prec);
+    // for (int i = 0; i < R.channels(); ++i)
+    //     for (int j = 0; j < R.height(); ++j)
+    //         for (int k = 0; k < R.width(); ++k) R(i, j, k) = 1ULL << filter_prec;
+
+    server.sync();
+    auto measures = conv2D_online(meta, server, context, hom_conv, A1, B1);
+    server.counter = 0;
+    return measures;
+}
+
 } // anonymous namespace
 
-int main(int argc, char** argv) {
-    if (argc < 2)
-        return EXEC_FAILED;
-
+int main() {
     seal::SEALContext context = Utils::init_he_context();
 
     seal::KeyGenerator keygen(context);
@@ -162,26 +176,25 @@ int main(int argc, char** argv) {
     HomConv2DSS conv;
     conv.setUp(context, skey, pkey);
 
-    Utils::print_info();
-
-    auto A1 = Utils::init_image(META, 5);
-    auto B1 = Utils::init_filter(META, 3.0);
-
-    size_t samples = std::strtoul(argv[1], NULL, 10);
-
-    // std::cout << "Image:\n";
-    // Utils::print_tensor(Utils::convert_double(input_img));
-
     IO::NetIO server(nullptr, PORT, true);
 
-    for (size_t i = 0; i < samples; ++i) {
-        server.sync();
-        auto res = conv2D_online(META, server, context, conv, A1, B1);
+    double total_time = 0;
+    double total_data = 0;
+
+    auto layers = Utils::init_layers();
+    for (size_t i = 0; i < layers.size(); ++i) {
+        std::cerr << "Current layer: " << i << std::endl;
+        auto res = perform_proto(layers[i], server, context, conv);
         if (res.ret != Code::OK) {
             std::cerr << CodeMessage(res.ret) << "\n";
             return EXEC_FAILED;
         }
-        print_results(res, i == 0);
-        server.counter = 0;
+        total_time += print_results(res, i);
+        total_data += res.bytes / 1'000'000.0;
     }
+
+    total_data /= 1'000.0;
+
+    std::cerr << "Party 1: total time [s]: " << total_time << "\n";
+    std::cerr << "Party 1: total data [GB]: " << total_data << "\n";
 }

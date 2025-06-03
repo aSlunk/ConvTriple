@@ -23,9 +23,9 @@ struct Result {
     Code ret;
 };
 
-void print_results(const Result& res, const bool& header = false, std::ostream& out = std::cout) {
-    if (header)
-        out << "Recv [ms],Step 2 [s],Send [ms],Step 3 [ms],Total [s],Bytes Send [MB]\n";
+double print_results(const Result& res, const int& layer = 0, std::ostream& out = std::cout) {
+    if (!layer)
+        out << "Recv [ms],Step 2 [s],Send [ms],Step 3 [ms],Total [s],Bytes Send [MB],Layer\n";
 
     double total
         = res.recv / 1'000.0 + res.step2 / 1'000.0 + res.send / 1'000.0 + res.step3 / 1'000.0;
@@ -33,9 +33,12 @@ void print_results(const Result& res, const bool& header = false, std::ostream& 
 
     out << res.recv / 1'000.0 << ", " << res.step2 / 1'000'000. << ", " << res.send / 1'000. << ", "
         << res.step3 / 1'000.0 << ", " << total << ", " << res.bytes / 1'000'000.0 << "\n";
+
+    return total;
 }
 
 Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
+                const HomConv2DSS::Meta& meta,
                 const Tensor<uint64_t>& A2, const std::vector<Tensor<uint64_t>>& B2,
                 const Tensor<uint64_t>& R) {
     Result measures;
@@ -57,12 +60,12 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
     // Encode A2, B2
     ////////////////////////////////////////////////////////////////////////////
     std::vector<std::vector<seal::Plaintext>> enc_B2;
-    measures.ret = hom_conv.encodeFilters(B2, META, enc_B2, N_THREADS);
+    measures.ret = hom_conv.encodeFilters(B2, meta, enc_B2, N_THREADS);
     if (measures.ret != Code::OK)
         return measures;
 
     std::vector<seal::Plaintext> enc_A2;
-    measures.ret = hom_conv.encodeImage(A2, META, enc_A2, N_THREADS);
+    measures.ret = hom_conv.encodeImage(A2, meta, enc_A2, N_THREADS);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -73,12 +76,12 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
     std::vector<seal::Ciphertext> result;
     Tensor<uint64_t> out;
 
-    measures.ret = hom_conv.conv2DSS(enc_A1, enc_B2, META, R, result, N_THREADS);
+    measures.ret = hom_conv.conv2DSS(enc_A1, enc_B2, meta, R, result, N_THREADS);
     if (measures.ret != Code::OK)
         return measures;
 
     std::vector<seal::Ciphertext> result2;
-    measures.ret = hom_conv.conv2DSS(enc_A2, enc_B1, META, result2, N_THREADS);
+    measures.ret = hom_conv.conv2DSS(enc_A2, enc_B1, meta, result2, N_THREADS);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -95,12 +98,12 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
     measures.send = std::chrono::duration_cast<Unit>(measure::now() - start).count(); // MEASURE END
 
     ////////////////////////////////////////////////////////////////////////////
-    // A2 ⊙ B2 - R
+    // A2 ⊙ B2 + R
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
     Tensor<uint64_t> final;
-    hom_conv.idealFunctionality(A2, B2, META, final);
-    Utils::op_inplace<uint64_t>(final, R, [](uint64_t a, uint64_t b) -> uint64_t { return a - b; });
+    hom_conv.idealFunctionality(A2, B2, meta, final);
+    Utils::op_inplace<uint64_t>(final, R, [](uint64_t a, uint64_t b) -> uint64_t { return a + b; });
     measures.step3
         = std::chrono::duration_cast<Unit>(measure::now() - start).count(); // MEASURE END
 
@@ -109,10 +112,26 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
     return measures;
 }
 
+Result perform_proto(const HomConv2DSS::Meta& meta, IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv) {
+    auto A2 = Utils::init_image(meta, 5);
+    auto B2 = Utils::init_filter(meta, 2.0);
+
+    Tensor<uint64_t> R(HomConv2DSS::GetConv2DOutShape(meta));
+    // R.Randomize(5 << filter_prec);
+    for (int i = 0; i < R.channels(); ++i)
+        for (int j = 0; j < R.height(); ++j)
+            for (int k = 0; k < R.width(); ++k) R(i, j, k) = 1ULL << filter_prec;
+
+    client.sync();
+    auto measures = Protocol(client, context, hom_conv, meta, A2, B2, R);
+    client.counter = 0;
+    return measures;
+}
+
 } // anonymous namespace
 
 int main(int argc, char** argv) {
-    if (argc != 3) {
+    if (argc != 2) {
         return EXEC_FAILED;
     }
 
@@ -120,32 +139,28 @@ int main(int argc, char** argv) {
     HomConv2DSS hom_conv;
     hom_conv.setUp(context);
 
-    auto A2 = Utils::init_image(META, 5);
-    auto B2 = Utils::init_filter(META, 2.0);
-
-    // std::cout << "filter:\n";
-    // Utils::print_tensor(Utils::convert_double(filters[0]));
-
     ////////////////////////////////////////////////////////////////////////////
     // Sample R
     ////////////////////////////////////////////////////////////////////////////
-    Tensor<uint64_t> R(HomConv2DSS::GetConv2DOutShape(META));
-    // R.Randomize(5 << filter_prec);
-    for (int i = 0; i < R.channels(); ++i)
-        for (int j = 0; j < R.height(); ++j)
-            for (int k = 0; k < R.width(); ++k) R(i, j, k) = 1ULL << filter_prec;
-
     IO::NetIO client(argv[1], PORT, true);
 
-    size_t samples = std::strtoul(argv[2], NULL, 10);
-    for (size_t i = 0; i < samples; ++i) {
-        client.sync();
-        auto measures = Protocol(client, context, hom_conv, A2, B2, R);
+    double total_time = 0;
+    double total_data = 0;
+
+    auto layers = Utils::init_layers();
+    for (size_t i = 0; i < layers.size(); ++i) {
+        auto measures = perform_proto(layers[i], client, context, hom_conv);
         if (measures.ret != Code::OK) {
             std::cerr << CodeMessage(measures.ret) << "\n";
             return EXEC_FAILED;
         }
-        print_results(measures, i == 0);
-        client.counter = 0;
+
+        total_time += print_results(measures, i);
+        total_data += measures.bytes / 1'000'000.0;
     }
+
+    total_data /= 1000.0;
+
+    std::cerr << "Party 2: total time [s]: " << total_time << "\n";
+    std::cerr << "Party 2: total data [GB]: " << total_data << "\n";
 }
