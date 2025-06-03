@@ -92,6 +92,81 @@ Result conv2d
     return measures;
 }
 
+Result conv2D_online2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
+                     const seal::SEALContext& context, const HomConv2DSS& conv,
+                     const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>>& B1) {
+    Result measures;
+    Tensor<uint64_t> R1(HomConv2DSS::GetConv2DOutShape(meta));
+    R1.Randomize(1000);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Enc(A1), enc(B1), send(A1), recv(A2)
+    ////////////////////////////////////////////////////////////////////////////
+    auto start = measure::now();
+    std::vector<seal::Ciphertext> enc_A1;
+    measures.ret = conv.encryptImage(A1, meta, enc_A1, N_THREADS);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    std::vector<std::vector<seal::Plaintext>> enc_B1;
+    measures.ret = conv.encodeFilters(B1, meta, enc_B1, N_THREADS);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    start = measure::now();
+    IO::send_encrypted_vector(server, enc_A1);
+    std::vector<seal::Ciphertext> enc_A2;
+    IO::recv_encrypted_vector(server, context, enc_A2);
+
+    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    ////////////////////////////////////////////////////////////////////////////
+    // M1 = A2 ⊙ B1 - R1
+    ////////////////////////////////////////////////////////////////////////////
+    start = measure::now();
+
+    std::vector<seal::Ciphertext> M1;
+    measures.ret = conv.conv2DSS(enc_A2, enc_B1, meta, R1, M1, N_THREADS);
+    if (measures.ret != Code::OK)
+                        return measures;
+    
+    measures.step2 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Send(M1), Recv(M2), Dec(M2)
+    ////////////////////////////////////////////////////////////////////////////
+    start = measure::now();
+
+    IO::send_encrypted_vector(server, M1);
+    std::vector<seal::Ciphertext> enc_M2;
+    IO::recv_encrypted_vector(server, context, enc_M2);
+
+    measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    ////////////////////////////////////////////////////////////////////////////
+    // A ⊙ B + Dec(M2) - R1
+    ////////////////////////////////////////////////////////////////////////////
+    start = measure::now();
+    Tensor<uint64_t> M2;
+    measures.ret        = conv.decryptToTensor(enc_M2, meta, M2, N_THREADS);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    std::cerr << M2.channels() << " x " << M2.height() << " x " << M2.width() << "\n";
+
+    Tensor<uint64_t> AB;
+    conv.idealFunctionality(A1, B1, meta, AB);
+
+    Utils::op_inplace<uint64_t>(AB, M2, [](uint64_t a, uint64_t b) { return a + b; });
+    Utils::op_inplace<uint64_t>(AB, R1, [](uint64_t a, uint64_t b) { return a - b; });
+
+    measures.step3 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    measures.bytes = server.counter;
+    measures.ret   = Code::OK;
+    return measures;
+}
+
 Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
                      const seal::SEALContext& context, const HomConv2DSS& conv,
                      const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>>& B1) {
@@ -158,7 +233,7 @@ Result perform_proto(const HomConv2DSS::Meta& meta, IO::NetIO& server, const sea
     //         for (int k = 0; k < R.width(); ++k) R(i, j, k) = 1ULL << filter_prec;
 
     server.sync();
-    auto measures = conv2D_online(meta, server, context, hom_conv, A1, B1);
+    auto measures = conv2D_online2(meta, server, context, hom_conv, A1, B1);
     server.counter = 0;
     return measures;
 }
@@ -195,6 +270,6 @@ int main() {
 
     total_data /= 1'000.0;
 
-    std::cerr << "Party 1: total time [s]: " << total_time << "\n";
-    std::cerr << "Party 1: total data [GB]: " << total_data << "\n";
+    std::cout << "Party 1: total time [s]: " << total_time << "\n";
+    std::cout << "Party 1: total data [GB]: " << total_data << "\n";
 }

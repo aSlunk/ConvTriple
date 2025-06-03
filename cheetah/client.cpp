@@ -37,6 +37,77 @@ double print_results(const Result& res, const int& layer = 0, std::ostream& out 
     return total;
 }
 
+Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
+                const HomConv2DSS::Meta& meta,
+                const Tensor<uint64_t>& A2, const std::vector<Tensor<uint64_t>>& B2,
+                const Tensor<uint64_t>& R2) {
+    Result measures;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Receive enc(A1) and enc/send A2
+    ////////////////////////////////////////////////////////////////////////////
+    auto start = measure::now();
+
+    std::vector<seal::Ciphertext> enc_A1;
+    IO::recv_encrypted_vector(client, context, enc_A1);
+
+    std::vector<seal::Ciphertext> enc_A2;
+    measures.ret = hom_conv.encryptImage(A2, meta, enc_A2, N_THREADS);
+    if (measures.ret != Code::OK)
+        return measures;
+    IO::send_encrypted_vector(client, enc_A2);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Encode B2
+    ////////////////////////////////////////////////////////////////////////////
+    std::vector<std::vector<seal::Plaintext>> enc_B2;
+    measures.ret = hom_conv.encodeFilters(B2, meta, enc_B2, N_THREADS);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    measures.recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    ////////////////////////////////////////////////////////////////////////////
+    // A1 ⊙ B2 + R2
+    ////////////////////////////////////////////////////////////////////////////
+    start = measure::now();
+
+    std::vector<seal::Ciphertext> enc_M2;
+    measures.ret = hom_conv.conv2DSS(enc_A1, enc_B2, meta, R2, enc_M2, N_THREADS);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    measures.step2 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    ////////////////////////////////////////////////////////////////////////////
+    // Send result
+    ////////////////////////////////////////////////////////////////////////////
+    start = measure::now();
+
+    std::vector<seal::Ciphertext> enc_M1;
+    IO::recv_encrypted_vector(client, context, enc_M1);
+    IO::send_encrypted_vector(client, enc_M2);
+
+    measures.send = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    ////////////////////////////////////////////////////////////////////////////
+    // A2 ⊙ B2 + M1 - R2
+    ////////////////////////////////////////////////////////////////////////////
+    start = measure::now();
+
+    Tensor<uint64_t> M1;
+    hom_conv.decryptToTensor(enc_M1, meta, M1, N_THREADS);
+
+    Tensor<uint64_t> final;
+    hom_conv.idealFunctionality(A2, B2, meta, final);
+    Utils::op_inplace<uint64_t>(final, M1, [](uint64_t a, uint64_t b) -> uint64_t { return a + b; });
+    Utils::op_inplace<uint64_t>(final, R2, [](uint64_t a, uint64_t b) -> uint64_t { return a - b; });
+
+    measures.step3 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    measures.bytes = client.counter;
+    measures.ret   = Code::OK;
+    return measures;
+}
+
 Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                 const HomConv2DSS::Meta& meta,
                 const Tensor<uint64_t>& A2, const std::vector<Tensor<uint64_t>>& B2,
@@ -123,7 +194,7 @@ Result perform_proto(const HomConv2DSS::Meta& meta, IO::NetIO& client, const sea
             for (int k = 0; k < R.width(); ++k) R(i, j, k) = 1ULL << filter_prec;
 
     client.sync();
-    auto measures = Protocol(client, context, hom_conv, meta, A2, B2, R);
+    auto measures = Protocol2(client, context, hom_conv, meta, A2, B2, R);
     client.counter = 0;
     return measures;
 }
@@ -136,8 +207,14 @@ int main(int argc, char** argv) {
     }
 
     auto context = Utils::init_he_context();
+
+    seal::KeyGenerator keygen(context);
+    seal::SecretKey skey = keygen.secret_key();
+    auto pkey            = std::make_shared<seal::PublicKey>();
+    keygen.create_public_key(*pkey);
+
     HomConv2DSS hom_conv;
-    hom_conv.setUp(context);
+    hom_conv.setUp(context, skey, pkey);
 
     ////////////////////////////////////////////////////////////////////////////
     // Sample R
@@ -161,6 +238,6 @@ int main(int argc, char** argv) {
 
     total_data /= 1000.0;
 
-    std::cerr << "Party 2: total time [s]: " << total_time << "\n";
-    std::cerr << "Party 2: total data [GB]: " << total_data << "\n";
+    std::cout << "Party 2: total time [s]: " << total_time << "\n";
+    std::cout << "Party 2: total data [GB]: " << total_data << "\n";
 }
