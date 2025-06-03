@@ -113,7 +113,6 @@ Result conv2D_online2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     if (measures.ret != Code::OK)
         return measures;
 
-    start = measure::now();
     IO::send_encrypted_vector(server, enc_A1);
     std::vector<seal::Ciphertext> enc_A2;
     IO::recv_encrypted_vector(server, context, enc_A2);
