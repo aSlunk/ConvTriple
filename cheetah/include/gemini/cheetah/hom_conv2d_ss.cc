@@ -1218,4 +1218,30 @@ Code HomConv2DSS::conv2DSS(const std::vector<seal::Plaintext>& img_share0,
     return Code::OK;
 }
 
+Code HomConv2DSS::encryptImage(const Tensor<uint64_t>& img, const Meta& meta,
+                               std::vector<seal::Ciphertext>& encrypted_img,
+                               std::vector<seal::Plaintext>& polys, size_t nthreads) const {
+    ENSURE_OR_RETURN(context_ && encryptor_ && tencoder_, Code::ERR_CONFIG);
+    ENSURE_OR_RETURN(img.shape().IsSameSize(meta.ishape), Code::ERR_DIM_MISMATCH);
+
+    TensorEncoder::Role encode_role = TensorEncoder::Role::none;
+    CHECK_ERR(tencoder_->EncodeImageShare(encode_role, img, meta.fshape, meta.padding, meta.stride,
+                                          /*to_ntt*/ false, polys),
+              "encryptImage");
+
+    ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
+    seal::Ciphertext dummy;
+    encryptor_->encrypt_zero(dummy);
+    encrypted_img.resize(polys.size(), dummy);
+    auto encrypt_program = [&](long wid, size_t start, size_t end) {
+        for (size_t i = start; i < end; ++i) {
+            // encrypted_img[i] = encryptor_->encrypt_symmetric(polys[i]);
+            encryptor_->encrypt_symmetric(polys[i], encrypted_img[i]);
+        }
+        return Code::OK;
+    };
+
+    return LaunchWorks(tpool, polys.size(), encrypt_program);
+}
+
 } // namespace gemini

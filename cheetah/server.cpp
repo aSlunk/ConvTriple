@@ -107,12 +107,8 @@ Result conv2D_online2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     ////////////////////////////////////////////////////////////////////////////
     auto start = measure::now();
     std::vector<seal::Ciphertext> enc_A1;
-    measures.ret = conv.encryptImage(A1, meta, enc_A1, N_THREADS);
-    if (measures.ret != Code::OK)
-        return measures;
-
     std::vector<seal::Plaintext> encoded_A1;
-    measures.ret = conv.encodeImage(A1, meta, encoded_A1, N_THREADS);
+    measures.ret = conv.encryptImage(A1, meta, enc_A1, encoded_A1, N_THREADS);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -132,7 +128,7 @@ Result conv2D_online2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     measures.sending_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
-    // M1 = A2 ⊙ B1 - R1
+    // M1 = (A1 + A2') ⊙ B1 - R1
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
@@ -156,7 +152,7 @@ Result conv2D_online2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     measures.sending_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
-    // A ⊙ B + Dec(M2) - R1
+    // Dec(M2) + R1
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
@@ -168,10 +164,7 @@ Result conv2D_online2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     start = measure::now();
-    // Tensor<uint64_t> AB;
-    // conv.idealFunctionality(A1, B1, meta, AB);
 
-    // Utils::op_inplace<uint64_t>(AB, M2, [](uint64_t a, uint64_t b) { return a + b; });
     Utils::op_inplace<uint64_t>(M2, R1, [](uint64_t a, uint64_t b) { return a - b; });
 
     measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();

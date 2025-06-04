@@ -57,6 +57,11 @@ class HomConv2DSS {
     Code encryptImage(const Tensor<uint64_t>& in_tensor_share, const Meta& meta,
                       std::vector<seal::Ciphertext>& encrypted_share, size_t nthreads = 1) const;
 
+    Code encryptImage(const Tensor<uint64_t>& in_tensor_share, const Meta& meta,
+                      std::vector<seal::Ciphertext>& encrypted_share,
+                      std::vector<seal::Plaintext>& encoded_share,
+                      size_t nthreads = 1) const; // added
+
     Code encodeImage(const Tensor<uint64_t>& in_tensor_share, const Meta& meta,
                      std::vector<seal::Plaintext>& encoded_share, size_t nthreads = 1) const;
 

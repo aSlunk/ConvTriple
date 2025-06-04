@@ -51,18 +51,14 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
     ////////////////////////////////////////////////////////////////////////////
     auto start = measure::now();
 
+    std::vector<seal::Plaintext> encoded_A2;
     std::vector<seal::Ciphertext> enc_A2;
-    measures.ret = hom_conv.encryptImage(A2, meta, enc_A2, N_THREADS);
+    measures.ret = hom_conv.encryptImage(A2, meta, enc_A2, encoded_A2, N_THREADS);
     if (measures.ret != Code::OK)
         return measures;
 
     std::vector<std::vector<seal::Plaintext>> enc_B2;
     measures.ret = hom_conv.encodeFilters(B2, meta, enc_B2, N_THREADS);
-    if (measures.ret != Code::OK)
-        return measures;
-
-    std::vector<seal::Plaintext> encoded_A2;
-    measures.ret = hom_conv.encodeImage(A2, meta, encoded_A2, N_THREADS);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -76,7 +72,7 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     ////////////////////////////////////////////////////////////////////////////
-    // (A1 + A2) ⊙ B2 + R2
+    // (A1' + A2) ⊙ B2 - R2
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
@@ -107,11 +103,9 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
     hom_conv.decryptToTensor(enc_M1, meta, M1, N_THREADS);
 
     measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    start               = measure::now();
 
-    // hom_conv.idealFunctionality(A2, B2, meta, final);
-    // Utils::op_inplace<uint64_t>(final, M1,
-    //                             [](uint64_t a, uint64_t b) -> uint64_t { return a + b; });
+    start = measure::now();
+
     Utils::op_inplace<uint64_t>(M1, R2, [](uint64_t a, uint64_t b) -> uint64_t { return a + b; });
 
     measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
