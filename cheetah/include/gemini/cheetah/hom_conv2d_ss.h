@@ -83,9 +83,9 @@ class HomConv2DSS {
                   const std::vector<std::vector<seal::Ciphertext>>& filters, const Meta& meta,
                   std::vector<seal::Ciphertext>& out_share0, size_t nthreads = 1) const; // ADDED
 
-    Code add_inplace(std::vector<seal::Ciphertext>& ciphers,
-                     const std::vector<seal::Plaintext>& plain,
-                     const size_t& nthreads = 1ULL) const; // ADDED
+    Code add_plain_inplace(std::vector<seal::Ciphertext>& ciphers,
+                           const std::vector<seal::Plaintext>& plain,
+                           const size_t& nthreads = 1ULL) const; // ADDED
 
     Code add_inplace(std::vector<seal::Ciphertext>& A, const std::vector<seal::Ciphertext>& B,
                      const size_t& nthreads = 1ULL) const; // ADDED

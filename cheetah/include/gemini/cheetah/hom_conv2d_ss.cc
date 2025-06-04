@@ -1037,9 +1037,9 @@ Code HomConv2DSS::idealFunctionality(const Tensor<uint64_t>& in_tensor,
 // Added functions
 ////////////////////////////////////////////////////////////////////////////////
 
-Code HomConv2DSS::add_inplace(std::vector<seal::Ciphertext>& ciphers,
-                              const std::vector<seal::Plaintext>& plain,
-                              const size_t& nthreads) const {
+Code HomConv2DSS::add_plain_inplace(std::vector<seal::Ciphertext>& ciphers,
+                                    const std::vector<seal::Plaintext>& plain,
+                                    const size_t& nthreads) const {
     ENSURE_OR_RETURN(plain.size() == ciphers.size(), Code::ERR_DIM_MISMATCH);
 
     // for (size_t i = 0; i < ciphers.size(); ++i) evaluator_->add_plain_inplace(ciphers[i],

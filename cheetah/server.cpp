@@ -19,31 +19,33 @@ namespace {
 
 struct Result {
     size_t encryption;
-    size_t step2;
-    size_t step3;
+    size_t cipher_op;
+    size_t plain_op;
     size_t decryption;
+    size_t sending_recv;
     size_t bytes;
     Code ret;
 };
 
 double print_results(const Result& res, const int& layer = 0) {
     if (!layer)
-        std::cout
-            << "Encryption [ms],Step 2 [s],Decryption [ms],Step 3 [ms],Total [s],Bytes Send [MB]\n";
+        std::cout << "Encryption [ms],Cipher Calculations [s],Decryption [ms],Plain Calculations "
+                     "[ms],Sending and Receiving[s],Total [s],Bytes Send [MB]\n";
 
-    double total = res.encryption / 1'000.0 + res.step2 / 1'000.0 + res.decryption / 1'000.0
-                   + res.step3 / 1'000.0;
+    double total = res.encryption / 1'000.0 + res.cipher_op / 1'000.0 + res.decryption / 1'000.0
+                   + res.plain_op / 1'000.0 + res.sending_recv / 1'000.0;
     total /= 1000.0;
-    std::cout << res.encryption / 1'000.0 << ", " << res.step2 / 1'000'000. << ", "
-              << res.decryption / 1'000. << ", " << res.step3 / 1'000.0 << ", " << total << ", "
-              << res.bytes / 1'000'000.0 << "\n";
+    std::cout << res.encryption / 1'000.0 << ", " << res.cipher_op / 1'000'000. << ", "
+              << res.decryption / 1'000. << ", " << res.plain_op / 1'000.0 << ", "
+              << res.sending_recv / 1'000'000.0 << ", " << total << ", " << res.bytes / 1'000'000.0
+              << "\n";
 
     return total;
 }
 
 Result conv2d
-    [[maybe_unused]] (const IO::NetIO& io, const HomConv2DSS& conv, const HomConv2DSS::Meta& META, const Tensor<uint64_t>& image,
-                      const std::vector<Tensor<uint64_t>>& filters) {
+    [[maybe_unused]] (const IO::NetIO& io, const HomConv2DSS& conv, const HomConv2DSS::Meta& META,
+                      const Tensor<uint64_t>& image, const std::vector<Tensor<uint64_t>>& filters) {
     Result measures;
 
     auto start = measure::now();
@@ -72,7 +74,7 @@ Result conv2d
     Tensor<uint64_t> out;
     measures.ret
         = conv.conv2DSS(ctxts, std::vector<seal::Plaintext>(), p_filter, META, result, out);
-    measures.step2 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
     if (measures.ret != Code::OK)
         return measures;
 
@@ -93,9 +95,10 @@ Result conv2d
 }
 
 Result conv2D_online2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
-                     const seal::SEALContext& context, const HomConv2DSS& conv,
-                     const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>>& B1) {
+                      const seal::SEALContext& context, const HomConv2DSS& conv,
+                      const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>>& B1) {
     Result measures;
+    measures.sending_recv = 0;
     Tensor<uint64_t> R1(HomConv2DSS::GetConv2DOutShape(meta));
     R1.Randomize(1000);
 
@@ -108,28 +111,38 @@ Result conv2D_online2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     if (measures.ret != Code::OK)
         return measures;
 
+    std::vector<seal::Plaintext> encoded_A1;
+    measures.ret = conv.encodeImage(A1, meta, encoded_A1, N_THREADS);
+    if (measures.ret != Code::OK)
+        return measures;
+
     std::vector<std::vector<seal::Plaintext>> enc_B1;
     measures.ret = conv.encodeFilters(B1, meta, enc_B1, N_THREADS);
     if (measures.ret != Code::OK)
         return measures;
 
+    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    start = measure::now();
+
     IO::send_encrypted_vector(server, enc_A1);
     std::vector<seal::Ciphertext> enc_A2;
     IO::recv_encrypted_vector(server, context, enc_A2);
 
-    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.sending_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
     // M1 = A2 ⊙ B1 - R1
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
+    conv.add_plain_inplace(enc_A2, encoded_A1);
     std::vector<seal::Ciphertext> M1;
     measures.ret = conv.conv2DSS(enc_A2, enc_B1, meta, R1, M1, N_THREADS);
     if (measures.ret != Code::OK)
-                        return measures;
-    
-    measures.step2 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+        return measures;
+
+    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
     // Send(M1), Recv(M2), Dec(M2)
@@ -140,26 +153,30 @@ Result conv2D_online2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     std::vector<seal::Ciphertext> enc_M2;
     IO::recv_encrypted_vector(server, context, enc_M2);
 
-    measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.sending_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
     // A ⊙ B + Dec(M2) - R1
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
+
     Tensor<uint64_t> M2;
-    measures.ret        = conv.decryptToTensor(enc_M2, meta, M2, N_THREADS);
+    measures.ret = conv.decryptToTensor(enc_M2, meta, M2, N_THREADS);
     if (measures.ret != Code::OK)
         return measures;
 
+    measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    start = measure::now();
+    // Tensor<uint64_t> AB;
+    // conv.idealFunctionality(A1, B1, meta, AB);
+
+    // Utils::op_inplace<uint64_t>(AB, M2, [](uint64_t a, uint64_t b) { return a + b; });
+    Utils::op_inplace<uint64_t>(M2, R1, [](uint64_t a, uint64_t b) { return a - b; });
+
+    measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
     std::cerr << M2.channels() << " x " << M2.height() << " x " << M2.width() << "\n";
-
-    Tensor<uint64_t> AB;
-    conv.idealFunctionality(A1, B1, meta, AB);
-
-    Utils::op_inplace<uint64_t>(AB, M2, [](uint64_t a, uint64_t b) { return a + b; });
-    Utils::op_inplace<uint64_t>(AB, R1, [](uint64_t a, uint64_t b) { return a - b; });
-
-    measures.step3 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     measures.bytes = server.counter;
     measures.ret   = Code::OK;
@@ -192,7 +209,7 @@ Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     ////////////////////////////////////////////////////////////////////////////
     std::vector<seal::Ciphertext> result;
     IO::recv_encrypted_vector(server, context, result);
-    measures.step2 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
     // Dec(M)
@@ -204,7 +221,8 @@ Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     if (measures.ret != Code::OK)
         return measures;
 
-    std::cerr << out_tensor.channels() << " x " << out_tensor.height() << " x " << out_tensor.width() << "\n";
+    std::cerr << out_tensor.channels() << " x " << out_tensor.height() << " x "
+              << out_tensor.width() << "\n";
 
     ////////////////////////////////////////////////////////////////////////////
     // A ⊙ B + Dec(M)
@@ -214,14 +232,15 @@ Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     conv.idealFunctionality(A1, B1, meta, AB);
 
     Utils::op_inplace<uint64_t>(AB, out_tensor, [](uint64_t a, uint64_t b) { return a + b; });
-    measures.step3 = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     measures.bytes = server.counter;
     measures.ret   = Code::OK;
     return measures;
 }
 
-Result perform_proto(const HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context, const HomConv2DSS& hom_conv) {
+Result perform_proto(const HomConv2DSS::Meta& meta, IO::NetIO& server,
+                     const seal::SEALContext& context, const HomConv2DSS& hom_conv) {
     auto A1 = Utils::init_image(meta, 5);
     auto B1 = Utils::init_filter(meta, 2.0);
 
@@ -232,7 +251,7 @@ Result perform_proto(const HomConv2DSS::Meta& meta, IO::NetIO& server, const sea
     //         for (int k = 0; k < R.width(); ++k) R(i, j, k) = 1ULL << filter_prec;
 
     server.sync();
-    auto measures = conv2D_online2(meta, server, context, hom_conv, A1, B1);
+    auto measures  = conv2D_online2(meta, server, context, hom_conv, A1, B1);
     server.counter = 0;
     return measures;
 }
