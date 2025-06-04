@@ -40,9 +40,61 @@ double print_results(const Result& res, const int& layer = 0, std::ostream& out 
     return total;
 }
 
-Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
-                 const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
+Result Protocol3(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
+                 HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                  const std::vector<Tensor<uint64_t>>& B2, const Tensor<uint64_t>& R2) {
+    meta.is_shared_input = true;
+    Result measures;
+    measures.send_recv = 0;
+    measures.decryption= 0;
+    measures.plain_op = 0;
+
+    auto start = measure::now();
+
+    std::vector<seal::Plaintext> enc_A2;
+    measures.ret = hom_conv.encodeImage(A2, meta, enc_A2, N_THREADS);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    std::vector<std::vector<seal::Plaintext>> enc_B2;
+    measures.ret = hom_conv.encodeFilters(B2, meta, enc_B2, N_THREADS);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    start = measure::now();
+
+    std::vector<seal::Ciphertext> enc_A1;
+    IO::recv_encrypted_vector(client, context, enc_A1);
+
+    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    start = measure::now();
+
+    // hom_conv.add_plain_inplace(enc_A1, enc_A2, N_THREADS);
+    std::vector<seal::Ciphertext> M2;
+    Tensor<uint64_t> R;
+    measures.ret = hom_conv.conv2DSS(enc_A1, enc_A2, enc_B2, meta, M2, R, N_THREADS);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    start = measure::now();
+
+    IO::send_encrypted_vector(client, M2);
+
+    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    measures.bytes = client.counter;
+    return measures;
+}
+
+Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
+                 HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
+                 const std::vector<Tensor<uint64_t>>& B2) {
+    meta.is_shared_input = true;
     Result measures;
     measures.send_recv = 0;
 
@@ -76,9 +128,10 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    hom_conv.add_plain_inplace(enc_A1, encoded_A2);
+    // hom_conv.add_plain_inplace(enc_A1, encoded_A2);
     std::vector<seal::Ciphertext> enc_M2;
-    measures.ret = hom_conv.conv2DSS(enc_A1, enc_B2, meta, R2, enc_M2, N_THREADS);
+    Tensor<uint64_t> R2;
+    measures.ret = hom_conv.conv2DSS(enc_A1, encoded_A2, enc_B2, meta, enc_M2, R2, N_THREADS);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -192,7 +245,7 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
     return measures;
 }
 
-Result perform_proto(const HomConv2DSS::Meta& meta, IO::NetIO& client,
+Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client,
                      const seal::SEALContext& context, const HomConv2DSS& hom_conv) {
     auto A2 = Utils::init_image(meta, 5);
     auto B2 = Utils::init_filter(meta, 2.0);
@@ -204,7 +257,7 @@ Result perform_proto(const HomConv2DSS::Meta& meta, IO::NetIO& client,
             for (int k = 0; k < R.width(); ++k) R(i, j, k) = 1ULL << filter_prec;
 
     client.sync();
-    auto measures  = Protocol2(client, context, hom_conv, meta, A2, B2, R);
+    auto measures  = Protocol3(client, context, hom_conv, meta, A2, B2, R);
     client.counter = 0;
     return measures;
 }
