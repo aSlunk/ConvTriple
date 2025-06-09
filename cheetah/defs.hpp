@@ -13,6 +13,7 @@
 #include <seal/seal.h>
 
 #define EXEC_FAILED -1
+#define PROTO 2
 
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;
@@ -29,6 +30,16 @@ constexpr uint64_t MOD         = PLAIN_MOD;
 constexpr uint64_t moduloMask  = MOD - 1;
 constexpr uint64_t moduloMidPt = MOD / 2;
 
+struct Result {
+    double encryption;
+    double cipher_op;
+    double plain_op;
+    double decryption;
+    double send_recv;
+    double bytes;
+    Code ret;
+};
+
 namespace Utils {
 
 seal::SEALContext init_he_context();
@@ -36,18 +47,7 @@ void print_info();
 
 gemini::HomConv2DSS::Meta init_meta(const long& ic, const long& ih, const long& iw, const long& fc,
                                     const long& fh, const long& fw, const size_t& n_filter,
-                                    const size_t& stride, const size_t& padding) {
-    gemini::HomConv2DSS::Meta meta;
-
-    meta.ishape          = {ic, ih, iw};
-    meta.fshape          = {fc, fh, fw};
-    meta.is_shared_input = false;
-    meta.n_filters       = n_filter;
-    meta.padding         = padding == 0 ? gemini::Padding::VALID : gemini::Padding::SAME;
-    meta.stride          = stride;
-
-    return meta;
-}
+                                    const size_t& stride, const size_t& padding);
 
 template <class T>
 gemini::Tensor<uint64_t> convert_fix_point(const gemini::Tensor<T>& in);
@@ -63,6 +63,21 @@ std::vector<gemini::Tensor<uint64_t>> init_filter(const gemini::HomConv2DSS::Met
 
 template <class T>
 void op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B, std::function<T(T, T)> op);
+
+gemini::HomConv2DSS::Meta init_meta(const long& ic, const long& ih, const long& iw, const long& fc,
+                                    const long& fh, const long& fw, const size_t& n_filter,
+                                    const size_t& stride, const size_t& padding) {
+    gemini::HomConv2DSS::Meta meta;
+
+    meta.ishape          = {ic, ih, iw};
+    meta.fshape          = {fc, fh, fw};
+    meta.is_shared_input = false;
+    meta.n_filters       = n_filter;
+    meta.padding         = padding == 0 ? gemini::Padding::VALID : gemini::Padding::SAME;
+    meta.stride          = stride;
+
+    return meta;
+}
 
 seal::SEALContext init_he_context() {
     seal::EncryptionParameters params(seal::scheme_type::bfv);
@@ -244,5 +259,54 @@ std::vector<gemini::HomConv2DSS::Meta> init_layers() {
 }
 
 } // namespace Utils
+
+double print_results(const Result& res, const int& layer, const size_t& batchSize, const size_t& threads,
+                     std::ostream& out = std::cout) {
+    if (!layer)
+        out << "Encryption [ms],Cipher Calculations [s],Decryption [ms],Plain Calculations [ms], "
+               "Sending and Receiving [s],Total [s],Bytes Send [MB],batchSize,threads\n";
+
+    double total = res.encryption / 1'000.0 + res.cipher_op / 1'000.0 + res.send_recv / 1'000.0
+                   + res.decryption / 1'000.0 + res.plain_op / 1'000.0;
+    total /= 1'000.0;
+
+    out << res.encryption / 1'000.0 << ", " << res.cipher_op / 1'000'000.0 << ", "
+        << res.decryption / 1'000. << ", " << res.plain_op / 1'000.0 << ", "
+        << res.send_recv / 1'000'000.0 << ", " << total << ", " << res.bytes / 1'000'000.0 << ", "
+        << batchSize << ", " << threads << "\n";
+
+    return total;
+}
+
+Result average(const std::vector<Result>& res) {
+    Result avg = {.encryption = 0,
+                  .cipher_op  = 0,
+                  .plain_op   = 0,
+                  .decryption = 0,
+                  .send_recv  = 0,
+                  .bytes      = 0,
+                  .ret        = Code::OK};
+
+    if (!res.size())
+        return avg;
+
+    for (auto& cur : res) {
+        avg.send_recv += cur.send_recv;
+        avg.encryption += cur.encryption;
+        avg.decryption += cur.decryption;
+        avg.cipher_op += cur.cipher_op;
+        avg.plain_op += cur.plain_op;
+        avg.bytes += cur.bytes;
+    }
+
+    avg.send_recv /= res.size();
+    avg.encryption /= res.size();
+    avg.decryption /= res.size();
+    avg.cipher_op /= res.size();
+    avg.plain_op /= res.size();
+    avg.bytes /= res.size();
+
+    return avg;
+}
 
 #endif // DEFS_HPP

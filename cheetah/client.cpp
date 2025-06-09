@@ -14,50 +14,24 @@ namespace {
 
 // constexpr char ADDRESS[11] = "127.0.0.1\0";
 
-struct Result {
-    size_t encryption;
-    size_t cipher_op;
-    size_t decryption;
-    size_t plain_op;
-    size_t send_recv;
-    size_t bytes;
-    Code ret;
-};
-
-double print_results(const Result& res, const int& layer = 0, std::ostream& out = std::cout) {
-    if (!layer)
-        out << "Encryption [ms],Cipher Calculations [s],Decryption [ms],Plain Calculations [ms], "
-               "Sending and Receiving [s],Total [s],Bytes Send [MB]\n";
-
-    double total = res.encryption / 1'000.0 + res.cipher_op / 1'000.0 + res.send_recv / 1'000.0
-                   + res.decryption / 1'000.0 + res.plain_op / 1'000.0;
-    total /= 1'000.0;
-
-    out << res.encryption / 1'000.0 << ", " << res.cipher_op / 1'000'000.0 << ", "
-        << res.decryption / 1'000. << ", " << res.plain_op / 1'000.0 << ", "
-        << res.send_recv / 1'000'000.0 << ", " << total << ", " << res.bytes / 1'000'000.0 << "\n";
-
-    return total;
-}
-
 Result Protocol3(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                  HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
-                 const std::vector<Tensor<uint64_t>>& B2, const Tensor<uint64_t>& R2) {
+                 const std::vector<Tensor<uint64_t>>& B2, const size_t& threads) {
     meta.is_shared_input = true;
     Result measures;
-    measures.send_recv = 0;
-    measures.decryption= 0;
-    measures.plain_op = 0;
+    measures.send_recv  = 0;
+    measures.decryption = 0;
+    measures.plain_op   = 0;
 
     auto start = measure::now();
 
     std::vector<seal::Plaintext> enc_A2;
-    measures.ret = hom_conv.encodeImage(A2, meta, enc_A2, N_THREADS);
+    measures.ret = hom_conv.encodeImage(A2, meta, enc_A2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
     std::vector<std::vector<seal::Plaintext>> enc_B2;
-    measures.ret = hom_conv.encodeFilters(B2, meta, enc_B2, N_THREADS);
+    measures.ret = hom_conv.encodeFilters(B2, meta, enc_B2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -75,7 +49,7 @@ Result Protocol3(IO::NetIO& client, const seal::SEALContext& context, const HomC
     // hom_conv.add_plain_inplace(enc_A1, enc_A2, N_THREADS);
     std::vector<seal::Ciphertext> M2;
     Tensor<uint64_t> R;
-    measures.ret = hom_conv.conv2DSS(enc_A1, enc_A2, enc_B2, meta, M2, R, N_THREADS);
+    measures.ret = hom_conv.conv2DSS(enc_A1, enc_A2, enc_B2, meta, M2, R, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -93,7 +67,7 @@ Result Protocol3(IO::NetIO& client, const seal::SEALContext& context, const HomC
 
 Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                  HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
-                 const std::vector<Tensor<uint64_t>>& B2) {
+                 const std::vector<Tensor<uint64_t>>& B2, const size_t& threads) {
     meta.is_shared_input = true;
     Result measures;
     measures.send_recv = 0;
@@ -105,12 +79,12 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
 
     std::vector<seal::Plaintext> encoded_A2;
     std::vector<seal::Ciphertext> enc_A2;
-    measures.ret = hom_conv.encryptImage(A2, meta, enc_A2, encoded_A2, N_THREADS);
+    measures.ret = hom_conv.encryptImage(A2, meta, enc_A2, encoded_A2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
     std::vector<std::vector<seal::Plaintext>> enc_B2;
-    measures.ret = hom_conv.encodeFilters(B2, meta, enc_B2, N_THREADS);
+    measures.ret = hom_conv.encodeFilters(B2, meta, enc_B2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -131,7 +105,7 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
     // hom_conv.add_plain_inplace(enc_A1, encoded_A2);
     std::vector<seal::Ciphertext> enc_M2;
     Tensor<uint64_t> R2;
-    measures.ret = hom_conv.conv2DSS(enc_A1, encoded_A2, enc_B2, meta, enc_M2, R2, N_THREADS);
+    measures.ret = hom_conv.conv2DSS(enc_A1, encoded_A2, enc_B2, meta, enc_M2, R2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -153,7 +127,7 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
     start = measure::now();
 
     Tensor<uint64_t> M1;
-    hom_conv.decryptToTensor(enc_M1, meta, M1, N_THREADS);
+    hom_conv.decryptToTensor(enc_M1, meta, M1, threads);
 
     measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
@@ -170,7 +144,8 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
 
 Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                 const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
-                const std::vector<Tensor<uint64_t>>& B2, const Tensor<uint64_t>& R) {
+                const std::vector<Tensor<uint64_t>>& B2, const Tensor<uint64_t>& R,
+                const size_t& threads) {
     Result measures;
 
     ////////////////////////////////////////////////////////////////////////////
@@ -191,12 +166,12 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
     // Encode A2, B2
     ////////////////////////////////////////////////////////////////////////////
     std::vector<std::vector<seal::Plaintext>> enc_B2;
-    measures.ret = hom_conv.encodeFilters(B2, meta, enc_B2, N_THREADS);
+    measures.ret = hom_conv.encodeFilters(B2, meta, enc_B2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
     std::vector<seal::Plaintext> enc_A2;
-    measures.ret = hom_conv.encodeImage(A2, meta, enc_A2, N_THREADS);
+    measures.ret = hom_conv.encodeImage(A2, meta, enc_A2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -207,16 +182,16 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
     std::vector<seal::Ciphertext> result;
     Tensor<uint64_t> out;
 
-    measures.ret = hom_conv.conv2DSS(enc_A1, enc_B2, meta, R, result, N_THREADS);
+    measures.ret = hom_conv.conv2DSS(enc_A1, enc_B2, meta, R, result, threads);
     if (measures.ret != Code::OK)
         return measures;
 
     std::vector<seal::Ciphertext> result2;
-    measures.ret = hom_conv.conv2DSS(enc_A2, enc_B1, meta, result2, N_THREADS);
+    measures.ret = hom_conv.conv2DSS(enc_A2, enc_B1, meta, result2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
-    hom_conv.add_inplace(result, result2, N_THREADS);
+    hom_conv.add_inplace(result, result2, threads);
 
     measures.cipher_op
         = std::chrono::duration_cast<Unit>(measure::now() - start).count(); // MEASURE_END
@@ -245,8 +220,8 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
     return measures;
 }
 
-Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client,
-                     const seal::SEALContext& context, const HomConv2DSS& hom_conv) {
+Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client, const seal::SEALContext& context,
+                     const HomConv2DSS& hom_conv, const size_t& threads) {
     auto A2 = Utils::init_image(meta, 5);
     auto B2 = Utils::init_filter(meta, 2.0);
 
@@ -257,7 +232,11 @@ Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client,
             for (int k = 0; k < R.width(); ++k) R(i, j, k) = 1ULL << filter_prec;
 
     client.sync();
-    auto measures  = Protocol3(client, context, hom_conv, meta, A2, B2, R);
+#if PROTO == 3
+    auto measures = Protocol3(client, context, hom_conv, meta, A2, B2, threads);
+#elif PROTO == 2
+    auto measures = Protocol2(client, context, hom_conv, meta, A2, B2, threads);
+#endif
     client.counter = 0;
     return measures;
 }
@@ -265,7 +244,8 @@ Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client,
 } // anonymous namespace
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
+    if (argc != 4 && argc != 5) {
+        std::cout << argv[0] << " <host> <samples> <batchSize> (<threads>)\n";
         return EXEC_FAILED;
     }
 
@@ -284,23 +264,56 @@ int main(int argc, char** argv) {
     ////////////////////////////////////////////////////////////////////////////
     IO::NetIO client(argv[1], PORT, true);
 
-    double total_time = 0;
-    double total_data = 0;
+    double totalTime = 0;
+    double totalData = 0;
+
+    int threads;
+    if (argc == 3)
+        threads = N_THREADS;
+    else
+        threads = strtol(argv[4], NULL, 10);
+
+    int samples   = strtol(argv[2], NULL, 10);
+    int batchSize = strtol(argv[3], NULL, 10);
+
+    std::vector<Result> results(samples);
+    std::cerr << "Samples: " << samples << "\n";
+    std::cerr << "BatchSize: " << batchSize << "\n";
+    std::cerr << "threads: " << threads << "\n";
 
     auto layers = Utils::init_layers();
-    for (size_t i = 0; i < layers.size(); ++i) {
-        auto measures = perform_proto(layers[i], client, context, hom_conv);
-        if (measures.ret != Code::OK) {
-            std::cerr << CodeMessage(measures.ret) << "\n";
-            return EXEC_FAILED;
+    for (size_t i = 0; i < 1; ++i) {
+        for (int round = 0; round < samples; ++round) {
+            Result res = {.encryption = 0,
+                          .cipher_op  = 0,
+                          .plain_op   = 0,
+                          .decryption = 0,
+                          .send_recv  = 0,
+                          .bytes      = 0,
+                          .ret        = Code::OK};
+            for (int batch = 0; batch < batchSize; ++batch) {
+                auto cur = perform_proto(layers[i], client, context, hom_conv, threads);
+                if (cur.ret != Code::OK) {
+                    std::cerr << CodeMessage(cur.ret) << "\n";
+                    return EXEC_FAILED;
+                }
+
+                res.encryption += cur.encryption;
+                res.cipher_op += cur.cipher_op;
+                res.plain_op += cur.plain_op;
+                res.decryption += cur.decryption;
+                res.bytes += cur.bytes;
+            }
+            results[round] = res;
         }
 
-        total_time += print_results(measures, i);
-        total_data += measures.bytes / 1'000'000.0;
+        auto measures = average(results);
+        totalTime += print_results(measures, i, batchSize, threads);
+        totalData += measures.bytes / 1'000'000.0;
     }
 
-    total_data /= 1000.0;
+    totalData /= 1000.0;
 
-    std::cout << "Party 2: total time [s]: " << total_time << "\n";
-    std::cout << "Party 2: total data [GB]: " << total_data << "\n";
+    std::cout << "Party 2: total time [s]: " << totalTime << "\n";
+    std::cout << "Party 2: total data [GB]: " << totalData << "\n";
 }
