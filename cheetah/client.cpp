@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
     std::cerr << "threads: " << threads << "\n";
 
     auto layers = Utils::init_layers();
-    for (size_t i = 0; i < 1; ++i) {
+    for (size_t i = 0; i < layers.size(); ++i) {
         for (int round = 0; round < samples; ++round) {
             Result res = {.encryption = 0,
                           .cipher_op  = 0,
