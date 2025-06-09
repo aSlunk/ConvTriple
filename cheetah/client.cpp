@@ -314,6 +314,6 @@ int main(int argc, char** argv) {
 
     totalData /= 1000.0;
 
-    std::cout << "Party 2: total time [s]: " << totalTime << "\n";
-    std::cout << "Party 2: total data [GB]: " << totalData << "\n";
+    // std::cout << "Party 2: total time [s]: " << totalTime << "\n";
+    // std::cout << "Party 2: total data [GB]: " << totalData << "\n";
 }
