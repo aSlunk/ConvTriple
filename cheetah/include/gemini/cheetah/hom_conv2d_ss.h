@@ -29,7 +29,7 @@ class HomConv2DSS {
 #ifdef HOM_CONV2D_SS_MAX_THREADS
     static constexpr size_t kMaxThreads = HOM_CONV2D_SS_MAX_THREADS;
 #else
-    static constexpr size_t kMaxThreads = 16ULL;
+    static constexpr size_t kMaxThreads = 32ULL;
 #endif
 
     struct Meta {
