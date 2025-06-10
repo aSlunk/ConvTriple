@@ -225,12 +225,6 @@ Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client, const seal::SEA
     auto A2 = Utils::init_image(meta, 5);
     auto B2 = Utils::init_filter(meta, 2.0);
 
-    Tensor<uint64_t> R(HomConv2DSS::GetConv2DOutShape(meta));
-    // R.Randomize(5 << filter_prec);
-    for (int i = 0; i < R.channels(); ++i)
-        for (int j = 0; j < R.height(); ++j)
-            for (int k = 0; k < R.width(); ++k) R(i, j, k) = 1ULL << filter_prec;
-
     client.sync();
 #if PROTO == 3
     auto measures = Protocol3(client, context, hom_conv, meta, A2, B2, threads);
