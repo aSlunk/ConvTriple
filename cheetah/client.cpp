@@ -296,6 +296,7 @@ int main(int argc, char** argv) {
                 res.cipher_op += cur.cipher_op;
                 res.plain_op += cur.plain_op;
                 res.decryption += cur.decryption;
+                res.send_recv += cur.send_recv;
                 res.bytes += cur.bytes;
             }
             results[round] = res;
