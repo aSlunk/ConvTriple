@@ -304,7 +304,7 @@ int main(int argc, char** argv) {
     std::vector<Result> results(samples);
 
     auto layers = Utils::init_layers();
-    for (size_t i = 0; i < 1; ++i) {
+    for (size_t i = 0; i < layers.size(); ++i) {
         std::cerr << "Current layer: " << i << std::endl;
 
         for (int round = 0; round < samples; ++round) {
@@ -338,6 +338,6 @@ int main(int argc, char** argv) {
 
     total_data /= 1'000.0;
 
-    // std::cout << "Party 1: total time [s]: " << total_time << "\n";
-    // std::cout << "Party 1: total data [GB]: " << total_data << "\n";
+    std::cout << "Party 1: total time [s]: " << total_time << "\n";
+    std::cout << "Party 1: total data [GB]: " << total_data << "\n";
 }
