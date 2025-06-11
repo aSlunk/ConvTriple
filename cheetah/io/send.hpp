@@ -48,6 +48,7 @@ void send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec) {
     for (size_t i = 0; i < ncts; ++i) {
         send_ciphertext(io, ct_vec.at(i));
     }
+    io.flush();
 }
 
 template <class EncVecCtType>
@@ -57,6 +58,7 @@ void send_encrypted_filters(IO::NetIO& io, const EncVecCtType& ct_vec) {
     for (size_t i = 0; i < ncts; ++i) {
         send_encrypted_vector(io, ct_vec[i]);
     }
+    io.flush();
 }
 
 void recv_encrypted_filters(IO::NetIO& io, const seal::SEALContext& context,

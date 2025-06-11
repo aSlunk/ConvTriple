@@ -104,7 +104,7 @@ class NetIO : public IOChannel<NetIO> {
                 usleep(1000);
             }
         }
-        set_nodelay();
+        set_delay();
         stream = fdopen(consocket, "wb+");
         buffer = new char[NETWORK_BUFFER_SIZE];
         memset(buffer, 0, NETWORK_BUFFER_SIZE);
@@ -118,6 +118,7 @@ class NetIO : public IOChannel<NetIO> {
         int tmp = 0;
         if (is_server) {
             send_data_internal(&tmp, 1);
+            flush();
             recv_data_internal(&tmp, 1);
         } else {
             recv_data_internal(&tmp, 1);
