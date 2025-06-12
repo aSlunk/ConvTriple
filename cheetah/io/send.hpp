@@ -46,16 +46,16 @@ void send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec) {
     uint32_t ncts = ct_vec.size();
     io.send_data(&ncts, sizeof(uint32_t));
 
-    std::stringstream os;
-    uint64_t ct_size;
+    // std::stringstream os;
+    // uint64_t ct_size;
     for (size_t i = 0; i < ncts; ++i) {
-        ct_vec.at(i).save(os);
-        // send_ciphertext(io, ct_vec.at(i));
+        // ct_vec.at(i).save(os);
+        send_ciphertext(io, ct_vec.at(i));
     }
-    ct_size       = os.tellp();
-    string ct_ser = os.str();
-    io.send_data(&ct_size, sizeof(uint64_t));
-    io.send_data(ct_ser.c_str(), ct_ser.size());
+    // ct_size       = os.tellp();
+    // string ct_ser = os.str();
+    // io.send_data(&ct_size, sizeof(uint64_t));
+    // io.send_data(ct_ser.c_str(), ct_ser.size());
 }
 
 template <class EncVecCtType>
@@ -85,17 +85,17 @@ void recv_encrypted_vector(IO::NetIO& io, const seal::SEALContext& context,
     io.recv_data(&ncts, sizeof(uint32_t));
     if (ncts > 0) {
         ct_vec.resize(ncts);
-        std::stringstream is;
-        uint64_t ct_size;
-        io.recv_data(&ct_size, sizeof(uint64_t));
-        char* c_enc_result = new char[ct_size];
-        io.recv_data(c_enc_result, ct_size);
-        is.write(c_enc_result, ct_size);
+        // std::stringstream is;
+        // uint64_t ct_size;
+        // io.recv_data(&ct_size, sizeof(uint64_t));
+        // char* c_enc_result = new char[ct_size];
+        // io.recv_data(c_enc_result, ct_size);
+        // is.write(c_enc_result, ct_size);
         for (size_t i = 0; i < ncts; ++i) {
-            // recv_ciphertext(io, context, ct_vec[i], is_truncated);
-            ct_vec[i].load(context, is);
+            recv_ciphertext(io, context, ct_vec[i], is_truncated);
+            // ct_vec[i].load(context, is);
         }
-        delete[] c_enc_result;
+        // delete[] c_enc_result;
     }
 }
 
