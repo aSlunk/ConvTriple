@@ -131,6 +131,7 @@ Result conv2D_online2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SE
 
     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
+    server.sync();
     start = measure::now();
 
     IO::send_encrypted_vector(server, enc_A1);
@@ -142,6 +143,7 @@ Result conv2D_online2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SE
     ////////////////////////////////////////////////////////////////////////////
     // M1 = (A1 + A2') ⊙ B1 - R1
     ////////////////////////////////////////////////////////////////////////////
+    server.sync();
     start = measure::now();
 
     // conv.add_plain_inplace(enc_A2, encoded_A1);
@@ -156,6 +158,7 @@ Result conv2D_online2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SE
     ////////////////////////////////////////////////////////////////////////////
     // Send(M1), Recv(M2), Dec(M2)
     ////////////////////////////////////////////////////////////////////////////
+    server.sync();
     start = measure::now();
 
     IO::send_encrypted_vector(server, M1);

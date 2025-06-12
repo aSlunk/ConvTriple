@@ -56,7 +56,6 @@ void send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec) {
     string ct_ser = os.str();
     io.send_data(&ct_size, sizeof(uint64_t));
     io.send_data(ct_ser.c_str(), ct_ser.size());
-    io.flush();
 }
 
 template <class EncVecCtType>
@@ -66,7 +65,6 @@ void send_encrypted_filters(IO::NetIO& io, const EncVecCtType& ct_vec) {
     for (size_t i = 0; i < ncts; ++i) {
         send_encrypted_vector(io, ct_vec[i]);
     }
-    io.flush();
 }
 
 void recv_encrypted_filters(IO::NetIO& io, const seal::SEALContext& context,
