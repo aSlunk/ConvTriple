@@ -78,7 +78,7 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
     auto start = measure::now();
 
     std::vector<seal::Plaintext> encoded_A2;
-    std::vector<seal::Ciphertext> enc_A2;
+    std::vector<seal::Serializable<seal::Ciphertext>> enc_A2;
     measures.ret = hom_conv.encryptImage(A2, meta, enc_A2, encoded_A2, threads);
     if (measures.ret != Code::OK)
         return measures;

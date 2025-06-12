@@ -17,56 +17,56 @@
 using namespace gemini;
 namespace {
 
-Result conv2d
-    [[maybe_unused]] (const IO::NetIO& io, const HomConv2DSS& conv, const HomConv2DSS::Meta& META,
-                      const Tensor<uint64_t>& image, const std::vector<Tensor<uint64_t>>& filters) {
-    Result measures;
-
-    auto start = measure::now();
-    std::vector<seal::Ciphertext> ctxts;
-    measures.ret        = conv.encryptImage(image, META, ctxts);
-    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    if (measures.ret != Code::OK)
-        return measures;
-
-    std::stringstream stream;
-    for (auto& cipher : ctxts) {
-        cipher.save(stream);
-    }
-
-    measures.bytes = stream.str().length();
-    std::cerr << ctxts.size() << "\n";
-    std::cerr << "send bytes: " << stream.str().length() << "\n";
-
-    std::vector<std::vector<seal::Plaintext>> p_filter;
-    measures.ret = conv.encodeFilters(filters, META, p_filter);
-    if (measures.ret != Code::OK)
-        return measures;
-
-    start = measure::now();
-    std::vector<seal::Ciphertext> result;
-    Tensor<uint64_t> out;
-    measures.ret
-        = conv.conv2DSS(ctxts, std::vector<seal::Plaintext>(), p_filter, META, result, out);
-    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    if (measures.ret != Code::OK)
-        return measures;
-
-    stream.clear();
-    for (auto& cipher : result) {
-        cipher.save(stream);
-    }
-
-    measures.bytes += stream.str().length();
-    std::cerr << "sending result: " << stream.str().length() << "\n";
-
-    start = measure::now();
-    Tensor<uint64_t> out_tensor;
-    measures.ret        = conv.decryptToTensor(result, META, out_tensor);
-    measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
-    return measures;
-}
+// Result conv2d
+//     [[maybe_unused]] (const IO::NetIO& io, const HomConv2DSS& conv, const HomConv2DSS::Meta& META,
+//                       const Tensor<uint64_t>& image, const std::vector<Tensor<uint64_t>>& filters) {
+//     Result measures;
+// 
+//     auto start = measure::now();
+//     std::vector<seal::Serializable<seal::Ciphertext>> ctxts;
+//     measures.ret        = conv.encryptImage(image, META, ctxts);
+//     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+//     if (measures.ret != Code::OK)
+//         return measures;
+// 
+//     std::stringstream stream;
+//     for (auto& cipher : ctxts) {
+//         cipher.save(stream);
+//     }
+// 
+//     measures.bytes = stream.str().length();
+//     std::cerr << ctxts.size() << "\n";
+//     std::cerr << "send bytes: " << stream.str().length() << "\n";
+// 
+//     std::vector<std::vector<seal::Plaintext>> p_filter;
+//     measures.ret = conv.encodeFilters(filters, META, p_filter);
+//     if (measures.ret != Code::OK)
+//         return measures;
+// 
+//     start = measure::now();
+//     std::vector<seal::Ciphertext> result;
+//     Tensor<uint64_t> out;
+//     measures.ret
+//         = conv.conv2DSS(ctxts, std::vector<seal::Plaintext>(), p_filter, META, result, out);
+//     measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+//     if (measures.ret != Code::OK)
+//         return measures;
+// 
+//     stream.clear();
+//     for (auto& cipher : result) {
+//         cipher.save(stream);
+//     }
+// 
+//     measures.bytes += stream.str().length();
+//     std::cerr << "sending result: " << stream.str().length() << "\n";
+// 
+//     start = measure::now();
+//     Tensor<uint64_t> out_tensor;
+//     measures.ret        = conv.decryptToTensor(result, META, out_tensor);
+//     measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+// 
+//     return measures;
+// }
 
 Result conv2D_online3(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
                       const HomConv2DSS& conv, const Tensor<uint64_t>& A1,
@@ -79,7 +79,7 @@ Result conv2D_online3(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SE
 
     auto start = measure::now();
 
-    std::vector<seal::Ciphertext> enc_A1;
+    std::vector<seal::Serializable<seal::Ciphertext>> enc_A1;
     measures.ret = conv.encryptImage(A1, meta, enc_A1, threads);
     if (measures.ret != Code::OK)
         return measures;
@@ -89,15 +89,15 @@ Result conv2D_online3(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SE
     start = measure::now();
     IO::send_encrypted_vector(server, enc_A1);
     measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    enc_A1.clear();
 
+    std::vector<seal::Ciphertext> tmp;
     start = measure::now();
-    IO::recv_encrypted_vector(server, context, enc_A1);
+    IO::recv_encrypted_vector(server, context, tmp);
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     start = measure::now();
     Tensor<uint64_t> C1;
-    measures.ret        = conv.decryptToTensor(enc_A1, meta, C1, threads);
+    measures.ret        = conv.decryptToTensor(tmp, meta, C1, threads);
     measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     std::cerr << C1.channels() << " x " << C1.height() << " x " << C1.width() << "\n";
@@ -118,7 +118,7 @@ Result conv2D_online2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SE
     // Enc(A1), enc(B1), send(A1), recv(A2)
     ////////////////////////////////////////////////////////////////////////////
     auto start = measure::now();
-    std::vector<seal::Ciphertext> enc_A1;
+    std::vector<seal::Serializable<seal::Ciphertext>> enc_A1;
     std::vector<seal::Plaintext> encoded_A1;
     measures.ret = conv.encryptImage(A1, meta, enc_A1, encoded_A1, threads);
     if (measures.ret != Code::OK)
@@ -199,7 +199,7 @@ Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     Result measures;
 
     auto start = measure::now();
-    std::vector<seal::Ciphertext> enc_A1;
+    std::vector<seal::Serializable<seal::Ciphertext>> enc_A1;
     measures.ret = conv.encryptImage(A1, meta, enc_A1, threads);
     if (measures.ret != Code::OK)
         return measures;

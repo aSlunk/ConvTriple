@@ -481,7 +481,7 @@ Code HomConv2DSS::setUp(const seal::SEALContext& context, std::optional<seal::Se
 }
 
 Code HomConv2DSS::encryptImage(const Tensor<uint64_t>& img, const Meta& meta,
-                               std::vector<seal::Ciphertext>& encrypted_img,
+                               std::vector<seal::Serializable<seal::Ciphertext>>& encrypted_img,
                                size_t nthreads) const {
     ENSURE_OR_RETURN(context_ && encryptor_ && tencoder_, Code::ERR_CONFIG);
     ENSURE_OR_RETURN(img.shape().IsSameSize(meta.ishape), Code::ERR_DIM_MISMATCH);
@@ -493,13 +493,11 @@ Code HomConv2DSS::encryptImage(const Tensor<uint64_t>& img, const Meta& meta,
               "encryptImage");
 
     ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
-    seal::Ciphertext dummy;
-    encryptor_->encrypt_zero(dummy);
+    seal::Serializable<seal::Ciphertext> dummy = encryptor_->encrypt_zero();
     encrypted_img.resize(polys.size(), dummy);
     auto encrypt_program = [&](long wid, size_t start, size_t end) {
         for (size_t i = start; i < end; ++i) {
-            // encrypted_img[i] = encryptor_->encrypt_symmetric(polys[i]);
-            encryptor_->encrypt_symmetric(polys[i], encrypted_img[i]);
+            encrypted_img[i] = encryptor_->encrypt_symmetric(polys[i]);
         }
         return Code::OK;
     };
@@ -1219,7 +1217,7 @@ Code HomConv2DSS::conv2DSS(const std::vector<seal::Plaintext>& img_share0,
 }
 
 Code HomConv2DSS::encryptImage(const Tensor<uint64_t>& img, const Meta& meta,
-                               std::vector<seal::Ciphertext>& encrypted_img,
+                               std::vector<seal::Serializable<seal::Ciphertext>>& encrypted_img,
                                std::vector<seal::Plaintext>& polys, size_t nthreads) const {
     ENSURE_OR_RETURN(context_ && encryptor_ && tencoder_, Code::ERR_CONFIG);
     ENSURE_OR_RETURN(img.shape().IsSameSize(meta.ishape), Code::ERR_DIM_MISMATCH);
@@ -1230,13 +1228,12 @@ Code HomConv2DSS::encryptImage(const Tensor<uint64_t>& img, const Meta& meta,
               "encryptImage");
 
     ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
-    seal::Ciphertext dummy;
-    encryptor_->encrypt_zero(dummy);
+    seal::Serializable<seal::Ciphertext> dummy = encryptor_->encrypt_zero();
     encrypted_img.resize(polys.size(), dummy);
     auto encrypt_program = [&](long wid, size_t start, size_t end) {
         for (size_t i = start; i < end; ++i) {
-            // encrypted_img[i] = encryptor_->encrypt_symmetric(polys[i]);
-            encryptor_->encrypt_symmetric(polys[i], encrypted_img[i]);
+            encrypted_img[i] = encryptor_->encrypt_symmetric(polys[i]);
+            // encryptor_->encrypt_symmetric(polys[i], encrypted_img[i]);
         }
         return Code::OK;
     };
