@@ -104,7 +104,7 @@ class NetIO : public IOChannel<NetIO> {
                 usleep(1000);
             }
         }
-        set_delay();
+        set_nodelay();
         stream = fdopen(consocket, "wb+");
         buffer = new char[NETWORK_BUFFER_SIZE];
         memset(buffer, 0, NETWORK_BUFFER_SIZE);
