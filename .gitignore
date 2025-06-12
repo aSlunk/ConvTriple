@@ -5,3 +5,5 @@ deps/
 
 run.sh
 *.csv
+
+perf.data

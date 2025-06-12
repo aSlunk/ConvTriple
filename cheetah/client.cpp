@@ -124,6 +124,7 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
+
     ////////////////////////////////////////////////////////////////////////////
     // A2 ⊙ B2 + M1 - R2
     ////////////////////////////////////////////////////////////////////////////
@@ -279,7 +280,7 @@ int main(int argc, char** argv) {
     std::cerr << "threads: " << threads << "\n";
 
     auto layers = Utils::init_layers();
-    for (size_t i = 0; i < layers.size(); ++i) {
+    for (size_t i = 0; i < 5; ++i) {
         for (int round = 0; round < samples; ++round) {
             Result res = {.encryption = 0,
                           .cipher_op  = 0,
