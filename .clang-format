@@ -1,0 +1,11 @@
+---
+BasedOnStyle: LLVM
+IndentWidth: 4
+PointerAlignment: Left
+AccessModifierOffset: -2
+AlignConsecutiveBitFields: Consecutive
+AlignConsecutiveAssignments: Consecutive
+AllowShortLoopsOnASingleLine: true
+BreakBeforeBinaryOperators: All
+ColumnLimit: 100
+AlwaysBreakTemplateDeclarations: true

@@ -260,8 +260,8 @@ std::vector<gemini::HomConv2DSS::Meta> init_layers() {
 
 } // namespace Utils
 
-double print_results(const Result& res, const int& layer, const size_t& batchSize, const size_t& threads,
-                     std::ostream& out = std::cout) {
+double print_results(const Result& res, const int& layer, const size_t& batchSize,
+                     const size_t& threads, std::ostream& out = std::cout) {
     if (!layer)
         out << "Encryption [ms],Cipher Calculations [s],Decryption [ms],Plain Calculations [ms], "
                "Sending and Receiving [s],Total [s],Bytes Send [MB],batchSize,threads\n";
