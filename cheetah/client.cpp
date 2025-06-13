@@ -90,7 +90,6 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
 
     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
-    client.sync();
     start = measure::now();
 
     auto ser = Utils::serialize(enc_A2);
@@ -112,7 +111,6 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
     ////////////////////////////////////////////////////////////////////////////
     // (A1' + A2) ⊙ B2 - R2
     ////////////////////////////////////////////////////////////////////////////
-    client.sync();
     start = measure::now();
 
     // hom_conv.add_plain_inplace(enc_A1, encoded_A2);
@@ -126,7 +124,6 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
     ////////////////////////////////////////////////////////////////////////////
     // Send result
     ////////////////////////////////////////////////////////////////////////////
-    client.sync();
     start = measure::now();
 
     ser = Utils::serialize(enc_M2);
