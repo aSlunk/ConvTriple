@@ -18,31 +18,33 @@ using namespace gemini;
 namespace {
 
 // Result conv2d
-//     [[maybe_unused]] (const IO::NetIO& io, const HomConv2DSS& conv, const HomConv2DSS::Meta& META,
-//                       const Tensor<uint64_t>& image, const std::vector<Tensor<uint64_t>>& filters) {
+//     [[maybe_unused]] (const IO::NetIO& io, const HomConv2DSS& conv, const HomConv2DSS::Meta&
+//     META,
+//                       const Tensor<uint64_t>& image, const std::vector<Tensor<uint64_t>>&
+//                       filters) {
 //     Result measures;
-// 
+//
 //     auto start = measure::now();
 //     std::vector<seal::Serializable<seal::Ciphertext>> ctxts;
 //     measures.ret        = conv.encryptImage(image, META, ctxts);
 //     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 //     if (measures.ret != Code::OK)
 //         return measures;
-// 
+//
 //     std::stringstream stream;
 //     for (auto& cipher : ctxts) {
 //         cipher.save(stream);
 //     }
-// 
+//
 //     measures.bytes = stream.str().length();
 //     std::cerr << ctxts.size() << "\n";
 //     std::cerr << "send bytes: " << stream.str().length() << "\n";
-// 
+//
 //     std::vector<std::vector<seal::Plaintext>> p_filter;
 //     measures.ret = conv.encodeFilters(filters, META, p_filter);
 //     if (measures.ret != Code::OK)
 //         return measures;
-// 
+//
 //     start = measure::now();
 //     std::vector<seal::Ciphertext> result;
 //     Tensor<uint64_t> out;
@@ -51,20 +53,20 @@ namespace {
 //     measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 //     if (measures.ret != Code::OK)
 //         return measures;
-// 
+//
 //     stream.clear();
 //     for (auto& cipher : result) {
 //         cipher.save(stream);
 //     }
-// 
+//
 //     measures.bytes += stream.str().length();
 //     std::cerr << "sending result: " << stream.str().length() << "\n";
-// 
+//
 //     start = measure::now();
 //     Tensor<uint64_t> out_tensor;
 //     measures.ret        = conv.decryptToTensor(result, META, out_tensor);
 //     measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-// 
+//
 //     return measures;
 // }
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <bits/chrono.h>
-#include <string>
 #include <chrono>
+#include <string>
 
 #include <seal/seal.h>
 #include <sys/socket.h>
@@ -14,7 +14,7 @@ using std::string;
 namespace IO {
 
 using Unit = std::chrono::milliseconds;
-using CLK = std::chrono::high_resolution_clock;
+using CLK  = std::chrono::high_resolution_clock;
 
 template <class CtType>
 void send_ciphertext(IO::NetIO& io, const CtType& ct);
@@ -59,16 +59,16 @@ void send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec) {
         // send_ciphertext(io, ct_vec.at(i));
     }
     auto cur = std::chrono::duration_cast<Unit>(CLK::now() - start).count();
-    if (! io.is_server)
+    if (!io.is_server)
         std::cerr << "save: " << cur << "\n";
-    start = CLK::now();
+    start         = CLK::now();
     ct_size       = os.tellp();
     string ct_ser = os.str();
     io.send_data(&ct_size, sizeof(uint64_t));
     io.send_data(ct_ser.c_str(), ct_ser.size());
     io.flush();
     cur = std::chrono::duration_cast<Unit>(CLK::now() - start).count();
-    if (! io.is_server)
+    if (!io.is_server)
         std::cerr << "send: " << cur << "\n";
 }
 
@@ -99,7 +99,7 @@ void recv_encrypted_vector(IO::NetIO& io, const seal::SEALContext& context,
     auto start = CLK::now();
     io.recv_data(&ncts, sizeof(uint32_t));
     auto cur = std::chrono::duration_cast<Unit>(CLK::now() - start).count();
-    if (! io.is_server)
+    if (!io.is_server)
         std::cerr << "recv: " << cur << "\n";
     if (ncts > 0) {
         ct_vec.resize(ncts);
@@ -116,7 +116,7 @@ void recv_encrypted_vector(IO::NetIO& io, const seal::SEALContext& context,
         }
         delete[] c_enc_result;
         cur = std::chrono::duration_cast<Unit>(CLK::now() - start).count();
-        if (! io.is_server)
+        if (!io.is_server)
             std::cerr << "load: " << cur << "\n";
     }
 }

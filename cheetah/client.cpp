@@ -124,7 +124,6 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
-
     ////////////////////////////////////////////////////////////////////////////
     // A2 ⊙ B2 + M1 - R2
     ////////////////////////////////////////////////////////////////////////////
