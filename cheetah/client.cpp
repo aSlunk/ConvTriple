@@ -93,11 +93,22 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
     client.sync();
     start = measure::now();
 
+    auto ser = Utils::serialize(enc_A2);
+
+    measures.serial = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    std::stringstream is;
+    start = measure::now();
+
     std::vector<seal::Ciphertext> enc_A1;
-    IO::recv_encrypted_vector(client, context, enc_A1);
-    IO::send_encrypted_vector(client, enc_A2);
+    enc_A1.resize(IO::recv_encrypted_vector(client, is));
+    IO::send_encrypted_vector(client, ser, enc_A2.size());
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    start = measure::now();
+
+    Utils::deserialize(context, is, enc_A1);
+
+    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     ////////////////////////////////////////////////////////////////////////////
     // (A1' + A2) ⊙ B2 - R2
     ////////////////////////////////////////////////////////////////////////////
@@ -118,11 +129,21 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
     client.sync();
     start = measure::now();
 
+    ser = Utils::serialize(enc_M2);
+
+    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    start = measure::now();
+
     std::vector<seal::Ciphertext> enc_M1;
-    IO::recv_encrypted_vector(client, context, enc_M1);
-    IO::send_encrypted_vector(client, enc_M2);
+    enc_M1.resize(IO::recv_encrypted_vector(client, is));
+    IO::send_encrypted_vector(client, ser, enc_M2.size());
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    start = measure::now();
+
+    Utils::deserialize(context, is, enc_M1);
+
+    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
     // A2 ⊙ B2 + M1 - R2
@@ -286,6 +307,7 @@ int main(int argc, char** argv) {
                           .plain_op   = 0,
                           .decryption = 0,
                           .send_recv  = 0,
+                          .serial     = 0,
                           .bytes      = 0,
                           .ret        = Code::OK};
             for (int batch = 0; batch < batchSize; ++batch) {
@@ -300,6 +322,7 @@ int main(int argc, char** argv) {
                 res.plain_op += cur.plain_op;
                 res.decryption += cur.decryption;
                 res.send_recv += cur.send_recv;
+                res.serial += cur.serial;
                 res.bytes += cur.bytes;
             }
             results[round] = res;

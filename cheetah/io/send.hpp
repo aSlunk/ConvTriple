@@ -22,6 +22,8 @@ void send_ciphertext(IO::NetIO& io, const CtType& ct);
 template <class EncVecCtType>
 void send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec);
 
+void send_encrypted_vector(IO::NetIO& io, const std::stringstream& ct, const uint32_t& size);
+
 template <class EncVecCtType>
 void send_encrypted_filters(IO::NetIO& io, const EncVecCtType& ct_vec); // ADDED
 
@@ -31,6 +33,8 @@ void recv_encrypted_filters(IO::NetIO& io, const seal::SEALContext& context,
 
 void recv_encrypted_vector(IO::NetIO& io, const seal::SEALContext& context,
                            std::vector<seal::Ciphertext>& ct_vec, bool is_truncated = false);
+
+uint32_t recv_encrypted_vector(IO::NetIO& io, std::stringstream& is);
 
 void recv_ciphertext(IO::NetIO& io, const seal::SEALContext& context, seal::Ciphertext& ct,
                      bool is_truncated);
@@ -72,6 +76,14 @@ void send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec) {
         std::cerr << "send: " << cur << "\n";
 }
 
+void send_encrypted_vector(IO::NetIO& io, const std::stringstream& ct, const uint32_t& ncts) {
+    io.send_data(&ncts, sizeof(uint32_t));
+    uint64_t ct_size = ct.str().size();
+    io.send_data(&ct_size, sizeof(uint64_t));
+    io.send_data(ct.str().c_str(), ct_size);
+    io.flush();
+}
+
 template <class EncVecCtType>
 void send_encrypted_filters(IO::NetIO& io, const EncVecCtType& ct_vec) {
     uint32_t ncts = ct_vec.size();
@@ -91,6 +103,20 @@ void recv_encrypted_filters(IO::NetIO& io, const seal::SEALContext& context,
             recv_encrypted_vector(io, context, ct_vec[i]);
         }
     }
+}
+
+uint32_t recv_encrypted_vector(IO::NetIO& io, std::stringstream& is) {
+    uint32_t ncts{0};
+    io.recv_data(&ncts, sizeof(uint32_t));
+    if (ncts > 0) {
+        uint64_t ct_size;
+        io.recv_data(&ct_size, sizeof(uint64_t));
+        char* c_enc_result = new char[ct_size];
+        io.recv_data(c_enc_result, ct_size);
+        is.write(c_enc_result, ct_size);
+        delete[] c_enc_result;
+    }
+    return ncts;
 }
 
 void recv_encrypted_vector(IO::NetIO& io, const seal::SEALContext& context,

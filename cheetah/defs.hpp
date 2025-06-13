@@ -36,6 +36,7 @@ struct Result {
     double plain_op;
     double decryption;
     double send_recv;
+    double serial;
     double bytes;
     Code ret;
 };
@@ -258,22 +259,40 @@ std::vector<gemini::HomConv2DSS::Meta> init_layers() {
     return layers;
 }
 
+template <class Vec>
+std::stringstream serialize(Vec& ct) {
+    std::stringstream st;
+    for (auto& ele : ct) {
+        ele.save(st);
+    }
+    return st;
+}
+
+template <class Ctx>
+void deserialize(const Ctx& context, std::stringstream& is, std::vector<seal::Ciphertext>& res) {
+    for (auto& ele : res) {
+        ele.load(context, is);
+    }
+    is.clear();
+}
+
 } // namespace Utils
 
 double print_results(const Result& res, const int& layer, const size_t& batchSize,
                      const size_t& threads, std::ostream& out = std::cout) {
     if (!layer)
-        out << "Encryption [ms],Cipher Calculations [s],Decryption [ms],Plain Calculations [ms], "
-               "Sending and Receiving [s],Total [s],Bytes Send [MB],batchSize,threads\n";
+        out << "Encryption [ms],Cipher Calculations [s],Serialization [s],Decryption [ms],Plain "
+               "Calculations [ms], "
+               "Sending and Receiving [ms],Total [s],Bytes Send [MB],batchSize,threads\n";
 
     double total = res.encryption / 1'000.0 + res.cipher_op / 1'000.0 + res.send_recv / 1'000.0
-                   + res.decryption / 1'000.0 + res.plain_op / 1'000.0;
+                   + res.decryption / 1'000.0 + res.plain_op / 1'000.0 + res.serial / 1'000.0;
     total /= 1'000.0;
 
     out << res.encryption / 1'000.0 << ", " << res.cipher_op / 1'000'000.0 << ", "
-        << res.decryption / 1'000. << ", " << res.plain_op / 1'000.0 << ", "
-        << res.send_recv / 1'000'000.0 << ", " << total << ", " << res.bytes / 1'000'000.0 << ", "
-        << batchSize << ", " << threads << "\n";
+        << res.serial / 1'000'000.0 << ", " << res.decryption / 1'000. << ", "
+        << res.plain_op / 1'000.0 << ", " << res.send_recv / 1'000.0 << ", " << total << ", "
+        << res.bytes / 1'000'000.0 << ", " << batchSize << ", " << threads << "\n";
 
     return total;
 }
@@ -284,6 +303,7 @@ Result average(const std::vector<Result>& res) {
                   .plain_op   = 0,
                   .decryption = 0,
                   .send_recv  = 0,
+                  .serial     = 0,
                   .bytes      = 0,
                   .ret        = Code::OK};
 
@@ -296,6 +316,7 @@ Result average(const std::vector<Result>& res) {
         avg.decryption += cur.decryption;
         avg.cipher_op += cur.cipher_op;
         avg.plain_op += cur.plain_op;
+        avg.serial += cur.serial;
         avg.bytes += cur.bytes;
     }
 
@@ -304,6 +325,7 @@ Result average(const std::vector<Result>& res) {
     avg.decryption /= res.size();
     avg.cipher_op /= res.size();
     avg.plain_op /= res.size();
+    avg.serial /= res.size();
     avg.bytes /= res.size();
 
     return avg;

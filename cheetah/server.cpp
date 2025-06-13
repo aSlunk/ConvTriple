@@ -136,11 +136,22 @@ Result conv2D_online2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SE
     server.sync();
     start = measure::now();
 
-    IO::send_encrypted_vector(server, enc_A1);
+    auto ser = Utils::serialize(enc_A1);
+
+    measures.serial = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    std::stringstream is;
+    start = measure::now();
+
+    IO::send_encrypted_vector(server, ser, enc_A1.size());
     std::vector<seal::Ciphertext> enc_A2;
-    IO::recv_encrypted_vector(server, context, enc_A2);
+    enc_A2.resize(IO::recv_encrypted_vector(server, is));
 
     measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    start              = measure::now();
+
+    Utils::deserialize(context, is, enc_A2);
+
+    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
     // M1 = (A1 + A2') ⊙ B1 - R1
@@ -163,11 +174,21 @@ Result conv2D_online2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SE
     server.sync();
     start = measure::now();
 
-    IO::send_encrypted_vector(server, M1);
+    ser = Utils::serialize(M1);
+
+    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    start = measure::now();
+
+    IO::send_encrypted_vector(server, ser, M1.size());
     std::vector<seal::Ciphertext> enc_M2;
-    IO::recv_encrypted_vector(server, context, enc_M2);
+    enc_M2.resize(IO::recv_encrypted_vector(server, is));
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    start = measure::now();
+
+    Utils::deserialize(context, is, enc_M2);
+
+    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
     // Dec(M2) + R1
@@ -318,6 +339,7 @@ int main(int argc, char** argv) {
             results[round].plain_op   = 0;
             results[round].decryption = 0;
             results[round].send_recv  = 0;
+            results[round].serial     = 0;
             results[round].bytes      = 0;
             results[round].ret        = Code::OK;
             for (int batch = 0; batch < batchSize; ++batch) {
@@ -332,6 +354,7 @@ int main(int argc, char** argv) {
                 results[round].plain_op += cur.plain_op;
                 results[round].decryption += cur.decryption;
                 results[round].send_recv += cur.send_recv;
+                results[round].serial += cur.serial;
                 results[round].bytes += cur.bytes;
             }
         }
