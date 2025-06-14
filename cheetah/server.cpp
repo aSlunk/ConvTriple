@@ -135,7 +135,9 @@ Result conv2D_online2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SE
 
     start = measure::now();
 
-    auto ser = Utils::serialize(enc_A1);
+    // auto ser = Utils::serialize(enc_A1);
+    std::stringstream ser;
+    HomConv2DSS::serialize(enc_A1, ser, threads);
 
     measures.serial = std::chrono::duration_cast<Unit>(measure::now() - start).count();
     std::stringstream is;
@@ -171,7 +173,8 @@ Result conv2D_online2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SE
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    ser = Utils::serialize(M1);
+    // ser = Utils::serialize(M1);
+    HomConv2DSS::serialize(M1, ser, threads);
 
     measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     start = measure::now();

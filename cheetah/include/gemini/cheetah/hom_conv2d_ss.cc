@@ -10,7 +10,6 @@
 
 #include "gemini/cheetah/tensor_encoder.h"
 #include "gemini/core/logging.h"
-#include "gemini/core/util/ThreadPool.h"
 
 #define BFV_TRUNCATE_LARGE 1
 #define BFV_TRUNCATE_SMALL 1
@@ -27,8 +26,8 @@ TensorShape HomConv2DSS::GetConv2DOutShape(const HomConv2DSS::Meta& meta) {
     return *o;
 }
 
-static Code LaunchWorks(ThreadPool& tpool, size_t num_works,
-                        std::function<Code(long wid, size_t start, size_t end)> program) {
+Code LaunchWorks(ThreadPool& tpool, size_t num_works,
+                 std::function<Code(long wid, size_t start, size_t end)> program) {
     if (num_works == 0)
         return Code::OK;
     const long pool_sze = tpool.pool_size();

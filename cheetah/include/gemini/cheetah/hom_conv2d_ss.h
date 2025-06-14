@@ -9,6 +9,7 @@
 
 #include "gemini/cheetah/tensor.h"
 #include "gemini/cheetah/tensor_shape.h"
+#include "gemini/core/util/ThreadPool.h"
 
 // Forward
 namespace seal {
@@ -21,6 +22,9 @@ class Evaluator;
 } // namespace seal
 
 namespace gemini {
+
+Code LaunchWorks(ThreadPool& tpool, size_t num_works,
+                 std::function<Code(long wid, size_t start, size_t end)> program);
 
 class TensorEncoder;
 
@@ -73,6 +77,9 @@ class HomConv2DSS {
     Code encodeFilters(const std::vector<Tensor<uint64_t>>& filters, const Meta& meta,
                        std::vector<std::vector<seal::Plaintext>>& encoded_filters,
                        size_t nthreads = 1) const;
+
+    template <class Vec>
+    static Code serialize(Vec& cts, std::stringstream& is, const size_t& nthreads = 1);
 
     Code conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
                   const std::vector<seal::Plaintext>& img_share1,
@@ -135,6 +142,33 @@ class HomConv2DSS {
 
     std::optional<seal::SecretKey> sk_{std::nullopt};
 };
+
+template <class Vec>
+Code HomConv2DSS::serialize(Vec& cts, std::stringstream& is, const size_t& nthreads) {
+    size_t n = cts.size();
+
+    auto pool_sze = std::min(std::max(1UL, nthreads), kMaxThreads);
+    ThreadPool tpool(pool_sze);
+    std::vector<std::string> ser(pool_sze);
+
+    auto serial = [&](long wid, size_t start, size_t end) -> Code {
+        std::stringstream tmp;
+        for (size_t i = start; i < end; ++i) {
+            cts[i].save(tmp);
+        }
+
+        ser[wid] = tmp.str();
+        return Code::OK;
+    };
+
+    auto code = LaunchWorks(tpool, n, serial);
+    if (code != Code::OK)
+        return code;
+
+    for (auto& str : ser) is << str;
+
+    return Code::OK;
+}
 
 }; // namespace gemini
 #endif // GEMINI_CHEETAH_HOMCONVSS_H_

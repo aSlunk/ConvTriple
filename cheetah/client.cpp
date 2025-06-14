@@ -92,7 +92,9 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
 
     start = measure::now();
 
-    auto ser = Utils::serialize(enc_A2);
+    // auto ser = Utils::serialize(enc_A2);
+    std::stringstream ser;
+    HomConv2DSS::serialize(enc_A2, ser, threads);
 
     measures.serial = std::chrono::duration_cast<Unit>(measure::now() - start).count();
     std::stringstream is;
@@ -126,7 +128,8 @@ Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomC
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    ser = Utils::serialize(enc_M2);
+    // ser = Utils::serialize(enc_M2);
+    HomConv2DSS::serialize(enc_M2, ser, threads);
 
     measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     start = measure::now();
