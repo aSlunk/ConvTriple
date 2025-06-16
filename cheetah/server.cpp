@@ -89,17 +89,31 @@ Result conv2D_online3(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SE
     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     start = measure::now();
-    IO::send_encrypted_vector(server, enc_A1);
+
+    std::stringstream is;
+    HomConv2DSS::serialize(enc_A1, is, threads);
+
+    measures.serial = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    start           = measure::now();
+
+    IO::send_encrypted_vector(server, is, enc_A1.size());
+
     measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
-    std::vector<seal::Ciphertext> tmp;
     start = measure::now();
-    IO::recv_encrypted_vector(server, context, tmp);
+
+    std::vector<seal::Ciphertext> enc_C1(IO::recv_encrypted_vector(server, is));
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     start = measure::now();
+
+    Utils::deserialize(context, is, enc_C1);
+
+    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    start = measure::now();
     Tensor<uint64_t> C1;
-    measures.ret        = conv.decryptToTensor(tmp, meta, C1, threads);
+    measures.ret        = conv.decryptToTensor(enc_C1, meta, C1, threads);
     measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     std::cerr << C1.channels() << " x " << C1.height() << " x " << C1.width() << "\n";

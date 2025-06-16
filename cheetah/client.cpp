@@ -22,6 +22,7 @@ Result Protocol3(IO::NetIO& client, const seal::SEALContext& context, const HomC
     measures.send_recv  = 0;
     measures.decryption = 0;
     measures.plain_op   = 0;
+    measures.serial     = 0;
 
     auto start = measure::now();
 
@@ -37,13 +38,20 @@ Result Protocol3(IO::NetIO& client, const seal::SEALContext& context, const HomC
 
     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
+    ////////////////////////////////////////////////////////////////////////////
+    // recv + deserialize
+    ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    std::vector<seal::Ciphertext> enc_A1;
-    IO::recv_encrypted_vector(client, context, enc_A1);
+    std::stringstream is;
+    std::vector<seal::Ciphertext> enc_A1(IO::recv_encrypted_vector(client, is));
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    start = measure::now();
 
+    Utils::deserialize(context, is, enc_A1);
+
+    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     start = measure::now();
 
     // hom_conv.add_plain_inplace(enc_A1, enc_A2, N_THREADS);
@@ -55,9 +63,17 @@ Result Protocol3(IO::NetIO& client, const seal::SEALContext& context, const HomC
 
     measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
+    ////////////////////////////////////////////////////////////////////////////
+    // serialize + send
+    ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    IO::send_encrypted_vector(client, M2);
+    HomConv2DSS::serialize(M2, is, threads);
+
+    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    start = measure::now();
+
+    IO::send_encrypted_vector(client, is, M2.size());
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
