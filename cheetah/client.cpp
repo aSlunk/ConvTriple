@@ -278,8 +278,8 @@ Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client, const seal::SEA
 } // anonymous namespace
 
 int main(int argc, char** argv) {
-    if (argc != 4 && argc != 5) {
-        std::cout << argv[0] << " <host> <samples> <batchSize> (<threads>)\n";
+    if (argc != 5 && argc != 6) {
+        std::cout << argv[0] << " <port> <host> <samples> <batchSize> (<threads>)\n";
         return EXEC_FAILED;
     }
 
@@ -296,7 +296,7 @@ int main(int argc, char** argv) {
     ////////////////////////////////////////////////////////////////////////////
     // Sample R
     ////////////////////////////////////////////////////////////////////////////
-    IO::NetIO client(argv[1], PORT, true);
+    IO::NetIO client(argv[2], strtol(argv[1], NULL, 10), true);
 
     double totalTime = 0;
     double totalData = 0;
@@ -305,10 +305,10 @@ int main(int argc, char** argv) {
     if (argc == 3)
         threads = N_THREADS;
     else
-        threads = strtol(argv[4], NULL, 10);
+        threads = strtol(argv[5], NULL, 10);
 
-    int samples   = strtol(argv[2], NULL, 10);
-    int batchSize = strtol(argv[3], NULL, 10);
+    int samples   = strtol(argv[3], NULL, 10);
+    int batchSize = strtol(argv[4], NULL, 10);
 
     std::vector<Result> results(samples);
     std::cerr << "Samples: " << samples << "\n";

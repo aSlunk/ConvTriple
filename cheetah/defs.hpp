@@ -19,7 +19,6 @@ using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;
 
 const int N_THREADS = std::max(1u, std::thread::hardware_concurrency());
-constexpr int PORT  = 6969;
 
 constexpr size_t filter_prec = 0ULL;
 
