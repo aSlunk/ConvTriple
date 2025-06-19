@@ -30,14 +30,14 @@ constexpr uint64_t moduloMask  = MOD - 1;
 constexpr uint64_t moduloMidPt = MOD / 2;
 
 struct Result {
-    double encryption;
-    double cipher_op;
-    double plain_op;
-    double decryption;
-    double send_recv;
-    double serial;
-    double bytes;
-    Code ret;
+    double encryption = 0;
+    double cipher_op = 0;
+    double plain_op = 0;
+    double decryption = 0;
+    double send_recv = 0;
+    double serial = 0;
+    double bytes = 0;
+    Code ret = Code::OK;
 };
 
 namespace Utils {
@@ -258,6 +258,16 @@ std::vector<gemini::HomConv2DSS::Meta> init_layers() {
     return layers;
 }
 
+void add_result(Result& res, const Result& res2) {
+    res.encryption += res2.encryption;
+    res.cipher_op += res2.cipher_op;
+    res.plain_op += res2.plain_op;
+    res.decryption += res2.decryption;
+    res.send_recv += res2.send_recv;
+    res.serial += res2.serial;
+    res.bytes += res2.bytes;
+}
+
 template <class Vec>
 std::stringstream serialize(Vec& ct) {
     std::stringstream st;
@@ -309,7 +319,10 @@ Result average(const std::vector<Result>& res) {
     if (!res.size())
         return avg;
 
-    for (auto& cur : res) {
+    size_t len = 0;
+    for (size_t i = 0; i < res.size(); ++i) {
+        auto& cur = res[i];
+        if (!cur.bytes) continue;
         avg.send_recv += cur.send_recv;
         avg.encryption += cur.encryption;
         avg.decryption += cur.decryption;
@@ -317,15 +330,16 @@ Result average(const std::vector<Result>& res) {
         avg.plain_op += cur.plain_op;
         avg.serial += cur.serial;
         avg.bytes += cur.bytes;
+        len++;
     }
 
-    avg.send_recv /= res.size();
-    avg.encryption /= res.size();
-    avg.decryption /= res.size();
-    avg.cipher_op /= res.size();
-    avg.plain_op /= res.size();
-    avg.serial /= res.size();
-    avg.bytes /= res.size();
+    avg.send_recv /= len;
+    avg.encryption /= len;
+    avg.decryption /= len;
+    avg.cipher_op /= len;
+    avg.plain_op /= len;
+    avg.serial /= len;
+    avg.bytes /= len;
 
     return avg;
 }
