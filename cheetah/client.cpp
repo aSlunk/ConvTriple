@@ -151,7 +151,7 @@ int main(int argc, char** argv) {
     auto layers = Utils::init_layers();
     for (size_t i = 0; i < layers.size(); ++i) {
         for (int round = 0; round < samples; ++round) {
-            size_t batch_threads = 2;
+            size_t batch_threads = 1;
             ThreadPool tpool(batch_threads);
             std::vector<Result> batches_results(batch_threads);
             auto batch = [&] (long wid, size_t start, size_t end) -> Code {
