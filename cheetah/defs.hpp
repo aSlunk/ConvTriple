@@ -13,7 +13,7 @@
 #include <seal/seal.h>
 
 #define EXEC_FAILED -1
-#define PROTO 3
+#define PROTO 2
 
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;

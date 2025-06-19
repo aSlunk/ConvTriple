@@ -8,7 +8,7 @@ if [[ ! -d $BUILD_DIR ]]; then
 fi
 
 if [[ -n $1 ]]; then
-    sed -i 's/\(^#define PROTO\) .\+/\1 '$2'/' cheetah/defs.hpp
+    sed -i 's/\(^#define PROTO\) .\+/\1 '$1'/' cheetah/defs.hpp
 fi
 
 cmake --build build
