@@ -99,10 +99,10 @@ Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client, const seal::SEA
     auto B2 = Utils::init_filter(meta, 2.0);
 
     client.sync();
-#if PROTO == 2
-    auto measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, threads);
-#elif PROTO == 3
+#if PROTO == 3
     auto measures = Client::Protocol3(client, context, hom_conv, meta, A2, B2, threads);
+#elif PROTO == 2
+    auto measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, threads);
 #endif
     client.counter = 0;
     return measures;
