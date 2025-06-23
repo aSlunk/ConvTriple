@@ -31,13 +31,13 @@ constexpr uint64_t moduloMidPt = MOD / 2;
 
 struct Result {
     double encryption = 0;
-    double cipher_op = 0;
-    double plain_op = 0;
+    double cipher_op  = 0;
+    double plain_op   = 0;
     double decryption = 0;
-    double send_recv = 0;
-    double serial = 0;
-    double bytes = 0;
-    Code ret = Code::OK;
+    double send_recv  = 0;
+    double serial     = 0;
+    double bytes      = 0;
+    Code ret          = Code::OK;
 };
 
 namespace Utils {
@@ -71,7 +71,7 @@ gemini::HomConv2DSS::Meta init_meta(const long& ic, const long& ih, const long& 
 
     meta.ishape          = {ic, ih, iw};
     meta.fshape          = {fc, fh, fw};
-    meta.is_shared_input = false;
+    meta.is_shared_input = true;
     meta.n_filters       = n_filter;
     meta.padding         = padding == 0 ? gemini::Padding::VALID : gemini::Padding::SAME;
     meta.stride          = stride;
@@ -322,7 +322,8 @@ Result average(const std::vector<Result>& res) {
     size_t len = 0;
     for (size_t i = 0; i < res.size(); ++i) {
         auto& cur = res[i];
-        if (!cur.bytes) continue;
+        if (!cur.bytes)
+            continue;
         avg.send_recv += cur.send_recv;
         avg.encryption += cur.encryption;
         avg.decryption += cur.decryption;

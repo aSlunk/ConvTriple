@@ -19,59 +19,6 @@ using namespace gemini;
 
 namespace {
 
-// Result conv2d
-//     [[maybe_unused]] (const IO::NetIO& io, const HomConv2DSS& conv, const HomConv2DSS::Meta&
-//     META,
-//                       const Tensor<uint64_t>& image, const std::vector<Tensor<uint64_t>>&
-//                       filters) {
-//     Result measures;
-//
-//     auto start = measure::now();
-//     std::vector<seal::Serializable<seal::Ciphertext>> ctxts;
-//     measures.ret        = conv.encryptImage(image, META, ctxts);
-//     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-//     if (measures.ret != Code::OK)
-//         return measures;
-//
-//     std::stringstream stream;
-//     for (auto& cipher : ctxts) {
-//         cipher.save(stream);
-//     }
-//
-//     measures.bytes = stream.str().length();
-//     std::cerr << ctxts.size() << "\n";
-//     std::cerr << "send bytes: " << stream.str().length() << "\n";
-//
-//     std::vector<std::vector<seal::Plaintext>> p_filter;
-//     measures.ret = conv.encodeFilters(filters, META, p_filter);
-//     if (measures.ret != Code::OK)
-//         return measures;
-//
-//     start = measure::now();
-//     std::vector<seal::Ciphertext> result;
-//     Tensor<uint64_t> out;
-//     measures.ret
-//         = conv.conv2DSS(ctxts, std::vector<seal::Plaintext>(), p_filter, META, result, out);
-//     measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-//     if (measures.ret != Code::OK)
-//         return measures;
-//
-//     stream.clear();
-//     for (auto& cipher : result) {
-//         cipher.save(stream);
-//     }
-//
-//     measures.bytes += stream.str().length();
-//     std::cerr << "sending result: " << stream.str().length() << "\n";
-//
-//     start = measure::now();
-//     Tensor<uint64_t> out_tensor;
-//     measures.ret        = conv.decryptToTensor(result, META, out_tensor);
-//     measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-//
-//     return measures;
-// }
-
 Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
                      const seal::SEALContext& context, const HomConv2DSS& conv,
                      const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>>& B1,
@@ -129,27 +76,6 @@ Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     return measures;
 }
 
-Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
-                     const HomConv2DSS& hom_conv, const size_t& threads = 1) {
-    auto A1 = Utils::init_image(meta, 5);
-    auto B1 = Utils::init_filter(meta, 2.0);
-
-    Tensor<uint64_t> R(HomConv2DSS::GetConv2DOutShape(meta));
-    R.Randomize(1000 << filter_prec);
-    // for (int i = 0; i < R.channels(); ++i)
-    //     for (int j = 0; j < R.height(); ++j)
-    //         for (int k = 0; k < R.width(); ++k) R(i, j, k) = 1ULL << filter_prec;
-
-    server.sync();
-#if PROTO == 2
-    auto measures = Server::Protocol2(meta, server, context, hom_conv, A1, B1, threads);
-#elif PROTO == 3
-    auto measures = Server::Protocol3(meta, server, context, hom_conv, A1, threads);
-#endif
-    server.counter = 0;
-    return measures;
-}
-
 } // anonymous namespace
 
 int main(int argc, char** argv) {
@@ -168,7 +94,7 @@ int main(int argc, char** argv) {
     HomConv2DSS conv;
     conv.setUp(context, skey, pkey);
 
-    int port   = strtol(argv[1], NULL, 10);
+    int port = strtol(argv[1], NULL, 10);
     // IO::NetIO server(nullptr, port, true);
 
     double total_time = 0;
@@ -192,13 +118,20 @@ int main(int argc, char** argv) {
         std::cerr << "Current layer: " << i << std::endl;
 
         for (int round = 0; round < samples; ++round) {
-            size_t batch_threads = 1;
+            size_t batch_threads = batchSize > 1 ? 2 : 1;
             ThreadPool tpool(batch_threads);
             std::vector<Result> batches_results(batch_threads);
-            auto batch = [&] (long wid, size_t start, size_t end) -> Code {
+            auto batch = [&](long wid, size_t start, size_t end) -> Code {
                 IO::NetIO server(nullptr, port + wid, true);
                 for (size_t cur = start; cur < end; ++cur) {
-                    auto result = (perform_proto(layers[i], server, context, conv, threads / batch_threads));
+                    Result result;
+                    if (cur % 2 == 0)
+                        result = (Server::perform_proto(layers[i], server, context, conv,
+                                                        threads / batch_threads));
+                    else
+                        result = (Client::perform_proto(layers[i], server, context, conv,
+                                                        threads / batch_threads));
+
                     if (result.ret != Code::OK)
                         return result.ret;
 

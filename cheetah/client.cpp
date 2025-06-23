@@ -13,8 +13,6 @@ using namespace gemini;
 
 namespace {
 
-// constexpr char ADDRESS[11] = "127.0.0.1\0";
-
 Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                 const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                 const std::vector<Tensor<uint64_t>>& B2, const Tensor<uint64_t>& R,
@@ -93,21 +91,6 @@ Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomCo
     return measures;
 }
 
-Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client, const seal::SEALContext& context,
-                     const HomConv2DSS& hom_conv, const size_t& threads) {
-    auto A2 = Utils::init_image(meta, 5);
-    auto B2 = Utils::init_filter(meta, 2.0);
-
-    client.sync();
-#if PROTO == 3
-    auto measures = Client::Protocol3(client, context, hom_conv, meta, A2, B2, threads);
-#elif PROTO == 2
-    auto measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, threads);
-#endif
-    client.counter = 0;
-    return measures;
-}
-
 } // anonymous namespace
 
 int main(int argc, char** argv) {
@@ -151,13 +134,20 @@ int main(int argc, char** argv) {
     auto layers = Utils::init_layers();
     for (size_t i = 0; i < layers.size(); ++i) {
         for (int round = 0; round < samples; ++round) {
-            size_t batch_threads = 1;
+            size_t batch_threads = batchSize > 1 ? 2 : 1;
             ThreadPool tpool(batch_threads);
             std::vector<Result> batches_results(batch_threads);
-            auto batch = [&] (long wid, size_t start, size_t end) -> Code {
+            auto batch = [&](long wid, size_t start, size_t end) -> Code {
                 IO::NetIO client(argv[2], wid + strtol(argv[1], NULL, 10), true);
                 for (size_t cur = start; cur < end; ++cur) {
-                    auto result = (perform_proto(layers[i], client, context, hom_conv, threads / batch_threads));
+                    Result result;
+                    if (cur % 2 == 0)
+                        result = (Client::perform_proto(layers[i], client, context, hom_conv,
+                                                        threads / batch_threads));
+                    else
+                        result = (Server::perform_proto(layers[i], client, context, hom_conv,
+                                                        threads / batch_threads));
+
                     if (result.ret != Code::OK)
                         return result.ret;
 

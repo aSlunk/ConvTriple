@@ -15,35 +15,35 @@ using namespace gemini;
 
 namespace Server {
 
-Result Protocol3(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
-                      const HomConv2DSS& conv, const Tensor<uint64_t>& A1,
-                      const size_t& threads = 1);
+Result Protocol3(const HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
+                 const HomConv2DSS& conv, const Tensor<uint64_t>& A1, const size_t& threads = 1);
 
-Result Protocol2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
-                      const HomConv2DSS& conv, const Tensor<uint64_t>& A1,
-                      const std::vector<Tensor<uint64_t>>& B1, const size_t& threads = 1);
+Result Protocol2(const HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
+                 const HomConv2DSS& conv, const Tensor<uint64_t>& A1,
+                 const std::vector<Tensor<uint64_t>>& B1, const size_t& threads = 1);
 
-}
+Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
+                     const HomConv2DSS& hom_conv, const size_t& threads = 1);
+} // namespace Server
 
 namespace Client {
 
 Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
-                 HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
+                 const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                  const std::vector<Tensor<uint64_t>>& B2, const size_t& threads = 1);
 Result Protocol3(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
-                 HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
+                 const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                  const std::vector<Tensor<uint64_t>>& B2, const size_t& threads = 1);
-}
 
-Result Client::Protocol3(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
-                 HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
-                 const std::vector<Tensor<uint64_t>>& B2, const size_t& threads) {
-    meta.is_shared_input = true;
+Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client, const seal::SEALContext& context,
+                     const HomConv2DSS& hom_conv, const size_t& threads);
+} // namespace Client
+
+Result Client::Protocol3(IO::NetIO& client, const seal::SEALContext& context,
+                         const HomConv2DSS& hom_conv, const HomConv2DSS::Meta& meta,
+                         const Tensor<uint64_t>& A2, const std::vector<Tensor<uint64_t>>& B2,
+                         const size_t& threads) {
     Result measures;
-    measures.send_recv  = 0;
-    measures.decryption = 0;
-    measures.plain_op   = 0;
-    measures.serial     = 0;
 
     auto start = measure::now();
 
@@ -60,7 +60,7 @@ Result Client::Protocol3(IO::NetIO& client, const seal::SEALContext& context, co
     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
-    // recv + deserialize
+    // recv A' + deserialize
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
@@ -73,9 +73,12 @@ Result Client::Protocol3(IO::NetIO& client, const seal::SEALContext& context, co
     Utils::deserialize(context, is, enc_A1);
 
     measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+
+    ////////////////////////////////////////////////////////////////////////////
+    // M2' = (A1' + A2) ⊙ B2 - R
+    ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    // hom_conv.add_plain_inplace(enc_A1, enc_A2, N_THREADS);
     std::vector<seal::Ciphertext> M2;
     Tensor<uint64_t> R;
     measures.ret = hom_conv.conv2DSS(enc_A1, enc_A2, enc_B2, meta, M2, R, threads);
@@ -85,7 +88,7 @@ Result Client::Protocol3(IO::NetIO& client, const seal::SEALContext& context, co
     measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
-    // serialize + send
+    // serialize + send M2'
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
@@ -102,15 +105,14 @@ Result Client::Protocol3(IO::NetIO& client, const seal::SEALContext& context, co
     return measures;
 }
 
-Result Client::Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
-                 HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
-                 const std::vector<Tensor<uint64_t>>& B2, const size_t& threads) {
-    meta.is_shared_input = true;
+Result Client::Protocol2(IO::NetIO& client, const seal::SEALContext& context,
+                         const HomConv2DSS& hom_conv, const HomConv2DSS::Meta& meta,
+                         const Tensor<uint64_t>& A2, const std::vector<Tensor<uint64_t>>& B2,
+                         const size_t& threads) {
     Result measures;
-    measures.send_recv = 0;
 
     ////////////////////////////////////////////////////////////////////////////
-    // Receive enc(A1) and enc/send A2
+    // Receive A1' and enc/send A2'
     ////////////////////////////////////////////////////////////////////////////
     auto start = measure::now();
 
@@ -126,8 +128,7 @@ Result Client::Protocol2(IO::NetIO& client, const seal::SEALContext& context, co
         return measures;
 
     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
-    start = measure::now();
+    start               = measure::now();
 
     // auto ser = Utils::serialize(enc_A2);
     std::stringstream ser;
@@ -148,7 +149,7 @@ Result Client::Protocol2(IO::NetIO& client, const seal::SEALContext& context, co
 
     measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     ////////////////////////////////////////////////////////////////////////////
-    // (A1' + A2) ⊙ B2 - R2
+    // M2' = (A1' + A2) ⊙ B2 - R2
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
@@ -161,7 +162,7 @@ Result Client::Protocol2(IO::NetIO& client, const seal::SEALContext& context, co
 
     measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
     ////////////////////////////////////////////////////////////////////////////
-    // Send result
+    // send M2' + recv M1'
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
@@ -183,7 +184,7 @@ Result Client::Protocol2(IO::NetIO& client, const seal::SEALContext& context, co
     measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     ////////////////////////////////////////////////////////////////////////////
-    // A2 ⊙ B2 + M1 - R2
+    // dec(M1') + R2
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
@@ -203,15 +204,15 @@ Result Client::Protocol2(IO::NetIO& client, const seal::SEALContext& context, co
     return measures;
 }
 
-Result Server::Protocol3(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
-                      const HomConv2DSS& conv, const Tensor<uint64_t>& A1,
-                      const size_t& threads) {
+Result Server::Protocol3(const HomConv2DSS::Meta& meta, IO::NetIO& server,
+                         const seal::SEALContext& context, const HomConv2DSS& conv,
+                         const Tensor<uint64_t>& A1, const size_t& threads) {
 
-    meta.is_shared_input = true;
     Result measures;
-    measures.plain_op  = 0;
-    measures.cipher_op = 0;
 
+    ////////////////////////////////////////////////////////////////////////////
+    // send Enc(A1)
+    ////////////////////////////////////////////////////////////////////////////
     auto start = measure::now();
 
     std::vector<seal::Serializable<seal::Ciphertext>> enc_A1;
@@ -233,6 +234,9 @@ Result Server::Protocol3(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal:
 
     measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
+    ////////////////////////////////////////////////////////////////////////////
+    // recv C1 = dec(M2)
+    ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_C1(IO::recv_encrypted_vector(server, is));
@@ -255,11 +259,10 @@ Result Server::Protocol3(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal:
     return measures;
 }
 
-Result Server::Protocol2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
-                      const HomConv2DSS& conv, const Tensor<uint64_t>& A1,
-                      const std::vector<Tensor<uint64_t>>& B1, const size_t& threads) {
-    meta.is_shared_input = true;
-
+Result Server::Protocol2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
+                         const seal::SEALContext& context, const HomConv2DSS& conv,
+                         const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>>& B1,
+                         const size_t& threads) {
     Result measures;
     measures.send_recv = 0;
 
@@ -282,7 +285,6 @@ Result Server::Protocol2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal:
 
     start = measure::now();
 
-    // auto ser = Utils::serialize(enc_A1);
     std::stringstream ser;
     HomConv2DSS::serialize(enc_A1, ser, threads);
 
@@ -320,7 +322,6 @@ Result Server::Protocol2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal:
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    // ser = Utils::serialize(M1);
     HomConv2DSS::serialize(M1, ser, threads);
 
     measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
@@ -359,6 +360,38 @@ Result Server::Protocol2(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal:
 
     measures.bytes = server.counter;
     measures.ret   = Code::OK;
+    return measures;
+}
+
+Result Server::perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& server,
+                             const seal::SEALContext& context, const HomConv2DSS& hom_conv,
+                             const size_t& threads) {
+    auto A1 = Utils::init_image(meta, 5);
+    auto B1 = Utils::init_filter(meta, 2.0);
+
+    server.sync();
+#if PROTO == 2
+    auto measures = Server::Protocol2(meta, server, context, hom_conv, A1, B1, threads);
+#elif PROTO == 3
+    auto measures = Server::Protocol3(meta, server, context, hom_conv, A1, threads);
+#endif
+    server.counter = 0;
+    return measures;
+}
+
+Result Client::perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client,
+                             const seal::SEALContext& context, const HomConv2DSS& hom_conv,
+                             const size_t& threads) {
+    auto A2 = Utils::init_image(meta, 5);
+    auto B2 = Utils::init_filter(meta, 2.0);
+
+    client.sync();
+#if PROTO == 3
+    auto measures = Client::Protocol3(client, context, hom_conv, meta, A2, B2, threads);
+#elif PROTO == 2
+    auto measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, threads);
+#endif
+    client.counter = 0;
     return measures;
 }
 
