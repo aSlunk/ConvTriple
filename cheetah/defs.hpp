@@ -351,6 +351,8 @@ Code send_recv(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, EncVec
     std::vector<std::vector<seal::Ciphertext>> result(ios.size(), std::vector<seal::Ciphertext>(0));
 
     auto program = [&](long wid, size_t start, size_t end) -> Code {
+        if (start >= end)
+            return Code::OK;
         auto& io = ios[wid];
         std::stringstream is;
         for (size_t cur = start; cur < end; ++cur) {
@@ -384,6 +386,8 @@ Code recv_send(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, const 
     std::vector<std::vector<seal::Ciphertext>> result(ios.size(), std::vector<seal::Ciphertext>(0));
 
     auto program = [&](long wid, size_t start, size_t end) -> Code {
+        if (start >= end)
+            return Code::OK;
         auto& io = ios[wid];
         std::stringstream is;
         for (size_t cur = start; cur < end; ++cur) {
@@ -393,7 +397,6 @@ Code recv_send(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, const 
         uint32_t ncts = IO::recv_encrypted_vector(io, is);
         result[wid].resize(ncts);
         IO::send_encrypted_vector(io, is, end - start);
-
         Utils::deserialize(ctx, is, result[wid]);
 
         return Code::OK;

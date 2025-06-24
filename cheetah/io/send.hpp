@@ -87,8 +87,10 @@ void send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec) {
 void send_encrypted_vector(IO::NetIO& io, std::stringstream& ct, const uint32_t& ncts) {
     io.send_data(&ncts, sizeof(uint32_t));
     uint64_t ct_size = ct.str().size();
-    io.send_data(&ct_size, sizeof(uint64_t));
-    io.send_data(ct.str().c_str(), ct_size);
+    if (ncts > 0) {
+        io.send_data(&ct_size, sizeof(uint64_t));
+        io.send_data(ct.str().c_str(), ct_size);
+    }
     io.flush();
     ct.clear();
 }
