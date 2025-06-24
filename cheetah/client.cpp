@@ -112,7 +112,8 @@ int main(int argc, char** argv) {
     ////////////////////////////////////////////////////////////////////////////
     // Sample R
     ////////////////////////////////////////////////////////////////////////////
-    // IO::NetIO client(argv[2], strtol(argv[1], NULL, 10), true);
+    long port = strtol(argv[1], NULL, 10);
+    // IO::NetIO client(argv[2], port, true);
 
     double totalTime = 0;
     double totalData = 0;
@@ -135,18 +136,25 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < layers.size(); ++i) {
         for (int round = 0; round < samples; ++round) {
             size_t batch_threads = batchSize > 1 ? 2 : 1;
+            size_t threads_per_thread = threads / batch_threads;
+
             ThreadPool tpool(batch_threads);
             std::vector<Result> batches_results(batch_threads);
             auto batch = [&](long wid, size_t start, size_t end) -> Code {
-                IO::NetIO client(argv[2], wid + strtol(argv[1], NULL, 10), true);
+                // IO::NetIO client(argv[2], wid + port, true);
+                std::vector<IO::NetIO> ios;
+                ios.reserve(threads_per_thread);
+                for (size_t p = 0; p < threads_per_thread; p++) {
+                    ios.emplace_back(argv[2], port + wid * threads_per_thread + p, true);
+                }
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
                     if (cur % 2 == 0)
-                        result = (Client::perform_proto(layers[i], client, context, hom_conv,
-                                                        threads / batch_threads));
+                        result = (Client::perform_proto(layers[i], ios, context, hom_conv,
+                                                        threads_per_thread));
                     else
-                        result = (Server::perform_proto(layers[i], client, context, hom_conv,
-                                                        threads / batch_threads));
+                        result = (Server::perform_proto(layers[i], ios, context, hom_conv,
+                                                        threads_per_thread));
 
                     if (result.ret != Code::OK)
                         return result.ret;

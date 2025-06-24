@@ -26,7 +26,7 @@ endif()
 
 add_library(io INTERFACE)
 target_include_directories(io INTERFACE io)
-target_link_libraries(io INTERFACE SEAL::seal)
+target_link_libraries(io INTERFACE SEAL::seal gemini)
 
 set(exe cheetah)
 add_executable(${exe} server.cpp)

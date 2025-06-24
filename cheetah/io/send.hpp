@@ -1,11 +1,14 @@
 #pragma once
 
+#include <cassert>
 #include <chrono>
 #include <string>
+#include <vector>
 
 #include <seal/seal.h>
 #include <sys/socket.h>
 
+#include <gemini/cheetah/hom_conv2d_ss.h>
 #include "io/net_io_channel.hpp"
 
 using std::string;
@@ -21,6 +24,9 @@ void send_ciphertext(IO::NetIO& io, const CtType& ct);
 template <class EncVecCtType>
 void send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec);
 
+template <class EncVecCtType>
+void send_encrypted_vector(std::vector<IO::NetIO>& io, const EncVecCtType& ct_vec);
+
 void send_encrypted_vector(IO::NetIO& io, const std::stringstream& ct, const uint32_t& size);
 
 template <class EncVecCtType>
@@ -29,6 +35,9 @@ void send_encrypted_filters(IO::NetIO& io, const EncVecCtType& ct_vec); // ADDED
 void recv_encrypted_filters(IO::NetIO& io, const seal::SEALContext& context,
                             std::vector<std::vector<seal::Ciphertext>>& ct_vec,
                             bool is_truncated = false); // ADDED
+
+void recv_encrypted_vector(std::vector<IO::NetIO>& io, const seal::SEALContext& context,
+                           std::vector<seal::Ciphertext>& ct_vec, bool is_truncated = false);
 
 void recv_encrypted_vector(IO::NetIO& io, const seal::SEALContext& context,
                            std::vector<seal::Ciphertext>& ct_vec, bool is_truncated = false);
@@ -162,6 +171,44 @@ void recv_ciphertext(IO::NetIO& io, const seal::SEALContext& context, seal::Ciph
         ct.load(context, is);
     }
     delete[] c_enc_result;
+}
+
+template <class EncVecCtType>
+void send_encrypted_vector(std::vector<IO::NetIO>& ios, const EncVecCtType& ct_vec) {
+    uint32_t ncts = ct_vec.size();
+    ios[0].send_data(&ncts, sizeof(uint32_t));
+
+    auto program = [&](long wid, size_t start, size_t end) -> Code {
+        auto& io = ios[wid];
+        for (size_t i = start; i < end; ++i) {
+            send_ciphertext(io, ct_vec.at(i));
+        }
+        io.flush();
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(ios.size());
+    gemini::LaunchWorks(tpool, ncts, program);
+}
+
+void recv_encrypted_vector(std::vector<IO::NetIO>& ios, const seal::SEALContext& context,
+                           std::vector<seal::Ciphertext>& ct_vec, bool is_truncated) {
+    uint32_t ncts{0};
+    ios[0].recv_data(&ncts, sizeof(uint32_t));
+    ct_vec.resize(ncts);
+
+    auto program = [&](long wid, size_t start, size_t end) -> Code {
+        auto& io = ios[wid];
+        if (ncts > 0) {
+            for (size_t i = start; i < end; ++i) {
+                recv_ciphertext(io, context, ct_vec[i], is_truncated);
+            }
+        }
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(ios.size());
+    gemini::LaunchWorks(tpool, ncts, program);
 }
 
 } // namespace IO

@@ -119,18 +119,25 @@ int main(int argc, char** argv) {
 
         for (int round = 0; round < samples; ++round) {
             size_t batch_threads = batchSize > 1 ? 2 : 1;
+            size_t threads_per_thread = threads / batch_threads;
+
             ThreadPool tpool(batch_threads);
             std::vector<Result> batches_results(batch_threads);
             auto batch = [&](long wid, size_t start, size_t end) -> Code {
-                IO::NetIO server(nullptr, port + wid, true);
+                // IO::NetIO server(nullptr, port + wid, true);
+                std::vector<IO::NetIO> ios;
+                ios.reserve(threads_per_thread);
+                for (size_t p = 0; p < threads_per_thread; p++) {
+                    ios.emplace_back(nullptr, port + wid * threads_per_thread + p, true);
+                }
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
                     if (cur % 2 == 0)
-                        result = (Server::perform_proto(layers[i], server, context, conv,
-                                                        threads / batch_threads));
+                        result = (Server::perform_proto(layers[i], ios, context, conv,
+                                                        threads_per_thread));
                     else
-                        result = (Client::perform_proto(layers[i], server, context, conv,
-                                                        threads / batch_threads));
+                        result = (Client::perform_proto(layers[i], ios, context, conv,
+                                                        threads_per_thread));
 
                     if (result.ret != Code::OK)
                         return result.ret;
