@@ -15,31 +15,39 @@ using namespace gemini;
 
 namespace Server {
 
-Result Protocol3(const HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
+template <class Channel>
+Result Protocol3(const HomConv2DSS::Meta& meta, Channel& server, const seal::SEALContext& context,
                  const HomConv2DSS& conv, const Tensor<uint64_t>& A1, const size_t& threads = 1);
 
-Result Protocol2(const HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
+template <class Channel>
+Result Protocol2(const HomConv2DSS::Meta& meta, Channel& server, const seal::SEALContext& context,
                  const HomConv2DSS& conv, const Tensor<uint64_t>& A1,
                  const std::vector<Tensor<uint64_t>>& B1, const size_t& threads = 1);
 
-Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& server, const seal::SEALContext& context,
+template <class Channel>
+Result perform_proto(HomConv2DSS::Meta& meta, Channel& server, const seal::SEALContext& context,
                      const HomConv2DSS& hom_conv, const size_t& threads = 1);
 } // namespace Server
 
 namespace Client {
 
-Result Protocol2(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
-                 const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
-                 const std::vector<Tensor<uint64_t>>& B2, const size_t& threads = 1);
-Result Protocol3(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
+template <class Channel>
+Result Protocol2(Channel& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                  const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                  const std::vector<Tensor<uint64_t>>& B2, const size_t& threads = 1);
 
-Result perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client, const seal::SEALContext& context,
+template <class Channel>
+Result Protocol3(Channel& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
+                 const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
+                 const std::vector<Tensor<uint64_t>>& B2, const size_t& threads = 1);
+
+template <class Channel>
+Result perform_proto(HomConv2DSS::Meta& meta, Channel& client, const seal::SEALContext& context,
                      const HomConv2DSS& hom_conv, const size_t& threads);
 } // namespace Client
 
-Result Client::Protocol3(IO::NetIO& client, const seal::SEALContext& context,
+template <class Channel>
+Result Client::Protocol3(Channel& client, const seal::SEALContext& context,
                          const HomConv2DSS& hom_conv, const HomConv2DSS::Meta& meta,
                          const Tensor<uint64_t>& A2, const std::vector<Tensor<uint64_t>>& B2,
                          const size_t& threads) {
@@ -105,7 +113,8 @@ Result Client::Protocol3(IO::NetIO& client, const seal::SEALContext& context,
     return measures;
 }
 
-Result Client::Protocol2(IO::NetIO& client, const seal::SEALContext& context,
+template <class Channel>
+Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
                          const HomConv2DSS& hom_conv, const HomConv2DSS::Meta& meta,
                          const Tensor<uint64_t>& A2, const std::vector<Tensor<uint64_t>>& B2,
                          const size_t& threads) {
@@ -130,7 +139,6 @@ Result Client::Protocol2(IO::NetIO& client, const seal::SEALContext& context,
     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
     start               = measure::now();
 
-    // auto ser = Utils::serialize(enc_A2);
     std::stringstream ser;
     HomConv2DSS::serialize(enc_A2, ser, threads);
 
@@ -204,7 +212,8 @@ Result Client::Protocol2(IO::NetIO& client, const seal::SEALContext& context,
     return measures;
 }
 
-Result Server::Protocol3(const HomConv2DSS::Meta& meta, IO::NetIO& server,
+template <class Channel>
+Result Server::Protocol3(const HomConv2DSS::Meta& meta, Channel& server,
                          const seal::SEALContext& context, const HomConv2DSS& conv,
                          const Tensor<uint64_t>& A1, const size_t& threads) {
 
@@ -259,7 +268,8 @@ Result Server::Protocol3(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     return measures;
 }
 
-Result Server::Protocol2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
+template <class Channel>
+Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
                          const seal::SEALContext& context, const HomConv2DSS& conv,
                          const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>>& B1,
                          const size_t& threads) {
@@ -363,7 +373,8 @@ Result Server::Protocol2(const HomConv2DSS::Meta& meta, IO::NetIO& server,
     return measures;
 }
 
-Result Server::perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& server,
+template <class Channel>
+Result Server::perform_proto(HomConv2DSS::Meta& meta, Channel& server,
                              const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                              const size_t& threads) {
     auto A1 = Utils::init_image(meta, 5);
@@ -379,7 +390,8 @@ Result Server::perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& server,
     return measures;
 }
 
-Result Client::perform_proto(HomConv2DSS::Meta& meta, IO::NetIO& client,
+template <class Channel>
+Result Client::perform_proto(HomConv2DSS::Meta& meta, Channel& client,
                              const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                              const size_t& threads) {
     auto A2 = Utils::init_image(meta, 5);
