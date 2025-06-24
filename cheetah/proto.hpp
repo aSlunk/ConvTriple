@@ -148,10 +148,11 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_A1;
+    recv_send(context, client, enc_A2, enc_A1);
     // enc_A1.resize(IO::recv_encrypted_vector(client, is));
-    IO::recv_encrypted_vector(client, context, enc_A1);
-    // IO::send_encrypted_vector(client, ser, enc_A2.size());
-    IO::send_encrypted_vector(client, enc_A2);
+    // IO::recv_encrypted_vector(client, context, enc_A1);
+    // // IO::send_encrypted_vector(client, ser, enc_A2.size());
+    // IO::send_encrypted_vector(client, enc_A2);
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     // start = measure::now();
@@ -184,10 +185,11 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M1;
-    // enc_M1.resize(IO::recv_encrypted_vector(client, is));
-    IO::recv_encrypted_vector(client, context, enc_M1);
-    // IO::send_encrypted_vector(client, ser, enc_M2.size());
-    IO::send_encrypted_vector(client, enc_M2);
+    recv_send(context, client, enc_M2, enc_M1);
+    // // enc_M1.resize(IO::recv_encrypted_vector(client, is));
+    // IO::recv_encrypted_vector(client, context, enc_M1);
+    // // IO::send_encrypted_vector(client, ser, enc_M2.size());
+    // IO::send_encrypted_vector(client, enc_M2);
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     // start = measure::now();
@@ -309,10 +311,11 @@ Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
     start = measure::now();
 
     // IO::send_encrypted_vector(server, ser, enc_A1.size());
-    IO::send_encrypted_vector(server, enc_A1);
+    // IO::send_encrypted_vector(server, enc_A1);
     std::vector<seal::Ciphertext> enc_A2;
-    // enc_A2.resize(IO::recv_encrypted_vector(server, is));
-    IO::recv_encrypted_vector(server, context, enc_A2);
+    // // enc_A2.resize(IO::recv_encrypted_vector(server, is));
+    // IO::recv_encrypted_vector(server, context, enc_A2);
+    send_recv(context, server, enc_A1, enc_A2);
 
     measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
     // start              = measure::now();
@@ -344,12 +347,14 @@ Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
 
     // measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     start = measure::now();
-
-    // IO::send_encrypted_vector(server, ser, M1.size());
-    IO::send_encrypted_vector(server, M1);
     std::vector<seal::Ciphertext> enc_M2;
-    // enc_M2.resize(IO::recv_encrypted_vector(server, is));
-    IO::recv_encrypted_vector(server, context, enc_M2);
+    send_recv(context, server, M1, enc_M2);
+
+    // // IO::send_encrypted_vector(server, ser, M1.size());
+    // IO::send_encrypted_vector(server, M1);
+    // std::vector<seal::Ciphertext> enc_M2;
+    // // enc_M2.resize(IO::recv_encrypted_vector(server, is));
+    // IO::recv_encrypted_vector(server, context, enc_M2);
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     // start = measure::now();

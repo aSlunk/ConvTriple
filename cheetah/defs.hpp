@@ -345,4 +345,72 @@ Result average(const std::vector<Result>& res) {
     return avg;
 }
 
+
+template <class EncVec>
+Code send_recv(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, EncVec& send, std::vector<seal::Ciphertext>& recv) {
+    std::vector<std::vector<seal::Ciphertext>> result(ios.size(), std::vector<seal::Ciphertext>(0));
+
+    auto program = [&](long wid, size_t start, size_t end) -> Code {
+        auto& io = ios[wid];
+        std::stringstream is;
+        for (size_t cur = start; cur < end; ++cur) {
+            send[cur].save(is);
+        }
+
+        IO::send_encrypted_vector(io, is, end - start);
+        uint32_t ncts = IO::recv_encrypted_vector(io, is);
+        result[wid].resize(ncts);
+        Utils::deserialize(ctx, is, result[wid]);
+
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(ios.size());
+    gemini::LaunchWorks(tpool, send.size(), program);
+
+    for (auto& vec : result) {
+        if (!vec.size())
+            continue;
+
+        recv.reserve(recv.size() + vec.size());
+        for (auto& ctx : vec)
+            recv.push_back(ctx);
+    }
+    return Code::OK;
+}
+
+template <class Vec>
+Code recv_send(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, const Vec& send, std::vector<seal::Ciphertext>& recv) {
+    std::vector<std::vector<seal::Ciphertext>> result(ios.size(), std::vector<seal::Ciphertext>(0));
+
+    auto program = [&](long wid, size_t start, size_t end) -> Code {
+        auto& io = ios[wid];
+        std::stringstream is;
+        for (size_t cur = start; cur < end; ++cur) {
+            send[cur].save(is);
+        }
+
+        uint32_t ncts = IO::recv_encrypted_vector(io, is);
+        result[wid].resize(ncts);
+        IO::send_encrypted_vector(io, is, end - start);
+
+        Utils::deserialize(ctx, is, result[wid]);
+
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(ios.size());
+    gemini::LaunchWorks(tpool, send.size(), program);
+
+    for (auto& vec : result) {
+        if (!vec.size())
+            continue;
+
+        recv.reserve(recv.size() + vec.size());
+        for (auto& ctx : vec)
+            recv.push_back(ctx);
+    }
+    return Code::OK;
+}
+
 #endif // DEFS_HPP
