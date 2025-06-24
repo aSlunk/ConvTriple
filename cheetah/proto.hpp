@@ -212,7 +212,8 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
 
     measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
-    measures.bytes = client[0].counter;
+    for (auto& ele : client)
+        measures.bytes += ele.counter;
     measures.ret   = Code::OK;
     return measures;
 }
@@ -377,7 +378,8 @@ Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
 
     std::cerr << M2.channels() << " x " << M2.height() << " x " << M2.width() << "\n";
 
-    measures.bytes = server[0].counter;
+    for (auto& ele : server)
+        measures.bytes += ele.counter;
     measures.ret   = Code::OK;
     return measures;
 }
@@ -395,7 +397,8 @@ Result Server::perform_proto(HomConv2DSS::Meta& meta, Channel& server,
 #elif PROTO == 3
     auto measures = Server::Protocol3(meta, server, context, hom_conv, A1, threads);
 #endif
-    server[0].counter = 0;
+    for (auto& ele : server)
+        ele.counter = 0;
     return measures;
 }
 
@@ -412,7 +415,8 @@ Result Client::perform_proto(HomConv2DSS::Meta& meta, Channel& client,
 #elif PROTO == 2
     auto measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, threads);
 #endif
-    client[0].counter = 0;
+    for (auto& ele : client)
+        ele.counter = 0;
     return measures;
 }
 
