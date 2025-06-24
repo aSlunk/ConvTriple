@@ -72,16 +72,10 @@ Result Client::Protocol3(Channel& client, const seal::SEALContext& context,
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    std::stringstream is;
-    std::vector<seal::Ciphertext> enc_A1(IO::recv_encrypted_vector(client, is));
+    std::vector<seal::Ciphertext> enc_A1;
+    IO::recv_encrypted_vector(client, context, enc_A1);
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    start = measure::now();
-
-    Utils::deserialize(context, is, enc_A1);
-
-    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
     ////////////////////////////////////////////////////////////////////////////
     // M2' = (A1' + A2) ⊙ B2 - R
     ////////////////////////////////////////////////////////////////////////////
@@ -100,16 +94,12 @@ Result Client::Protocol3(Channel& client, const seal::SEALContext& context,
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    HomConv2DSS::serialize(M2, is, threads);
-
-    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    start = measure::now();
-
-    IO::send_encrypted_vector(client, is, M2.size());
+    IO::send_encrypted_vector(client, M2);
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
-    measures.bytes = client.counter;
+    for (auto& ele : client)
+        measures.bytes += ele.counter;
     return measures;
 }
 
@@ -205,40 +195,30 @@ Result Server::Protocol3(const HomConv2DSS::Meta& meta, Channel& server,
 
     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
-    start = measure::now();
-
-    std::stringstream is;
-    HomConv2DSS::serialize(enc_A1, is, threads);
-
-    measures.serial = std::chrono::duration_cast<Unit>(measure::now() - start).count();
     start           = measure::now();
 
-    IO::send_encrypted_vector(server, is, enc_A1.size());
+    IO::send_encrypted_vector(server, enc_A1);
 
     measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
     ////////////////////////////////////////////////////////////////////////////
     // recv C1 = dec(M2)
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    std::vector<seal::Ciphertext> enc_C1(IO::recv_encrypted_vector(server, is));
+    std::vector<seal::Ciphertext> enc_C1;
+    IO::recv_encrypted_vector(server, context, enc_C1);
+
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
     start = measure::now();
 
-    Utils::deserialize(context, is, enc_C1);
-
-    measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
-    start = measure::now();
     Tensor<uint64_t> C1;
     measures.ret        = conv.decryptToTensor(enc_C1, meta, C1, threads);
     measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     std::cerr << C1.channels() << " x " << C1.height() << " x " << C1.width() << "\n";
 
-    measures.bytes = server.counter;
+    for (auto& ele : server)
+        measures.bytes += ele.counter;
     return measures;
 }
 

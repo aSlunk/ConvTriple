@@ -184,6 +184,7 @@ void send_encrypted_vector(std::vector<IO::NetIO>& ios, const EncVecCtType& ct_v
         auto& io = ios[wid];
         for (size_t i = start; i < end; ++i) {
             send_ciphertext(io, ct_vec.at(i));
+            io.flush();
         }
         io.flush();
         return Code::OK;
@@ -201,16 +202,16 @@ void recv_encrypted_vector(std::vector<IO::NetIO>& ios, const seal::SEALContext&
 
     auto program = [&](long wid, size_t start, size_t end) -> Code {
         auto& io = ios[wid];
-        if (ncts > 0) {
-            for (size_t i = start; i < end; ++i) {
-                recv_ciphertext(io, context, ct_vec[i], is_truncated);
-            }
+        for (size_t i = start; i < end; ++i) {
+            recv_ciphertext(io, context, ct_vec.at(i), is_truncated);
         }
         return Code::OK;
     };
 
-    gemini::ThreadPool tpool(ios.size());
-    gemini::LaunchWorks(tpool, ncts, program);
+    if (ncts > 0) {
+        gemini::ThreadPool tpool(ios.size());
+        gemini::LaunchWorks(tpool, ncts, program);
+    }
 }
 
 } // namespace IO
