@@ -345,9 +345,9 @@ Result average(const std::vector<Result>& res) {
     return avg;
 }
 
-
 template <class EncVec>
-Code send_recv(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, EncVec& send, std::vector<seal::Ciphertext>& recv) {
+Code send_recv(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, EncVec& send,
+               std::vector<seal::Ciphertext>& recv) {
     std::vector<std::vector<seal::Ciphertext>> result(ios.size(), std::vector<seal::Ciphertext>(0));
 
     auto program = [&](long wid, size_t start, size_t end) -> Code {
@@ -368,21 +368,21 @@ Code send_recv(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, EncVec
     };
 
     gemini::ThreadPool tpool(ios.size());
-    gemini::LaunchWorks(tpool, send.size(), program);
+    CHECK_ERR(gemini::LaunchWorks(tpool, send.size(), program), "send_recv");
 
     for (auto& vec : result) {
         if (!vec.size())
             continue;
 
         recv.reserve(recv.size() + vec.size());
-        for (auto& ctx : vec)
-            recv.push_back(ctx);
+        for (auto& ctx : vec) recv.push_back(ctx);
     }
     return Code::OK;
 }
 
 template <class Vec>
-Code recv_send(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, const Vec& send, std::vector<seal::Ciphertext>& recv) {
+Code recv_send(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, const Vec& send,
+               std::vector<seal::Ciphertext>& recv) {
     std::vector<std::vector<seal::Ciphertext>> result(ios.size(), std::vector<seal::Ciphertext>(0));
 
     auto program = [&](long wid, size_t start, size_t end) -> Code {
@@ -403,15 +403,14 @@ Code recv_send(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, const 
     };
 
     gemini::ThreadPool tpool(ios.size());
-    gemini::LaunchWorks(tpool, send.size(), program);
+    CHECK_ERR(gemini::LaunchWorks(tpool, send.size(), program), "send_recv");
 
     for (auto& vec : result) {
         if (!vec.size())
             continue;
 
         recv.reserve(recv.size() + vec.size());
-        for (auto& ctx : vec)
-            recv.push_back(ctx);
+        for (auto& ctx : vec) recv.push_back(ctx);
     }
     return Code::OK;
 }

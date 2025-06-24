@@ -137,29 +137,12 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
         return measures;
 
     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    // start               = measure::now();
-
-    // // auto ser = Utils::serialize(enc_A2);
-    // std::stringstream ser;
-    // HomConv2DSS::serialize(enc_A2, ser, threads);
-
-    // measures.serial = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    // std::stringstream is;
-    start = measure::now();
+    start               = measure::now();
 
     std::vector<seal::Ciphertext> enc_A1;
     recv_send(context, client, enc_A2, enc_A1);
-    // enc_A1.resize(IO::recv_encrypted_vector(client, is));
-    // IO::recv_encrypted_vector(client, context, enc_A1);
-    // // IO::send_encrypted_vector(client, ser, enc_A2.size());
-    // IO::send_encrypted_vector(client, enc_A2);
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    // start = measure::now();
-
-    // Utils::deserialize(context, is, enc_A1);
-
-    // measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     ////////////////////////////////////////////////////////////////////////////
     // M2' = (A1' + A2) ⊙ B2 - R2
     ////////////////////////////////////////////////////////////////////////////
@@ -176,28 +159,12 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
     ////////////////////////////////////////////////////////////////////////////
     // send M2' + recv M1'
     ////////////////////////////////////////////////////////////////////////////
-    // start = measure::now();
-
-    // // ser = Utils::serialize(enc_M2);
-    // HomConv2DSS::serialize(enc_M2, ser, threads);
-
-    // measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M1;
     recv_send(context, client, enc_M2, enc_M1);
-    // // enc_M1.resize(IO::recv_encrypted_vector(client, is));
-    // IO::recv_encrypted_vector(client, context, enc_M1);
-    // // IO::send_encrypted_vector(client, ser, enc_M2.size());
-    // IO::send_encrypted_vector(client, enc_M2);
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    // start = measure::now();
-
-    // Utils::deserialize(context, is, enc_M1);
-
-    // measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
     ////////////////////////////////////////////////////////////////////////////
     // dec(M1') + R2
     ////////////////////////////////////////////////////////////////////////////
@@ -214,9 +181,8 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
 
     measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
-    for (auto& ele : client)
-        measures.bytes += ele.counter;
-    measures.ret   = Code::OK;
+    for (auto& ele : client) measures.bytes += ele.counter;
+    measures.ret = Code::OK;
     return measures;
 }
 
@@ -301,29 +267,12 @@ Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
 
     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
-    // start = measure::now();
-
-    // std::stringstream ser;
-    // HomConv2DSS::serialize(enc_A1, ser, threads);
-
-    // measures.serial = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    // std::stringstream is;
     start = measure::now();
 
-    // IO::send_encrypted_vector(server, ser, enc_A1.size());
-    // IO::send_encrypted_vector(server, enc_A1);
     std::vector<seal::Ciphertext> enc_A2;
-    // // enc_A2.resize(IO::recv_encrypted_vector(server, is));
-    // IO::recv_encrypted_vector(server, context, enc_A2);
     send_recv(context, server, enc_A1, enc_A2);
 
     measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    // start              = measure::now();
-
-    // Utils::deserialize(context, is, enc_A2);
-
-    // measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
     ////////////////////////////////////////////////////////////////////////////
     // M1 = (A1 + A2') ⊙ B1 - R1
     ////////////////////////////////////////////////////////////////////////////
@@ -341,28 +290,12 @@ Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
     ////////////////////////////////////////////////////////////////////////////
     // Send(M1), Recv(M2), Dec(M2)
     ////////////////////////////////////////////////////////////////////////////
-    // start = measure::now();
-
-    // HomConv2DSS::serialize(M1, ser, threads);
-
-    // measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     start = measure::now();
+
     std::vector<seal::Ciphertext> enc_M2;
     send_recv(context, server, M1, enc_M2);
 
-    // // IO::send_encrypted_vector(server, ser, M1.size());
-    // IO::send_encrypted_vector(server, M1);
-    // std::vector<seal::Ciphertext> enc_M2;
-    // // enc_M2.resize(IO::recv_encrypted_vector(server, is));
-    // IO::recv_encrypted_vector(server, context, enc_M2);
-
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    // start = measure::now();
-
-    // Utils::deserialize(context, is, enc_M2);
-
-    // measures.serial += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
     ////////////////////////////////////////////////////////////////////////////
     // Dec(M2) + R1
     ////////////////////////////////////////////////////////////////////////////
@@ -383,9 +316,8 @@ Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
 
     std::cerr << M2.channels() << " x " << M2.height() << " x " << M2.width() << "\n";
 
-    for (auto& ele : server)
-        measures.bytes += ele.counter;
-    measures.ret   = Code::OK;
+    for (auto& ele : server) measures.bytes += ele.counter;
+    measures.ret = Code::OK;
     return measures;
 }
 
@@ -402,8 +334,7 @@ Result Server::perform_proto(HomConv2DSS::Meta& meta, Channel& server,
 #elif PROTO == 3
     auto measures = Server::Protocol3(meta, server, context, hom_conv, A1, threads);
 #endif
-    for (auto& ele : server)
-        ele.counter = 0;
+    for (auto& ele : server) ele.counter = 0;
     return measures;
 }
 
@@ -420,8 +351,7 @@ Result Client::perform_proto(HomConv2DSS::Meta& meta, Channel& client,
 #elif PROTO == 2
     auto measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, threads);
 #endif
-    for (auto& ele : client)
-        ele.counter = 0;
+    for (auto& ele : client) ele.counter = 0;
     return measures;
 }
 

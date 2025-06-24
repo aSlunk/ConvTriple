@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
         std::cerr << "Current layer: " << i << std::endl;
 
         for (int round = 0; round < samples; ++round) {
-            size_t batch_threads = batchSize > 1 ? 2 : 1;
+            size_t batch_threads      = batchSize > 1 ? 2 : 1;
             size_t threads_per_thread = threads / batch_threads;
 
             ThreadPool tpool(batch_threads);

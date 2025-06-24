@@ -8,8 +8,8 @@
 #include <seal/seal.h>
 #include <sys/socket.h>
 
-#include <gemini/cheetah/hom_conv2d_ss.h>
 #include "io/net_io_channel.hpp"
+#include <gemini/cheetah/hom_conv2d_ss.h>
 
 using std::string;
 

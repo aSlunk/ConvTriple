@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
     auto layers = Utils::init_layers();
     for (size_t i = 0; i < layers.size(); ++i) {
         for (int round = 0; round < samples; ++round) {
-            size_t batch_threads = batchSize > 1 ? 2 : 1;
+            size_t batch_threads      = batchSize > 1 ? 2 : 1;
             size_t threads_per_thread = threads / batch_threads;
 
             ThreadPool tpool(batch_threads);
