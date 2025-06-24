@@ -132,16 +132,18 @@ int main(int argc, char** argv) {
     std::cerr << "BatchSize: " << batchSize << "\n";
     std::cerr << "threads: " << threads << "\n";
 
+    size_t batch_threads      = batchSize > 1 ? batchSize : 1;
+    size_t threads_per_thread = threads / batch_threads;
+
+    std::cerr << "#threads: " << batch_threads << "\n";
+    std::cerr << "threads per thread: " << threads_per_thread << "\n";
+
     auto layers = Utils::init_layers();
     for (size_t i = 0; i < layers.size(); ++i) {
         for (int round = 0; round < samples; ++round) {
-            size_t batch_threads      = batchSize > 1 ? 2 : 1;
-            size_t threads_per_thread = threads / batch_threads;
-
             ThreadPool tpool(batch_threads);
             std::vector<Result> batches_results(batch_threads);
             auto batch = [&](long wid, size_t start, size_t end) -> Code {
-                // IO::NetIO client(argv[2], wid + port, true);
                 std::vector<IO::NetIO> ios;
                 ios.reserve(threads_per_thread);
                 for (size_t p = 0; p < threads_per_thread; p++) {
@@ -149,7 +151,7 @@ int main(int argc, char** argv) {
                 }
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
-                    if (cur % 2 == 0)
+                    if (PROTO == 3 || cur % 2 == 0)
                         result = (Client::perform_proto(layers[i], ios, context, hom_conv,
                                                         threads_per_thread));
                     else

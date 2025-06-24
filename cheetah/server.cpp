@@ -113,14 +113,17 @@ int main(int argc, char** argv) {
     std::cerr << "threads: " << threads << "\n";
     std::vector<Result> results(samples);
 
+    size_t batch_threads      = batchSize > 1 ? batchSize : 1;
+    size_t threads_per_thread = threads / batch_threads;
+
+    std::cerr << "#threads: " << batch_threads << "\n";
+    std::cerr << "threads per thread: " << threads_per_thread << "\n";
+
     auto layers = Utils::init_layers();
     for (size_t i = 0; i < layers.size(); ++i) {
         std::cerr << "Current layer: " << i << std::endl;
 
         for (int round = 0; round < samples; ++round) {
-            size_t batch_threads      = batchSize > 1 ? 2 : 1;
-            size_t threads_per_thread = threads / batch_threads;
-
             ThreadPool tpool(batch_threads);
             std::vector<Result> batches_results(batch_threads);
             auto batch = [&](long wid, size_t start, size_t end) -> Code {
@@ -129,10 +132,11 @@ int main(int argc, char** argv) {
                 ios.reserve(threads_per_thread);
                 for (size_t p = 0; p < threads_per_thread; p++) {
                     ios.emplace_back(nullptr, port + wid * threads_per_thread + p, true);
+                    std::cerr << "PORT: " << ios.back().port << "\n";
                 }
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
-                    if (cur % 2 == 0)
+                    if (PROTO == 3 || cur % 2 == 0)
                         result = (Server::perform_proto(layers[i], ios, context, conv,
                                                         threads_per_thread));
                     else
