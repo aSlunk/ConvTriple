@@ -136,12 +136,13 @@ int main(int argc, char** argv) {
                 }
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
-                    if (PROTO == 3 || cur % 2 == 0)
+                    if (PROTO == 3 || (cur + wid) % 2 == 0) {
                         result = (Server::perform_proto(layers[i], ios, context, conv,
                                                         threads_per_thread));
-                    else
+                    } else {
                         result = (Client::perform_proto(layers[i], ios, context, conv,
                                                         threads_per_thread));
+                    }
 
                     if (result.ret != Code::OK)
                         return result.ret;
@@ -156,10 +157,10 @@ int main(int argc, char** argv) {
                 std::cerr << CodeMessage(code) << "\n";
                 return EXEC_FAILED;
             }
-            results[round] = average(batches_results);
+            results[round] = average(batches_results, false);
         }
 
-        auto res = average(results);
+        auto res = average(results, true);
         total_time += print_results(res, i, batchSize, threads);
         total_data += res.bytes / 1'000'000.0;
     }

@@ -306,7 +306,7 @@ double print_results(const Result& res, const int& layer, const size_t& batchSiz
     return total;
 }
 
-Result average(const std::vector<Result>& res) {
+Result average(const std::vector<Result>& res, bool average_bytes) {
     Result avg = {.encryption = 0,
                   .cipher_op  = 0,
                   .plain_op   = 0,
@@ -340,7 +340,9 @@ Result average(const std::vector<Result>& res) {
     avg.cipher_op /= len;
     avg.plain_op /= len;
     avg.serial /= len;
-    avg.bytes /= len;
+
+    if (average_bytes)
+        avg.bytes /= len;
 
     return avg;
 }
@@ -394,16 +396,18 @@ Code recv_send(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, const 
             send[cur].save(is);
         }
 
-        uint32_t ncts = IO::recv_encrypted_vector(io, is);
-        result[wid].resize(ncts);
+        std::stringstream os;
+        uint32_t ncts = IO::recv_encrypted_vector(io, os);
         IO::send_encrypted_vector(io, is, end - start);
-        Utils::deserialize(ctx, is, result[wid]);
+
+        result[wid].resize(ncts);
+        Utils::deserialize(ctx, os, result[wid]);
 
         return Code::OK;
     };
 
     gemini::ThreadPool tpool(ios.size());
-    CHECK_ERR(gemini::LaunchWorks(tpool, send.size(), program), "send_recv");
+    CHECK_ERR(gemini::LaunchWorks(tpool, send.size(), program), "recv_send");
 
     for (auto& vec : result) {
         if (!vec.size())

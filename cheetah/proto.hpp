@@ -98,8 +98,7 @@ Result Client::Protocol3(Channel& client, const seal::SEALContext& context,
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
-    for (auto& ele : client)
-        measures.bytes += ele.counter;
+    for (auto& ele : client) measures.bytes += ele.counter;
     return measures;
 }
 
@@ -195,7 +194,7 @@ Result Server::Protocol3(const HomConv2DSS::Meta& meta, Channel& server,
 
     measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
-    start           = measure::now();
+    start = measure::now();
 
     IO::send_encrypted_vector(server, enc_A1);
 
@@ -217,8 +216,7 @@ Result Server::Protocol3(const HomConv2DSS::Meta& meta, Channel& server,
 
     std::cerr << C1.channels() << " x " << C1.height() << " x " << C1.width() << "\n";
 
-    for (auto& ele : server)
-        measures.bytes += ele.counter;
+    for (auto& ele : server) measures.bytes += ele.counter;
     return measures;
 }
 
@@ -287,8 +285,7 @@ Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
         return measures;
 
     measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
-    start = measure::now();
+    start               = measure::now();
 
     Utils::op_inplace<uint64_t>(M2, R1, [](uint64_t a, uint64_t b) { return a - b; });
 
@@ -309,6 +306,7 @@ Result Server::perform_proto(HomConv2DSS::Meta& meta, Channel& server,
     auto B1 = Utils::init_filter(meta, 2.0);
 
     server[0].sync();
+
 #if PROTO == 2
     auto measures = Server::Protocol2(meta, server, context, hom_conv, A1, B1, threads);
 #elif PROTO == 3
@@ -326,11 +324,13 @@ Result Client::perform_proto(HomConv2DSS::Meta& meta, Channel& client,
     auto B2 = Utils::init_filter(meta, 2.0);
 
     client[0].sync();
+
 #if PROTO == 3
     auto measures = Client::Protocol3(client, context, hom_conv, meta, A2, B2, threads);
 #elif PROTO == 2
     auto measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, threads);
 #endif
+
     for (auto& ele : client) ele.counter = 0;
     return measures;
 }
