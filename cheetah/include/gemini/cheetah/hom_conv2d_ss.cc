@@ -664,7 +664,7 @@ Code HomConv2DSS::conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
     CHECK_ERR(LaunchWorks(tpool, meta.n_filters, conv_program), "conv2D");
 
     out_share1.Reshape(out_shape);
-    addRandomMask(out_share0, out_share1, meta, nthreads);
+    // addRandomMask(out_share0, out_share1, meta, nthreads);
 
     if (scheme() == seal::scheme_type::bfv) {
         auto truncate_program = [&](long wid, size_t start, size_t end) {
@@ -1014,7 +1014,7 @@ Code HomConv2DSS::idealFunctionality(const Tensor<uint64_t>& in_tensor,
         Tensor<uint64_t> one_channel;
         if (base_mod > 1) {
             // mod p
-            in_tensor.Conv2D(filters[m], meta.stride, meta.padding, one_channel);
+            in_tensor.Conv2D(filters[m], meta.stride, meta.padding, one_channel, base_mod);
         } else {
             // mod 2^64
             in_tensor.Conv2D(filters[m], meta.stride, meta.padding, one_channel);

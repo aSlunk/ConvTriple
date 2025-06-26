@@ -13,7 +13,7 @@ using namespace gemini;
 
 namespace {
 
-Result Protocol(IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
+Result Protocol [[maybe_unused]] (IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                 const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                 const std::vector<Tensor<uint64_t>>& B2, const Tensor<uint64_t>& R,
                 const size_t& threads) {

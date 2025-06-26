@@ -19,7 +19,7 @@ using namespace gemini;
 
 namespace {
 
-Result conv2D_online(const HomConv2DSS::Meta& meta, IO::NetIO& server,
+Result conv2D_online [[maybe_unused]] (const HomConv2DSS::Meta& meta, IO::NetIO& server,
                      const seal::SEALContext& context, const HomConv2DSS& conv,
                      const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>>& B1,
                      const size_t& threads = 1) {

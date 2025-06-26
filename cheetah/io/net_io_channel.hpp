@@ -130,6 +130,7 @@ class NetIO : public IOChannel<NetIO> {
     ~NetIO() {
         fflush(stream);
         close(consocket);
+        fclose(stream);
         delete[] buffer;
     }
 

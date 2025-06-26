@@ -14,6 +14,7 @@
 
 #define EXEC_FAILED -1
 #define PROTO 2 // 2 or 3
+#define VERIFY 1
 
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;
@@ -279,8 +280,8 @@ std::stringstream serialize(Vec& ct) {
 
 template <class Ctx>
 void deserialize(const Ctx& context, std::stringstream& is, std::vector<seal::Ciphertext>& res) {
-    for (auto& ele : res) {
-        ele.load(context, is);
+    for (size_t i = 0; i < res.size(); ++i) {
+        res[i].load(context, is);
     }
     is.clear();
 }
@@ -355,14 +356,15 @@ Code send_recv(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, EncVec
     auto program = [&](long wid, size_t start, size_t end) -> Code {
         if (start >= end)
             return Code::OK;
-        auto& io = ios[wid];
+
+        auto& server = ios[wid];
         std::stringstream is;
         for (size_t cur = start; cur < end; ++cur) {
-            send[cur].save(is);
+            send.at(cur).save(is);
         }
 
-        IO::send_encrypted_vector(io, is, end - start);
-        uint32_t ncts = IO::recv_encrypted_vector(io, is);
+        IO::send_encrypted_vector(server, is, end - start);
+        uint32_t ncts = IO::recv_encrypted_vector(server, is);
         result[wid].resize(ncts);
         Utils::deserialize(ctx, is, result[wid]);
 
@@ -377,7 +379,7 @@ Code send_recv(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, EncVec
             continue;
 
         recv.reserve(recv.size() + vec.size());
-        for (auto& ctx : vec) recv.push_back(ctx);
+        for (auto& ele : vec) recv.push_back(ele);
     }
     return Code::OK;
 }
@@ -390,16 +392,17 @@ Code recv_send(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, const 
     auto program = [&](long wid, size_t start, size_t end) -> Code {
         if (start >= end)
             return Code::OK;
-        auto& io = ios[wid];
+
+        auto& client = ios[wid];
         std::stringstream is;
         for (size_t cur = start; cur < end; ++cur) {
-            send[cur].save(is);
+            send.at(cur).save(is);
         }
 
         std::stringstream os;
-        uint32_t ncts = IO::recv_encrypted_vector(io, os);
-        IO::send_encrypted_vector(io, is, end - start);
+        uint32_t ncts = IO::recv_encrypted_vector(client, os);
 
+        IO::send_encrypted_vector(client, is, end - start);
         result[wid].resize(ncts);
         Utils::deserialize(ctx, os, result[wid]);
 
@@ -414,7 +417,7 @@ Code recv_send(const seal::SEALContext& ctx, std::vector<IO::NetIO>& ios, const 
             continue;
 
         recv.reserve(recv.size() + vec.size());
-        for (auto& ctx : vec) recv.push_back(ctx);
+        for (auto& ele : vec) recv.push_back(ele);
     }
     return Code::OK;
 }
