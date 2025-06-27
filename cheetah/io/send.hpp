@@ -79,7 +79,7 @@ void send_encrypted_vector(IO::NetIO& io, std::stringstream& ct, const uint32_t&
     io.send_data(&ncts, sizeof(uint32_t));
     io.flush();
     uint64_t ct_size = ct.tellp();
-    string ct_ser = ct.str();
+    string ct_ser    = ct.str();
     io.send_data(&ct_size, sizeof(uint64_t));
     io.flush();
     io.send_data(ct_ser.c_str(), ct_ser.size());
@@ -194,6 +194,29 @@ void recv_encrypted_vector(std::vector<IO::NetIO>& ios, const seal::SEALContext&
         gemini::ThreadPool tpool(ios.size());
         gemini::LaunchWorks(tpool, ncts, program);
     }
+}
+
+template <class PKey>
+void send_pkey(IO::NetIO& io, const PKey& pkey) {
+    std::stringstream is;
+    pkey.save(is);
+    size_t len = is.str().size();
+    io.send_data(&len, sizeof(len));
+    io.send_data(is.str().data(), len);
+    io.flush();
+}
+
+template <class PKey>
+void recv_pkey(IO::NetIO& io, const seal::SEALContext& context, PKey& pkey) {
+    size_t len{0};
+    io.recv_data(&len, sizeof(len));
+    char* recv = new char[len];
+    io.recv_data(recv, len);
+
+    std::stringstream is;
+    is.write(recv, len);
+    pkey.load(context, is);
+    delete[] recv;
 }
 
 } // namespace IO

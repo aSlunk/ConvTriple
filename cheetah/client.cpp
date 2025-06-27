@@ -1,3 +1,4 @@
+#include <utility>
 #include <vector>
 
 #include <gemini/cheetah/tensor.h>
@@ -13,10 +14,11 @@ using namespace gemini;
 
 namespace {
 
-Result Protocol [[maybe_unused]] (IO::NetIO& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
-                const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
-                const std::vector<Tensor<uint64_t>>& B2, const Tensor<uint64_t>& R,
-                const size_t& threads) {
+Result Protocol
+    [[maybe_unused]] (IO::NetIO& client, const seal::SEALContext& context,
+                      const HomConv2DSS& hom_conv, const HomConv2DSS::Meta& meta,
+                      const Tensor<uint64_t>& A2, const std::vector<Tensor<uint64_t>>& B2,
+                      const Tensor<uint64_t>& R, const size_t& threads) {
     Result measures;
 
     ////////////////////////////////////////////////////////////////////////////
@@ -99,6 +101,16 @@ int main(int argc, char** argv) {
         return EXEC_FAILED;
     }
 
+    long port     = strtol(argv[1], NULL, 10);
+    char* addr    = argv[2];
+    int samples   = strtol(argv[3], NULL, 10);
+    int batchSize = strtol(argv[4], NULL, 10);
+    int threads;
+    if (argc == 3)
+        threads = N_THREADS;
+    else
+        threads = strtol(argv[5], NULL, 10);
+
     auto context = Utils::init_he_context();
 
     seal::KeyGenerator keygen(context);
@@ -106,37 +118,20 @@ int main(int argc, char** argv) {
     auto pkey            = std::make_shared<seal::PublicKey>();
     keygen.create_public_key(*pkey);
 
+    size_t batch_threads      = batchSize > 1 ? batchSize : 1;
+    size_t threads_per_thread = threads / batch_threads;
+    auto ioss = Utils::init_ios<IO::NetIO>(addr, port, batch_threads, threads_per_thread);
+
+    IO::send_pkey(ioss[0][0], *pkey);
+    IO::recv_pkey(ioss[0][0], context, *pkey);
+
     HomConv2DSS hom_conv;
     hom_conv.setUp(context, skey, pkey);
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Sample R
-    ////////////////////////////////////////////////////////////////////////////
-    long port = strtol(argv[1], NULL, 10);
-    // IO::NetIO client(argv[2], port, true);
 
     double totalTime = 0;
     double totalData = 0;
 
-    int threads;
-    if (argc == 3)
-        threads = N_THREADS;
-    else
-        threads = strtol(argv[5], NULL, 10);
-
-    int samples   = strtol(argv[3], NULL, 10);
-    int batchSize = strtol(argv[4], NULL, 10);
-
     std::vector<Result> results(samples);
-    std::cerr << "Samples: " << samples << "\n";
-    std::cerr << "BatchSize: " << batchSize << "\n";
-    std::cerr << "threads: " << threads << "\n";
-
-    size_t batch_threads      = batchSize > 1 ? batchSize : 1;
-    size_t threads_per_thread = threads / batch_threads;
-
-    std::cerr << "#threads: " << batch_threads << "\n";
-    std::cerr << "threads per thread: " << threads_per_thread << "\n";
 
     auto layers = Utils::init_layers();
     for (size_t i = 0; i < layers.size(); ++i) {
@@ -144,11 +139,7 @@ int main(int argc, char** argv) {
             ThreadPool tpool(batch_threads);
             std::vector<Result> batches_results(batch_threads);
             auto batch = [&](long wid, size_t start, size_t end) -> Code {
-                std::vector<IO::NetIO> ios;
-                ios.reserve(threads_per_thread);
-                for (size_t p = 0; p < threads_per_thread; p++) {
-                    ios.emplace_back(argv[2], port + wid * threads_per_thread + p, true);
-                }
+                auto& ios = ioss[wid];
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
                     if (PROTO == 3 || (cur + wid) % 2 == 0) {

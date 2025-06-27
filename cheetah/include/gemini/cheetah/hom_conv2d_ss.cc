@@ -663,8 +663,7 @@ Code HomConv2DSS::conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
 
     CHECK_ERR(LaunchWorks(tpool, meta.n_filters, conv_program), "conv2D");
 
-    out_share1.Reshape(out_shape);
-    // addRandomMask(out_share0, out_share1, meta, nthreads);
+    addRandomMask(out_share0, out_share1, meta, nthreads);
 
     if (scheme() == seal::scheme_type::bfv) {
         auto truncate_program = [&](long wid, size_t start, size_t end) {
@@ -722,7 +721,7 @@ Code HomConv2DSS::conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
 
     CHECK_ERR(LaunchWorks(tpool, meta.n_filters, conv_program), "conv2D");
 
-    std::vector<RLWEPt> R_enc;
+    std::vector<seal::Plaintext> R_enc;
     tencoder_->EncodeTensor(R, meta.ishape, meta.fshape, meta.padding, meta.stride, meta.n_filters,
                             false, R_enc);
 

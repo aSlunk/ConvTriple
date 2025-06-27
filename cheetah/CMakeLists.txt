@@ -31,6 +31,11 @@ target_link_libraries(io INTERFACE SEAL::seal gemini)
 set(exe cheetah)
 add_executable(${exe} server.cpp)
 target_link_libraries(${exe} PRIVATE gemini io)
+if(VERIFY)
+  target_compile_definitions(${exe} PUBLIC USE_CHEETAH=1 VERIFY=1)
+else()
+  target_compile_definitions(${exe} PUBLIC USE_CHEETAH=1 VERIFY=0)
+endif()
 target_compile_options(
     ${exe} PRIVATE
     "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra;-Wno-unused-parameter>"
@@ -40,6 +45,11 @@ target_compile_options(
 set(exe cheetah_client)
 add_executable(${exe} client.cpp)
 target_link_libraries(${exe} PRIVATE gemini io)
+if(VERIFY)
+  target_compile_definitions(${exe} PUBLIC USE_CHEETAH=1 VERIFY=1)
+else()
+  target_compile_definitions(${exe} PUBLIC USE_CHEETAH=1 VERIFY=0)
+endif()
 target_compile_options(
     ${exe} PRIVATE
     "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra;-Wno-unused-parameter>"

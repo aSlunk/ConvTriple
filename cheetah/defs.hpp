@@ -14,7 +14,6 @@
 
 #define EXEC_FAILED -1
 #define PROTO 2 // 2 or 3
-#define VERIFY 1
 
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;
@@ -188,9 +187,7 @@ std::vector<gemini::Tensor<uint64_t>> init_filter(const gemini::HomConv2DSS::Met
 
 template <class T>
 void op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B, std::function<T(T, T)> op) {
-    assert(A.channels() == B.channels());
-    assert(A.height() == B.height());
-    assert(A.width() == B.width());
+    assert(A.shape() == B.shape());
 
     for (int i = 0; i < A.channels(); ++i) {
         for (int j = 0; j < A.width(); ++j) {
@@ -284,6 +281,20 @@ void deserialize(const Ctx& context, std::stringstream& is, std::vector<seal::Ci
         res[i].load(context, is);
     }
     is.clear();
+}
+
+template <class Channel>
+std::vector<std::vector<Channel>> init_ios(const char* addr, const int& port,
+                                           const size_t& batch_threads,
+                                           const size_t& threads_per_thread) {
+    std::vector<std::vector<Channel>> ioss(batch_threads);
+    for (size_t wid = 0; wid < batch_threads; ++wid) {
+        ioss[wid].reserve(threads_per_thread);
+        for (size_t p = 0; p < threads_per_thread; ++p) {
+            ioss[wid].emplace_back(addr, port + wid * threads_per_thread + p, true);
+        }
+    }
+    return ioss;
 }
 
 } // namespace Utils

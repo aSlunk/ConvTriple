@@ -60,6 +60,26 @@ class NetIO : public IOChannel<NetIO> {
     uint64_t num_rounds = 0;
     LastCall last_call  = LastCall::None;
 
+    NetIO(NetIO&& other) noexcept {
+        is_server  = other.is_server;
+        mysocket   = other.mysocket;
+        consocket  = other.consocket;
+        stream     = other.stream;
+        buffer     = other.buffer;
+        has_sent   = other.has_sent;
+        addr       = other.addr;
+        port       = other.port;
+        num_rounds = other.num_rounds;
+        last_call  = other.last_call;
+        counter    = other.counter;
+
+        other.mysocket  = -1;
+        other.consocket = -1;
+        other.stream    = nullptr;
+        other.buffer    = nullptr;
+    }
+
+    NetIO(const NetIO& other) = delete;
     NetIO(const char* address, int port, bool quiet = false) {
         this->port = port;
         is_server  = (address == nullptr);
@@ -128,10 +148,48 @@ class NetIO : public IOChannel<NetIO> {
     }
 
     ~NetIO() {
-        fflush(stream);
-        close(consocket);
-        fclose(stream);
-        delete[] buffer;
+        if (stream) {
+            fflush(stream);
+            fclose(stream);
+        }
+        if (consocket != -1)
+            close(consocket);
+        if (buffer)
+            delete[] buffer;
+    }
+
+    NetIO& operator=(const NetIO& other) = delete;
+
+    NetIO& operator=(NetIO&& other) noexcept {
+        if (&other == this)
+            return *this;
+
+        if (stream) {
+            fflush(stream);
+            fclose(stream);
+        }
+        if (consocket != -1)
+            close(consocket);
+        if (buffer)
+            delete[] buffer;
+
+        is_server  = other.is_server;
+        mysocket   = other.mysocket;
+        consocket  = other.consocket;
+        stream     = other.stream;
+        buffer     = other.buffer;
+        has_sent   = other.has_sent;
+        addr       = other.addr;
+        port       = other.port;
+        num_rounds = other.num_rounds;
+        last_call  = other.last_call;
+        counter    = other.counter;
+
+        other.mysocket  = -1;
+        other.consocket = -1;
+        other.stream    = nullptr;
+        other.buffer    = nullptr;
+        return *this;
     }
 
     void set_nodelay() {

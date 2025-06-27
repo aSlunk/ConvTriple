@@ -13,6 +13,12 @@
 
 using namespace gemini;
 
+uint64_t add(const HomConv2DSS& conv, const uint64_t& a, const uint64_t& b) {
+    uint64_t sum;
+    seal::util::add_uint(&a, 1, b, &sum);
+    return seal::util::barrett_reduce_64(sum, conv.plain_modulus());
+}
+
 namespace Server {
 
 template <class Channel>
@@ -183,11 +189,8 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
 
     start = measure::now();
 
-    Utils::op_inplace<uint64_t>(M1, R2, [&hom_conv](uint64_t a, uint64_t b) -> uint64_t {
-        uint64_t sum;
-        seal::util::add_uint(&a, 1, b, &sum);
-        return seal::util::barrett_reduce_64(sum, hom_conv.plain_modulus());
-    });
+    Utils::op_inplace<uint64_t>(
+        M1, R2, [&hom_conv](uint64_t a, uint64_t b) -> uint64_t { return add(hom_conv, a, b); });
 
     measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
@@ -311,11 +314,8 @@ Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
     measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
     start               = measure::now();
 
-    Utils::op_inplace<uint64_t>(M2, R1, [&conv](uint64_t a, uint64_t b) {
-        uint64_t sum;
-        seal::util::add_uint(&a, 1, b, &sum);
-        return seal::util::barrett_reduce_64(sum, conv.plain_modulus());
-    });
+    Utils::op_inplace<uint64_t>(M2, R1,
+                                [&conv](uint64_t a, uint64_t b) { return add(conv, a, b); });
 
     measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
@@ -388,52 +388,23 @@ void Server::Verify_Conv(IO::NetIO& io, const HomConv2DSS::Meta& meta, const Hom
 
     io.recv_data(C2.data(), C2.NumElements() * sizeof(T));
 
-    std::cerr << "A1\n";
-    Utils::print_tensor(A1);
-    std::cerr << "A2\n";
-    Utils::print_tensor(A2);
-    std::cerr << "B1\n";
-    Utils::print_tensor(B1[0]);
-    std::cerr << "B2\n";
-    Utils::print_tensor(B2[0]);
-    std::cerr << "C1\n";
-    Utils::print_tensor(C1);
-    std::cerr << "C2\n";
-    Utils::print_tensor(C2);
+    Utils::op_inplace<T>(C2, C1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // C
 
-    Utils::op_inplace<T>(C2, C1, [&conv](T a, T b) -> T {
-        uint64_t sum;
-        seal::util::add_uint(&a, 1, b, &sum);
-        return seal::util::barrett_reduce_64(sum, conv.plain_modulus());
-    });
-    Utils::op_inplace<T>(A2, A1, [&conv](T a, T b) -> T {
-        uint64_t sum;
-        seal::util::add_uint(&a, 1, b, &sum);
-        return seal::util::barrett_reduce_64(sum, conv.plain_modulus());
-    });
+    Utils::op_inplace<T>(A2, A1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // A1 + A2
 
 #if PROTO == 2
-    for (size_t i = 0; i < B1.size(); ++i)
-        Utils::op_inplace<T>(B2[i], B1[i], [&conv](T a, T b) -> T {
-            uint64_t sum;
-            seal::util::add_uint(&a, 1, b, &sum);
-            return seal::util::barrett_reduce_64(sum, conv.plain_modulus());
-        });
+    for (size_t i = 0; i < B1.size(); ++i) // B1 + B2
+        Utils::op_inplace<T>(B2[i], B1[i], [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; });
 #endif
 
-    Tensor<T> test;
-    conv.idealFunctionality(A2, B2, meta, test);
+    Tensor<T> test;                              // (A1 + A2) (B1 + B2)
+    conv.idealFunctionality(A2, B2, meta, test); // (A1 + A2) (B1 + B2)
 
-    auto c2_conv   = Utils::convert_double(C2);
-    auto test_conv = Utils::convert_double(test);
-
-    std::cerr << "test\n";
-    Utils::print_tensor(c2_conv);
-    bool same = true;
+    bool same = C2.shape() == test.shape();
     for (long c = 0; c < C2.channels(); ++c)
         for (long h = 0; h < C2.height(); ++h)
             for (long w = 0; w < C2.width(); ++w)
-                if (test_conv(c, h, w) != c2_conv(c, h, w)) {
+                if (!same || test(c, h, w) != C2(c, h, w)) {
                     same = false;
                     goto end;
                 }
@@ -442,7 +413,6 @@ end:
         std::cerr << "PASSED\n";
     else
         std::cerr << "FAILED\n";
-
     std::cerr << "FINISHED VERIFYING\n";
 }
 
