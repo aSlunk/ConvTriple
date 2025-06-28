@@ -12,6 +12,10 @@
 #include <gemini/cheetah/tensor.h>
 #include <seal/seal.h>
 
+#define NC "\033[0m"
+#define RED "\033[31m"
+#define GREEN "\033[32m"
+
 #define EXEC_FAILED -1
 #define PROTO 2 // 2 or 3
 

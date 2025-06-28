@@ -119,6 +119,10 @@ Result Client::Protocol3(Channel& client, const seal::SEALContext& context,
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
 
     for (auto& ele : client) measures.bytes += ele.counter;
+
+#if VERIFY == 1
+    Verify_Conv(client[0], A2, B2, R);
+#endif
     return measures;
 }
 
@@ -245,6 +249,9 @@ Result Server::Protocol3(const HomConv2DSS::Meta& meta, Channel& server,
     std::cerr << C1.channels() << " x " << C1.height() << " x " << C1.width() << "\n";
 
     for (auto& ele : server) measures.bytes += ele.counter;
+#if VERIFY == 1
+    Verify_Conv(server[0], meta, conv, A1, std::vector<Tensor<uint64_t>>(0), C1);
+#endif
     return measures;
 }
 
@@ -373,23 +380,14 @@ void Server::Verify_Conv(IO::NetIO& io, const HomConv2DSS::Meta& meta, const Hom
                          const Tensor<T>& C1) {
     std::cerr << "VERIFYING\n";
     Tensor<T> A2(A1.shape());
-#if PROTO == 2
-    std::vector<Tensor<T>> B2(B1.size(), Tensor<T>(B1[0].shape()));
-#else
-    auto& B2 = B1;
-#endif
+    std::vector<Tensor<T>> B2(meta.n_filters, Tensor<T>(meta.fshape));
     Tensor<T> C2(C1.shape());
 
     io.recv_data(A2.data(), A2.NumElements() * sizeof(T));
-
-#if PROTO == 2
     for (auto& filter : B2) io.recv_data(filter.data(), filter.NumElements() * sizeof(T));
-#endif
-
     io.recv_data(C2.data(), C2.NumElements() * sizeof(T));
 
     Utils::op_inplace<T>(C2, C1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // C
-
     Utils::op_inplace<T>(A2, A1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // A1 + A2
 
 #if PROTO == 2
@@ -410,9 +408,9 @@ void Server::Verify_Conv(IO::NetIO& io, const HomConv2DSS::Meta& meta, const Hom
                 }
 end:
     if (same)
-        std::cerr << "PASSED\n";
+        std::cerr << GREEN << "PASSED\n" << NC;
     else
-        std::cerr << "FAILED\n";
+        std::cerr << RED << "FAILED\n" << NC;
     std::cerr << "FINISHED VERIFYING\n";
 }
 
@@ -421,9 +419,7 @@ void Client::Verify_Conv(IO::NetIO& io, const Tensor<T>& A2, const std::vector<T
                          const Tensor<T>& C2) {
     std::cerr << "SENDING\n";
     io.send_data(A2.data(), A2.NumElements() * sizeof(T));
-#if PROTO == 2
     for (auto& filter : B2) io.send_data(filter.data(), filter.NumElements() * sizeof(T));
-#endif
     io.send_data(C2.data(), C2.NumElements() * sizeof(T));
     io.flush();
 }
