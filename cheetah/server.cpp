@@ -123,6 +123,7 @@ int main(int argc, char** argv) {
     std::cerr << "threads per thread: " << threads_per_thread << "\n";
 
     std::vector<Result> results(samples);
+    double total = 0;
 
     auto layers = Utils::init_layers();
     for (size_t i = 0; i < layers.size(); ++i) {
@@ -151,21 +152,24 @@ int main(int argc, char** argv) {
                 return Code::OK;
             };
 
+            auto start = measure::now();
             auto code = gemini::LaunchWorks(tpool, batchSize, batch);
+            total += std::chrono::duration_cast<Unit>(measure::now() - start).count() / 1'000'000.0;
             if (code != Code::OK) {
                 std::cerr << CodeMessage(code) << "\n";
                 return EXEC_FAILED;
             }
             results[round] = average(batches_results, false);
         }
-
         auto res = average(results, true);
         total_time += print_results(res, i, batchSize, threads);
         total_data += res.bytes / 1'000'000.0;
+
     }
 
     total_data /= 1'000.0;
 
     std::cout << "Party 1: total time [s]: " << total_time << "\n";
     std::cout << "Party 1: total data [GB]: " << total_data << "\n";
+    std::cout << "TOTAL: " << total << "\n";
 }

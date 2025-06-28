@@ -132,6 +132,7 @@ int main(int argc, char** argv) {
     double totalData = 0;
 
     std::vector<Result> results(samples);
+    double total = 0;
 
     auto layers = Utils::init_layers();
     for (size_t i = 0; i < layers.size(); ++i) {
@@ -158,7 +159,9 @@ int main(int argc, char** argv) {
                 return Code::OK;
             };
 
+            auto start = measure::now();
             auto code = gemini::LaunchWorks(tpool, batchSize, batch);
+            total += std::chrono::duration_cast<Unit>(measure::now() - start).count() / 1'000'000.0;
             if (code != Code::OK) {
                 std::cerr << CodeMessage(code) << "\n";
                 return EXEC_FAILED;
@@ -174,4 +177,5 @@ int main(int argc, char** argv) {
 
     std::cout << "Party 2: total time [s]: " << totalTime << "\n";
     std::cout << "Party 2: total data [GB]: " << totalData << "\n";
+    std::cout << "TOTAL: " << total << "\n";
 }
