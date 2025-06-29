@@ -1,11 +1,8 @@
-#include <utility>
+#include <cstdlib>
+#include <iostream>
 #include <vector>
 
-#include <gemini/cheetah/tensor.h>
-#include <gemini/cheetah/tensor_encoder.h>
-
 #include <io/net_io_channel.hpp>
-#include <io/send.hpp>
 
 #include "defs.hpp"
 #include "proto.hpp"
@@ -24,10 +21,10 @@ int main(int argc, char** argv) {
     int samples   = strtol(argv[3], NULL, 10);
     int batchSize = strtol(argv[4], NULL, 10);
     int threads;
-    if (argc == 3)
+    if (argc == 5)
         threads = N_THREADS;
     else
-        threads = strtol(argv[5], NULL, 10);
+        threads = std::min(atoi(argv[5]), N_THREADS);
 
     auto context = Utils::init_he_context();
 
@@ -80,10 +77,9 @@ int main(int argc, char** argv) {
             auto start = measure::now();
             auto code  = gemini::LaunchWorks(tpool, batchSize, batch);
             total += std::chrono::duration_cast<Unit>(measure::now() - start).count() / 1'000'000.0;
-            if (code != Code::OK) {
-                std::cerr << CodeMessage(code) << "\n";
-                return EXEC_FAILED;
-            }
+            if (code != Code::OK)
+                Utils::log(Utils::Level::ERROR, CodeMessage(code));
+
             results[round] = Utils::average(batches_results, false);
         }
         auto measures = Utils::average(results, true);

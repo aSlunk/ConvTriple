@@ -1,18 +1,10 @@
+#include <cstdlib>
 #include <iostream>
-#include <memory>
-#include <utility>
 #include <vector>
 
-#include <gemini/cheetah/hom_conv2d_ss.h>
-#include <gemini/cheetah/shape_inference.h>
-#include <gemini/cheetah/tensor_encoder.h>
-#include <gemini/cheetah/tensor_shape.h>
-
 #include <seal/seal.h>
-#include <seal/util/uintcore.h>
 
 #include <io/net_io_channel.hpp>
-#include <io/send.hpp>
 
 #include "defs.hpp"
 #include "proto.hpp"
@@ -30,12 +22,12 @@ int main(int argc, char** argv) {
     int samples   = strtol(argv[2], NULL, 10);
     int batchSize = strtol(argv[3], NULL, 10);
     int threads;
-    if (argc == 3)
+    if (argc == 4)
         threads = N_THREADS;
     else
-        threads = strtol(argv[4], NULL, 10);
+        threads = std::min(atoi(argv[4]), N_THREADS);
 
-    seal::SEALContext context = Utils::init_he_context();
+    auto context = Utils::init_he_context();
 
     seal::KeyGenerator keygen(context);
     seal::SecretKey skey = keygen.secret_key();
@@ -55,18 +47,18 @@ int main(int argc, char** argv) {
     double total_time = 0;
     double total_data = 0;
 
-    std::cerr << "Samples: " << samples << "\n";
-    std::cerr << "batchSize: " << batchSize << "\n";
-    std::cerr << "threads: " << threads << "\n";
-    std::cerr << "#threads: " << batch_threads << "\n";
-    std::cerr << "threads per thread: " << threads_per_thread << "\n";
+    Utils::log(Utils::Level::DEBUG, "Samples: ", samples);
+    Utils::log(Utils::Level::DEBUG, "batchSize: ", batchSize);
+    Utils::log(Utils::Level::DEBUG, "threads: ", threads);
+    Utils::log(Utils::Level::DEBUG, "#threads: ", batch_threads);
+    Utils::log(Utils::Level::DEBUG, "threads per thread: ", threads_per_thread);
 
     std::vector<Result> results(samples);
     double total = 0;
 
     auto layers = Utils::init_layers();
     for (size_t i = 0; i < layers.size(); ++i) {
-        std::cerr << "Current layer: " << i << std::endl;
+        Utils::log(Utils::Level::DEBUG, "Current layer: ", i);
 
         for (int round = 0; round < samples; ++round) {
             ThreadPool tpool(batch_threads);
@@ -94,10 +86,9 @@ int main(int argc, char** argv) {
             auto start = measure::now();
             auto code  = gemini::LaunchWorks(tpool, batchSize, batch);
             total += std::chrono::duration_cast<Unit>(measure::now() - start).count() / 1'000'000.0;
-            if (code != Code::OK) {
-                std::cerr << CodeMessage(code) << "\n";
-                return EXEC_FAILED;
-            }
+            if (code != Code::OK)
+                Utils::log(Utils::Level::ERROR, CodeMessage(code));
+
             results[round] = Utils::average(batches_results, false);
         }
         auto res = Utils::average(results, true);

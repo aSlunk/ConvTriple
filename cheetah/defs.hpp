@@ -10,14 +10,16 @@
 
 #include <gemini/cheetah/hom_conv2d_ss.h>
 #include <gemini/cheetah/tensor.h>
+
 #include <seal/seal.h>
 
 #define NC "\033[0m"
 #define RED "\033[31m"
 #define GREEN "\033[32m"
+#define PURPLE "\033[35m"
 
 #define EXEC_FAILED -1
-#define PROTO 2 // 1 or 2
+#define PROTO 1 // 1 or 2
 
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;
@@ -34,6 +36,39 @@ constexpr uint64_t moduloMask  = MOD - 1;
 constexpr uint64_t moduloMidPt = MOD / 2;
 
 namespace Utils {
+
+enum class Level {
+    DEBUG,
+    INFO,
+    PASSED,
+    FAILED,
+    ERROR,
+};
+
+template <class... Args>
+void log(const Level& l, const Args&... args) {
+    auto* stream = &std::cerr;
+    switch (l) {
+    case Level::DEBUG:
+        *stream << PURPLE;
+        break;
+    case Level::PASSED:
+        *stream << GREEN;
+        break;
+    case Level::FAILED:
+        *stream << RED;
+        break;
+    case Level::ERROR:
+        stream = &std::cout;
+        *stream << RED;
+        break;
+    }
+
+    (*stream << ... << args) << NC << std::endl;
+
+    if (l == Level::ERROR)
+        exit(EXEC_FAILED);
+}
 
 struct Result {
     double encryption = 0;
@@ -227,16 +262,16 @@ std::vector<std::vector<Channel>> Utils::init_ios(const char* addr, const int& p
 }
 
 void Utils::print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padding) {
-    std::cerr << "n_threads: " << N_THREADS << "\n";
-    std::cerr << "Padding: " << padding << "\n";
-    std::cerr << "Stride: " << meta.stride << "\n";
-    std::cerr << "i_channel: " << meta.ishape.channels() << "\n";
-    std::cerr << "i_width: " << meta.ishape.width() << "\n";
-    std::cerr << "i_height: " << meta.ishape.height() << "\n";
-    std::cerr << "f_channel: " << meta.fshape.channels() << "\n";
-    std::cerr << "f_width: " << meta.fshape.width() << "\n";
-    std::cerr << "f_height: " << meta.fshape.height() << "\n";
-    std::cerr << "n_filters: " << meta.n_filters << "\n";
+    log(Level::DEBUG, "n_threads: ", N_THREADS);
+    log(Level::DEBUG, "Padding: ", padding);
+    log(Level::DEBUG, "Stride: ", meta.stride);
+    log(Level::DEBUG, "i_channel: ", meta.ishape.channels());
+    log(Level::DEBUG, "i_width: ", meta.ishape.width());
+    log(Level::DEBUG, "i_height: ", meta.ishape.height());
+    log(Level::DEBUG, "f_channel: ", meta.fshape.channels());
+    log(Level::DEBUG, "f_width: ", meta.fshape.width());
+    log(Level::DEBUG, "f_height: ", meta.fshape.height());
+    log(Level::DEBUG, "n_filters: ", meta.n_filters);
 }
 
 gemini::HomConv2DSS::Meta Utils::init_meta(const long& ic, const long& ih, const long& iw,
