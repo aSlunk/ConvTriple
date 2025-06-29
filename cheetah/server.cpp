@@ -20,68 +20,6 @@
 using namespace gemini;
 using Utils::Result;
 
-namespace {
-
-Result conv2D_online
-    [[maybe_unused]] (const HomConv2DSS::Meta& meta, IO::NetIO& server,
-                      const seal::SEALContext& context, const HomConv2DSS& conv,
-                      const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>>& B1,
-                      const size_t& threads = 1) {
-    Result measures;
-
-    auto start = measure::now();
-    std::vector<seal::Serializable<seal::Ciphertext>> enc_A1;
-    measures.ret = conv.encryptImage(A1, meta, enc_A1, threads);
-    if (measures.ret != Code::OK)
-        return measures;
-
-    std::vector<std::vector<seal::Ciphertext>> enc_B1;
-    measures.ret = conv.encryptFilters(B1, meta, enc_B1, threads);
-    if (measures.ret != Code::OK)
-        return measures;
-    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
-    start = measure::now();
-    IO::send_encrypted_vector(server, enc_A1);
-    IO::send_encrypted_filters(server, enc_B1);
-
-    ////////////////////////////////////////////////////////////////////////////
-    // A ⊙ B
-    ////////////////////////////////////////////////////////////////////////////
-    std::vector<seal::Ciphertext> result;
-    IO::recv_encrypted_vector(server, context, result);
-    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Dec(M)
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
-    Tensor<uint64_t> out_tensor;
-    measures.ret        = conv.decryptToTensor(result, meta, out_tensor, threads);
-    measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    if (measures.ret != Code::OK)
-        return measures;
-
-    std::cerr << out_tensor.channels() << " x " << out_tensor.height() << " x "
-              << out_tensor.width() << "\n";
-
-    ////////////////////////////////////////////////////////////////////////////
-    // A ⊙ B + Dec(M)
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
-    Tensor<uint64_t> AB;
-    conv.idealFunctionality(A1, B1, meta, AB);
-
-    Utils::op_inplace<uint64_t>(AB, out_tensor, [](uint64_t a, uint64_t b) { return a + b; });
-    measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-
-    measures.bytes = server.counter;
-    measures.ret   = Code::OK;
-    return measures;
-}
-
-} // anonymous namespace
-
 int main(int argc, char** argv) {
     if (argc != 5 && argc != 4) {
         std::cout << argv[0] << " <port> <samples> <batchSize> (<threads>)\n";
@@ -137,7 +75,7 @@ int main(int argc, char** argv) {
                 auto& ios = ioss[wid];
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
-                    if (PROTO == 3 || (cur + wid) % 2 == 0) {
+                    if (PROTO == 2 || (cur + wid) % 2 == 0) {
                         result = (Server::perform_proto(layers[i], ios, context, conv,
                                                         threads_per_thread));
                     } else {

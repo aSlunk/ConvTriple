@@ -27,11 +27,11 @@ uint64_t add(const HomConv2DSS& conv, const uint64_t& a, const uint64_t& b) {
 namespace Server {
 
 template <class Channel>
-Result Protocol3(const HomConv2DSS::Meta& meta, Channel& server, const seal::SEALContext& context,
+Result Protocol2(const HomConv2DSS::Meta& meta, Channel& server, const seal::SEALContext& context,
                  const HomConv2DSS& conv, const Tensor<uint64_t>& A1, const size_t& threads = 1);
 
 template <class Channel>
-Result Protocol2(const HomConv2DSS::Meta& meta, Channel& server, const seal::SEALContext& context,
+Result Protocol1(const HomConv2DSS::Meta& meta, Channel& server, const seal::SEALContext& context,
                  const HomConv2DSS& conv, const Tensor<uint64_t>& A1,
                  const std::vector<Tensor<uint64_t>>& B1, const size_t& threads = 1);
 
@@ -50,12 +50,12 @@ void Verify_Conv(IO::NetIO& io, const HomConv2DSS::Meta& meta, const HomConv2DSS
 namespace Client {
 
 template <class Channel>
-Result Protocol2(Channel& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
+Result Protocol1(Channel& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                  const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                  const std::vector<Tensor<uint64_t>>& B2, const size_t& threads = 1);
 
 template <class Channel>
-Result Protocol3(Channel& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
+Result Protocol2(Channel& client, const seal::SEALContext& context, const HomConv2DSS& hom_conv,
                  const HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                  const std::vector<Tensor<uint64_t>>& B2, const size_t& threads = 1);
 
@@ -72,7 +72,7 @@ void Verify_Conv(IO::NetIO& io, const Tensor<T>& A1, const std::vector<Tensor<T>
 } // namespace Client
 
 template <class Channel>
-Result Client::Protocol3(Channel& client, const seal::SEALContext& context,
+Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
                          const HomConv2DSS& hom_conv, const HomConv2DSS::Meta& meta,
                          const Tensor<uint64_t>& A2, const std::vector<Tensor<uint64_t>>& B2,
                          const size_t& threads) {
@@ -132,7 +132,7 @@ Result Client::Protocol3(Channel& client, const seal::SEALContext& context,
 }
 
 template <class Channel>
-Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
+Result Client::Protocol1(Channel& client, const seal::SEALContext& context,
                          const HomConv2DSS& hom_conv, const HomConv2DSS::Meta& meta,
                          const Tensor<uint64_t>& A2, const std::vector<Tensor<uint64_t>>& B2,
                          const size_t& threads) {
@@ -213,7 +213,7 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
 }
 
 template <class Channel>
-Result Server::Protocol3(const HomConv2DSS::Meta& meta, Channel& server,
+Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
                          const seal::SEALContext& context, const HomConv2DSS& conv,
                          const Tensor<uint64_t>& A1, const size_t& threads) {
 
@@ -261,7 +261,7 @@ Result Server::Protocol3(const HomConv2DSS::Meta& meta, Channel& server,
 }
 
 template <class Channel>
-Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
+Result Server::Protocol1(const HomConv2DSS::Meta& meta, Channel& server,
                          const seal::SEALContext& context, const HomConv2DSS& conv,
                          const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>>& B1,
                          const size_t& threads) {
@@ -350,10 +350,10 @@ Result Server::perform_proto(HomConv2DSS::Meta& meta, Channel& server,
 
     server[0].sync();
 
-#if PROTO == 2
-    auto measures = Server::Protocol2(meta, server, context, hom_conv, A1, B1, threads);
-#elif PROTO == 3
-    auto measures = Server::Protocol3(meta, server, context, hom_conv, A1, threads);
+#if PROTO == 1
+    auto measures = Server::Protocol1(meta, server, context, hom_conv, A1, B1, threads);
+#elif PROTO == 2
+    auto measures = Server::Protocol2(meta, server, context, hom_conv, A1, threads);
 #endif
     for (auto& ele : server) ele.counter = 0;
     return measures;
@@ -368,10 +368,10 @@ Result Client::perform_proto(HomConv2DSS::Meta& meta, Channel& client,
 
     client[0].sync();
 
-#if PROTO == 3
-    auto measures = Client::Protocol3(client, context, hom_conv, meta, A2, B2, threads);
-#elif PROTO == 2
+#if PROTO == 2
     auto measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, threads);
+#elif PROTO == 1
+    auto measures = Client::Protocol1(client, context, hom_conv, meta, A2, B2, threads);
 #endif
 
     for (auto& ele : client) ele.counter = 0;
@@ -395,7 +395,7 @@ void Server::Verify_Conv(IO::NetIO& io, const HomConv2DSS::Meta& meta, const Hom
     Utils::op_inplace<T>(C2, C1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // C
     Utils::op_inplace<T>(A2, A1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // A1 + A2
 
-#if PROTO == 2
+#if PROTO == 1
     for (size_t i = 0; i < B1.size(); ++i) // B1 + B2
         Utils::op_inplace<T>(B2[i], B1[i], [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; });
 #endif

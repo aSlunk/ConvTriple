@@ -17,7 +17,7 @@
 #define GREEN "\033[32m"
 
 #define EXEC_FAILED -1
-#define PROTO 2 // 2 or 3
+#define PROTO 2 // 1 or 2
 
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;
