@@ -11,6 +11,7 @@
 #include "proto.hpp"
 
 using namespace gemini;
+using Utils::Result;
 
 namespace {
 
@@ -160,16 +161,16 @@ int main(int argc, char** argv) {
             };
 
             auto start = measure::now();
-            auto code = gemini::LaunchWorks(tpool, batchSize, batch);
+            auto code  = gemini::LaunchWorks(tpool, batchSize, batch);
             total += std::chrono::duration_cast<Unit>(measure::now() - start).count() / 1'000'000.0;
             if (code != Code::OK) {
                 std::cerr << CodeMessage(code) << "\n";
                 return EXEC_FAILED;
             }
-            results[round] = average(batches_results, false);
+            results[round] = Utils::average(batches_results, false);
         }
-        auto measures = average(results, true);
-        totalTime += print_results(measures, i, batchSize, threads);
+        auto measures = Utils::average(results, true);
+        totalTime += Utils::print_results(measures, i, batchSize, threads);
         totalData += measures.bytes / 1'000'000.0;
     }
 

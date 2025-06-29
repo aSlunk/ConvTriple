@@ -11,7 +11,12 @@
 
 #include "defs.hpp"
 
+#ifndef VERIFY
+#define VERIFY 1
+#endif
+
 using namespace gemini;
+using Utils::Result;
 
 uint64_t add(const HomConv2DSS& conv, const uint64_t& a, const uint64_t& b) {
     uint64_t sum;
@@ -153,7 +158,7 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
     start               = measure::now();
 
     std::vector<seal::Ciphertext> enc_A1;
-    measures.ret = recv_send(context, client, enc_A2, enc_A1);
+    measures.ret = IO::recv_send(context, client, enc_A2, enc_A1);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -176,7 +181,7 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M1;
-    measures.ret = recv_send(context, client, enc_M2, enc_M1);
+    measures.ret = IO::recv_send(context, client, enc_M2, enc_M1);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -283,7 +288,7 @@ Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_A2;
-    send_recv(context, server, enc_A1, enc_A2);
+    IO::send_recv(context, server, enc_A1, enc_A2);
 
     measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
     ////////////////////////////////////////////////////////////////////////////
@@ -305,7 +310,7 @@ Result Server::Protocol2(const HomConv2DSS::Meta& meta, Channel& server,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M2;
-    send_recv(context, server, M1, enc_M2);
+    IO::send_recv(context, server, M1, enc_M2);
 
     measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
     ////////////////////////////////////////////////////////////////////////////
