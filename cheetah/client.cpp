@@ -16,6 +16,10 @@ int main(int argc, char** argv) {
         return EXEC_FAILED;
     }
 
+    if (PROTO != 1 && PROTO != 2) {
+        Utils::log(Utils::Level::ERROR, "Unknown <PROTO>: ", PROTO);
+    }
+
     long port     = strtol(argv[1], NULL, 10);
     char* addr    = argv[2];
     int samples   = strtol(argv[3], NULL, 10);
@@ -58,7 +62,7 @@ int main(int argc, char** argv) {
                 auto& ios = ioss[wid];
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
-                    if (PROTO == 2 || (cur + wid) % 2 == 0) {
+                    if (PROTO == 2 || cur % 2 == 0) {
                         result = (Client::perform_proto(layers[i], ios, context, hom_conv,
                                                         threads_per_thread));
                     } else {

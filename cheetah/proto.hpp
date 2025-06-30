@@ -341,7 +341,7 @@ Result Server::perform_proto(HomConv2DSS::Meta& meta, Channel& server,
 
 #if PROTO == 1
     auto measures = Server::Protocol1(meta, server, context, hom_conv, A1, B1, C1, threads);
-#elif PROTO == 2
+#else
     auto measures = Server::Protocol2(meta, server, context, hom_conv, A1, C1, threads);
 #endif
     for (auto& ele : server) ele.counter = 0;
@@ -365,7 +365,7 @@ Result Client::perform_proto(HomConv2DSS::Meta& meta, Channel& client,
 
 #if PROTO == 1
     auto measures = Client::Protocol1(client, context, hom_conv, meta, A2, B2, C2, threads);
-#elif PROTO == 2
+#else
     auto measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, C2, threads);
 #endif
 

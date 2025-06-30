@@ -18,6 +18,18 @@ int main(int argc, char** argv) {
         return EXEC_FAILED;
     }
 
+    switch (PROTO) {
+        case 1:
+            Utils::log(Utils::Level::DEBUG, "RUNNING AB");
+            break;
+        case 2:
+            Utils::log(Utils::Level::DEBUG, "RUNNING AB2");
+            break;
+        default:
+            Utils::log(Utils::Level::ERROR, "Unknown <PROTO>: ", PROTO);
+            break;
+    }
+
     int port      = strtol(argv[1], NULL, 10);
     int samples   = strtol(argv[2], NULL, 10);
     int batchSize = strtol(argv[3], NULL, 10);
@@ -67,10 +79,12 @@ int main(int argc, char** argv) {
                 auto& ios = ioss[wid];
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
-                    if (PROTO == 2 || (cur + wid) % 2 == 0) {
+                    if (PROTO == 2 || cur % 2 == 0) {
+                        Utils::log(Utils::Level::DEBUG, "Server", cur, " ", wid);
                         result = (Server::perform_proto(layers[i], ios, context, conv,
                                                         threads_per_thread));
                     } else {
+                        Utils::log(Utils::Level::DEBUG, "Client");
                         result = (Client::perform_proto(layers[i], ios, context, conv,
                                                         threads_per_thread));
                     }
