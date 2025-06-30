@@ -10,10 +10,16 @@
 
 #include <gemini/cheetah/hom_conv2d_ss.h>
 #include <gemini/cheetah/tensor.h>
+
 #include <seal/seal.h>
 
+#define NC "\033[0m"
+#define RED "\033[31m"
+#define GREEN "\033[32m"
+#define PURPLE "\033[35m"
+
 #define EXEC_FAILED -1
-#define PROTO 2
+#define PROTO 1 // 1 or 2
 
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;
@@ -29,6 +35,41 @@ constexpr uint64_t MOD         = PLAIN_MOD;
 constexpr uint64_t moduloMask  = MOD - 1;
 constexpr uint64_t moduloMidPt = MOD / 2;
 
+namespace Utils {
+
+enum class Level {
+    DEBUG,
+    INFO,
+    PASSED,
+    FAILED,
+    ERROR,
+};
+
+template <class... Args>
+void log(const Level& l, const Args&... args) {
+    auto* stream = &std::cerr;
+    switch (l) {
+    case Level::DEBUG:
+        *stream << PURPLE;
+        break;
+    case Level::PASSED:
+        *stream << GREEN;
+        break;
+    case Level::FAILED:
+        *stream << RED;
+        break;
+    case Level::ERROR:
+        stream = &std::cout;
+        *stream << RED;
+        break;
+    }
+
+    (*stream << ... << args) << NC << std::endl;
+
+    if (l == Level::ERROR)
+        exit(EXEC_FAILED);
+}
+
 struct Result {
     double encryption = 0;
     double cipher_op  = 0;
@@ -40,14 +81,19 @@ struct Result {
     Code ret          = Code::OK;
 };
 
-namespace Utils {
-
 seal::SEALContext init_he_context();
-void print_info();
+void print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padding);
 
 gemini::HomConv2DSS::Meta init_meta(const long& ic, const long& ih, const long& iw, const long& fc,
                                     const long& fh, const long& fw, const size_t& n_filter,
                                     const size_t& stride, const size_t& padding);
+
+std::vector<gemini::HomConv2DSS::Meta> init_layers();
+
+template <class Channel>
+std::vector<std::vector<Channel>> init_ios(const char* addr, const int& port,
+                                           const size_t& batch_threads,
+                                           const size_t& threads_per_thread);
 
 template <class T>
 gemini::Tensor<uint64_t> convert_fix_point(const gemini::Tensor<T>& in);
@@ -64,45 +110,6 @@ std::vector<gemini::Tensor<uint64_t>> init_filter(const gemini::HomConv2DSS::Met
 template <class T>
 void op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B, std::function<T(T, T)> op);
 
-gemini::HomConv2DSS::Meta init_meta(const long& ic, const long& ih, const long& iw, const long& fc,
-                                    const long& fh, const long& fw, const size_t& n_filter,
-                                    const size_t& stride, const size_t& padding) {
-    gemini::HomConv2DSS::Meta meta;
-
-    meta.ishape          = {ic, ih, iw};
-    meta.fshape          = {fc, fh, fw};
-    meta.is_shared_input = true;
-    meta.n_filters       = n_filter;
-    meta.padding         = padding == 0 ? gemini::Padding::VALID : gemini::Padding::SAME;
-    meta.stride          = stride;
-
-    return meta;
-}
-
-seal::SEALContext init_he_context() {
-    seal::EncryptionParameters params(seal::scheme_type::bfv);
-    params.set_poly_modulus_degree(POLY_MOD);
-    params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD));
-    params.set_plain_modulus(PLAIN_MOD);
-
-    seal::SEALContext context(params);
-
-    return context;
-}
-
-void print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padding) {
-    std::cerr << "n_threads: " << N_THREADS << "\n";
-    std::cerr << "Padding: " << padding << "\n";
-    std::cerr << "Stride: " << meta.stride << "\n";
-    std::cerr << "i_channel: " << meta.ishape.channels() << "\n";
-    std::cerr << "i_width: " << meta.ishape.width() << "\n";
-    std::cerr << "i_height: " << meta.ishape.height() << "\n";
-    std::cerr << "f_channel: " << meta.fshape.channels() << "\n";
-    std::cerr << "f_width: " << meta.fshape.width() << "\n";
-    std::cerr << "f_height: " << meta.fshape.height() << "\n";
-    std::cerr << "n_filters: " << meta.n_filters << "\n";
-}
-
 static inline uint64_t getRingElt(int64_t x) { return ((uint64_t)x) & moduloMask; }
 
 static inline int64_t getSignedVal(uint64_t x) {
@@ -113,44 +120,17 @@ static inline int64_t getSignedVal(uint64_t x) {
         return static_cast<int64_t>(x);
 }
 
-template <class T>
-gemini::Tensor<uint64_t> convert_fix_point(const gemini::Tensor<T>& in) {
-    gemini::Tensor<uint64_t> out(in.shape());
-    out.tensor() = in.tensor().unaryExpr([](T num) {
-        double u    = static_cast<double>(num);
-        auto sign   = std::signbit(u);
-        uint64_t su = std::floor(std::abs(u * (1 << filter_prec)));
-        return getRingElt(sign ? -su : su);
-    });
+void add_result(Result& res, const Result& res2);
 
-    return out;
-}
+Result average(const std::vector<Result>& res, bool average_bytes);
 
-template <class T>
-void print_tensor(const gemini::Tensor<T>& t) {
-    for (long i = 0; i < t.height(); ++i) {
-        for (long j = 0; j < t.width(); ++j) {
-            std::cerr << static_cast<T>(t(0, i, j)) << " ";
-        }
-        std::cerr << "\n";
-    }
-}
+double print_results(const Result& res, const int& layer, const size_t& batchSize,
+                     const size_t& threads, std::ostream& out = std::cout);
 
-double convert(uint64_t v, int nbits) {
-    int64_t sv = getSignedVal(getRingElt(v));
-    // return sv / (1. * std::pow(2, nbits));
-    return sv >> filter_prec;
-}
+} // namespace Utils
 
-gemini::Tensor<double> convert_double(const gemini::Tensor<uint64_t>& in) {
-    gemini::Tensor<double> out(in.shape());
-    out.tensor()
-        = in.tensor().unaryExpr([&](uint64_t v) { return Utils::convert(v, filter_prec); });
-
-    return out;
-}
-
-gemini::Tensor<uint64_t> init_image(const gemini::HomConv2DSS::Meta& meta, const double& num) {
+gemini::Tensor<uint64_t> Utils::init_image(const gemini::HomConv2DSS::Meta& meta,
+                                           const double& num) {
     gemini::Tensor<uint64_t> image(meta.ishape);
 
     for (int c = 0; c < image.channels(); ++c) {
@@ -164,8 +144,8 @@ gemini::Tensor<uint64_t> init_image(const gemini::HomConv2DSS::Meta& meta, const
     return image;
 }
 
-std::vector<gemini::Tensor<uint64_t>> init_filter(const gemini::HomConv2DSS::Meta& meta,
-                                                  const double& num) {
+std::vector<gemini::Tensor<uint64_t>> Utils::init_filter(const gemini::HomConv2DSS::Meta& meta,
+                                                         const double& num) {
     std::vector<gemini::Tensor<uint64_t>> filters(meta.n_filters);
 
     for (auto& filter : filters) {
@@ -186,10 +166,9 @@ std::vector<gemini::Tensor<uint64_t>> init_filter(const gemini::HomConv2DSS::Met
 }
 
 template <class T>
-void op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B, std::function<T(T, T)> op) {
-    assert(A.channels() == B.channels());
-    assert(A.height() == B.height());
-    assert(A.width() == B.width());
+void Utils::op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B,
+                       std::function<T(T, T)> op) {
+    assert(A.shape() == B.shape());
 
     for (int i = 0; i < A.channels(); ++i) {
         for (int j = 0; j < A.width(); ++j) {
@@ -200,7 +179,7 @@ void op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B, std::function<
     }
 }
 
-std::vector<gemini::HomConv2DSS::Meta> init_layers() {
+std::vector<gemini::HomConv2DSS::Meta> Utils::init_layers() {
     std::vector<gemini::HomConv2DSS::Meta> layers;
     layers.push_back(Utils::init_meta(3, 224, 224, 3, 7, 7, 64, 2, 3));
     layers.push_back(Utils::init_meta(64, 56, 56, 64, 1, 1, 64, 1, 0));       // L1
@@ -258,7 +237,7 @@ std::vector<gemini::HomConv2DSS::Meta> init_layers() {
     return layers;
 }
 
-void add_result(Result& res, const Result& res2) {
+void Utils::add_result(Result& res, const Result& res2) {
     res.encryption += res2.encryption;
     res.cipher_op += res2.cipher_op;
     res.plain_op += res2.plain_op;
@@ -268,27 +247,98 @@ void add_result(Result& res, const Result& res2) {
     res.bytes += res2.bytes;
 }
 
-template <class Vec>
-std::stringstream serialize(Vec& ct) {
-    std::stringstream st;
-    for (auto& ele : ct) {
-        ele.save(st);
+template <class Channel>
+std::vector<std::vector<Channel>> Utils::init_ios(const char* addr, const int& port,
+                                                  const size_t& batch_threads,
+                                                  const size_t& threads_per_thread) {
+    std::vector<std::vector<Channel>> ioss(batch_threads);
+    for (size_t wid = 0; wid < batch_threads; ++wid) {
+        ioss[wid].reserve(threads_per_thread);
+        for (size_t p = 0; p < threads_per_thread; ++p) {
+            ioss[wid].emplace_back(addr, port + wid * threads_per_thread + p, true);
+        }
     }
-    return st;
+    return ioss;
 }
 
-template <class Ctx>
-void deserialize(const Ctx& context, std::stringstream& is, std::vector<seal::Ciphertext>& res) {
-    for (auto& ele : res) {
-        ele.load(context, is);
-    }
-    is.clear();
+void Utils::print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padding) {
+    log(Level::DEBUG, "n_threads: ", N_THREADS);
+    log(Level::DEBUG, "Padding: ", padding);
+    log(Level::DEBUG, "Stride: ", meta.stride);
+    log(Level::DEBUG, "i_channel: ", meta.ishape.channels());
+    log(Level::DEBUG, "i_width: ", meta.ishape.width());
+    log(Level::DEBUG, "i_height: ", meta.ishape.height());
+    log(Level::DEBUG, "f_channel: ", meta.fshape.channels());
+    log(Level::DEBUG, "f_width: ", meta.fshape.width());
+    log(Level::DEBUG, "f_height: ", meta.fshape.height());
+    log(Level::DEBUG, "n_filters: ", meta.n_filters);
 }
 
-} // namespace Utils
+gemini::HomConv2DSS::Meta Utils::init_meta(const long& ic, const long& ih, const long& iw,
+                                           const long& fc, const long& fh, const long& fw,
+                                           const size_t& n_filter, const size_t& stride,
+                                           const size_t& padding) {
+    gemini::HomConv2DSS::Meta meta;
 
-double print_results(const Result& res, const int& layer, const size_t& batchSize,
-                     const size_t& threads, std::ostream& out = std::cout) {
+    meta.ishape          = {ic, ih, iw};
+    meta.fshape          = {fc, fh, fw};
+    meta.is_shared_input = true;
+    meta.n_filters       = n_filter;
+    meta.padding         = padding == 0 ? gemini::Padding::VALID : gemini::Padding::SAME;
+    meta.stride          = stride;
+
+    return meta;
+}
+
+template <class T>
+gemini::Tensor<uint64_t> Utils::convert_fix_point(const gemini::Tensor<T>& in) {
+    gemini::Tensor<uint64_t> out(in.shape());
+    out.tensor() = in.tensor().unaryExpr([](T num) {
+        double u    = static_cast<double>(num);
+        auto sign   = std::signbit(u);
+        uint64_t su = std::floor(std::abs(u * (1 << filter_prec)));
+        return getRingElt(sign ? -su : su);
+    });
+
+    return out;
+}
+
+seal::SEALContext Utils::init_he_context() {
+    seal::EncryptionParameters params(seal::scheme_type::bfv);
+    params.set_poly_modulus_degree(POLY_MOD);
+    params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD));
+    params.set_plain_modulus(PLAIN_MOD);
+
+    seal::SEALContext context(params);
+
+    return context;
+}
+
+template <class T>
+void Utils::print_tensor(const gemini::Tensor<T>& t) {
+    for (long i = 0; i < t.height(); ++i) {
+        for (long j = 0; j < t.width(); ++j) {
+            std::cerr << static_cast<T>(t(0, i, j)) << " ";
+        }
+        std::cerr << "\n";
+    }
+}
+
+double Utils::convert(uint64_t v, int nbits) {
+    int64_t sv = getSignedVal(getRingElt(v));
+    return sv / (1. * std::pow(2, nbits));
+}
+
+gemini::Tensor<double> Utils::convert_double(const gemini::Tensor<uint64_t>& in) {
+    gemini::Tensor<double> out(in.shape());
+    out.tensor()
+        = in.tensor().unaryExpr([&](uint64_t v) { return Utils::convert(v, filter_prec); });
+
+    return out;
+}
+
+double Utils::print_results(const Result& res, const int& layer, const size_t& batchSize,
+                            const size_t& threads, std::ostream& out) {
     if (!layer)
         out << "Encryption [ms],Cipher Calculations [s],Serialization [s],Decryption [ms],Plain "
                "Calculations [ms], "
@@ -306,7 +356,7 @@ double print_results(const Result& res, const int& layer, const size_t& batchSiz
     return total;
 }
 
-Result average(const std::vector<Result>& res) {
+Utils::Result Utils::average(const std::vector<Result>& res, bool average_bytes) {
     Result avg = {.encryption = 0,
                   .cipher_op  = 0,
                   .plain_op   = 0,
@@ -340,7 +390,9 @@ Result average(const std::vector<Result>& res) {
     avg.cipher_op /= len;
     avg.plain_op /= len;
     avg.serial /= len;
-    avg.bytes /= len;
+
+    if (average_bytes)
+        avg.bytes /= len;
 
     return avg;
 }
