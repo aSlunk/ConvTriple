@@ -8,6 +8,8 @@
 
 #include <io/net_io_channel.hpp>
 
+#include <ot/silent_ot.h>
+
 #include "defs.hpp"
 #include "protocols/conv_proto.hpp"
 #include "protocols/fc_proto.hpp"
@@ -81,7 +83,7 @@ int main(int argc, char** argv) {
         Utils::log(Utils::Level::DEBUG, "Current layer: ", i);
 
         for (int round = 0; round < samples; ++round) {
-            ThreadPool tpool(batch_threads);
+            gemini::ThreadPool tpool(batch_threads);
             std::vector<Result> batches_results(batch_threads);
             auto batch = [&](long wid, size_t start, size_t end) -> Code {
                 auto& ios = ioss[wid];

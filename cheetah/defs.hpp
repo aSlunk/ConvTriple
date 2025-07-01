@@ -63,6 +63,8 @@ void log(const Level& l, const Args&... args) {
         stream = &std::cout;
         *stream << RED;
         break;
+    default:
+        stream = &std::cerr;
     }
 
     (*stream << ... << args) << NC << std::endl;

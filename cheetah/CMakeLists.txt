@@ -9,7 +9,11 @@ add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)
 ## Dependencies
 find_package(Threads REQUIRED)
 find_package(Eigen3 3.3.3 REQUIRED)
-include_directories(${EIGEN3_INCLUDE_DIR})
+find_package(emp-tool REQUIRED)
+find_package(emp-ot REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIR}
+                    ${EMP-OT_INCLUDE_DIRS}
+                    ${EMP-TOOL_INCLUDE_DIRS})
 
 ## cheetah-core
 add_library(gemini SHARED)
@@ -28,9 +32,13 @@ add_library(io INTERFACE)
 target_include_directories(io INTERFACE io)
 target_link_libraries(io INTERFACE SEAL::seal gemini)
 
+add_library(ot INTERFACE)
+target_include_directories(ot INTERFACE ot)
+target_link_libraries(ot INTERFACE SEAL::seal gemini)
+
 set(exe cheetah)
 add_executable(${exe} server.cpp)
-target_link_libraries(${exe} PRIVATE gemini io)
+target_link_libraries(${exe} PRIVATE gemini io ot)
 if(VERIFY)
   target_compile_definitions(${exe} PUBLIC USE_CHEETAH=1 VERIFY=1)
 else()
@@ -38,7 +46,8 @@ else()
 endif()
 target_compile_options(
     ${exe} PRIVATE
-    "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra;-Wno-unused-parameter>"
+    "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra;-Wno-unused-parameter;-Wno-ignored-attributes>"
+    "$<$<CONFIG:Release>:-Wall;-Wextra;-Wno-unused-parameter;-Wno-ignored-attributes;-Wno-ignored-qualifiers>"
 )
 
 
