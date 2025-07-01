@@ -2,12 +2,15 @@
 #include <iostream>
 #include <vector>
 
+#include <gemini/cheetah/hom_conv2d_ss.h>
+#include <gemini/cheetah/hom_fc_ss.h>
 #include <seal/seal.h>
 
 #include <io/net_io_channel.hpp>
 
 #include "defs.hpp"
-#include "proto.hpp"
+#include "protocols/conv_proto.hpp"
+#include "protocols/fc_proto.hpp"
 
 using namespace gemini;
 using Utils::Result;
@@ -19,15 +22,15 @@ int main(int argc, char** argv) {
     }
 
     switch (PROTO) {
-        case 1:
-            Utils::log(Utils::Level::DEBUG, "RUNNING AB");
-            break;
-        case 2:
-            Utils::log(Utils::Level::DEBUG, "RUNNING AB2");
-            break;
-        default:
-            Utils::log(Utils::Level::ERROR, "Unknown <PROTO>: ", PROTO);
-            break;
+    case 1:
+        Utils::log(Utils::Level::DEBUG, "RUNNING AB");
+        break;
+    case 2:
+        Utils::log(Utils::Level::DEBUG, "RUNNING AB2");
+        break;
+    default:
+        Utils::log(Utils::Level::ERROR, "Unknown <PROTO>: ", PROTO);
+        break;
     }
 
     int port      = strtol(argv[1], NULL, 10);
@@ -54,7 +57,12 @@ int main(int argc, char** argv) {
     IO::recv_pkey(ioss[0][0], context, *pkey);
 
     HomConv2DSS conv;
+    HomFCSS fc;
     conv.setUp(context, skey, pkey);
+    fc.setUp(context, skey, pkey);
+
+    auto m = Utils::init_meta_fc(10, 5, 10);
+    Server::perform_proto(m, ioss[0], context, fc, threads_per_thread);
 
     double total_time = 0;
     double total_data = 0;

@@ -50,34 +50,6 @@ static TensorShape getSplit(const HomFCSS::Meta& meta, size_t N) {
     return TensorShape({ret[0], ret[1]});
 }
 
-static Code LaunchWorks(ThreadPool& tpool, size_t num_works,
-                        std::function<Code(long wid, size_t start, size_t end)> program) {
-    if (num_works == 0)
-        return Code::OK;
-    const long pool_sze = tpool.pool_size();
-    if (pool_sze <= 1L) {
-        return program(0, 0, num_works);
-    } else {
-        Code code;
-        std::vector<std::future<Code>> futures;
-        size_t work_load = (num_works + pool_sze - 1) / pool_sze;
-        for (long wid = 0; wid < pool_sze; ++wid) {
-            size_t start = wid * work_load;
-            size_t end   = std::min(start + work_load, num_works);
-            futures.push_back(tpool.enqueue(program, wid, start, end));
-        }
-
-        code = Code::OK;
-        for (auto&& work : futures) {
-            Code c = work.get();
-            if (code == Code::OK && c != Code::OK) {
-                code = c;
-            }
-        }
-        return code;
-    }
-}
-
 // defined in hom_conv2d_ss.cc
 void flood_ciphertext(seal::Ciphertext& ct, std::shared_ptr<seal::UniformRandomGenerator> prng,
                       const seal::SEALContext& context, const seal::PublicKey& pk,
@@ -144,6 +116,10 @@ Code HomFCSS::setUp(const seal::SEALContext& context, std::optional<seal::Secret
         }
 
         pk_ = std::make_shared<seal::PublicKey>(*pk);
+        if (sk)
+            encryptor_->set_public_key(*pk);
+        else
+            encryptor_ = std::make_shared<seal::Encryptor>(*context_, *pk);
     }
     evaluator_ = std::make_shared<seal::Evaluator>(*context_);
     return Code::OK;
@@ -204,6 +180,62 @@ Code HomFCSS::vec2Poly(const uint64_t* vec, size_t len, seal::Plaintext& pt, con
         LOG(WARNING) << "A2H: shceme is not supported yet\n";
     }
     return Code::ERR_INTERNAL;
+}
+
+Code HomFCSS::encryptInputVector(const Tensor<uint64_t>& input_vector, const Meta& meta,
+                                 std::vector<seal::Serializable<seal::Ciphertext>>& encrypted_share,
+                                 std::vector<seal::Plaintext>& encode, size_t nthreads) const {
+    ENSURE_OR_RETURN(context_ && encryptor_, Code::ERR_CONFIG);
+    ENSURE_OR_RETURN(input_vector.shape().IsSameSize(meta.input_shape), Code::ERR_DIM_MISMATCH);
+    ENSURE_OR_RETURN(meta.input_shape.num_elements() > 0, Code::ERR_INVALID_ARG);
+
+    const bool is_ckks = scheme() == seal::scheme_type::ckks;
+    ENSURE_OR_RETURN(!is_ckks, Code::ERR_INTERNAL);
+
+    auto split_shape = getSplit(meta, poly_degree());
+    if (split_shape.num_elements() > poly_degree()) {
+        LOG(FATAL) << "BUG";
+    }
+    auto nout = CeilDiv(input_vector.length(), split_shape.cols());
+
+    Role encode_role = Role::none; // BFV/BGV not use this role
+    encrypted_share.resize(nout, encryptor_->encrypt_zero());
+
+    encode.resize(nout);
+    std::vector<uint64_t> tmp(poly_degree());
+    const uint64_t plain = plain_modulus();
+    bool is_failed       = false;
+    for (long i = 0; i < nout && !is_failed; ++i) {
+        auto start = i * split_shape.cols();
+        auto end   = std::min<size_t>(input_vector.length(), start + split_shape.cols());
+        auto len   = end - start;
+        // reversed ordering for the vector
+        tmp[0] = input_vector(start);
+        std::transform(input_vector.data() + start + 1, input_vector.data() + end, tmp.rbegin(),
+                       [plain](uint64_t u) { return u > 0 ? plain - u : 0; });
+        if (len < tmp.size()) {
+            std::fill_n(tmp.rbegin() + len, tmp.size() - len - 1, 0);
+        }
+
+        if (Code::OK != vec2Poly(tmp.data(), tmp.size(), encode.at(i), encode_role, false)) {
+            is_failed = true;
+        } else {
+            try {
+                encrypted_share.at(i) = encryptor_->encrypt_symmetric(encode.at(i));
+            } catch (const std::logic_error& e) {
+                is_failed = true;
+            }
+        }
+    }
+
+    // erase the sensitive data
+    seal::util::seal_memzero(tmp.data(), sizeof(uint64_t) * tmp.size());
+
+    if (is_failed) {
+        return Code::ERR_INTERNAL;
+    } else {
+        return Code::OK;
+    }
 }
 
 Code HomFCSS::encryptInputVector(const Tensor<uint64_t>& input_vector, const Meta& meta,
@@ -373,9 +405,9 @@ Code HomFCSS::encodeWeightMatrix(const Tensor<uint64_t>& weight_matrix, const Me
     return LaunchWorks(tpool, n_row_blks, encode_prg);
 }
 
-Code HomFCSS::matVecMul(const std::vector<std::vector<seal::Plaintext>>& matrix,
-                        const std::vector<seal::Ciphertext>& vec_share0,
-                        const std::vector<seal::Plaintext>& vec_share1, const Meta& meta,
+Code HomFCSS::MatVecMul(const std::vector<seal::Ciphertext>& vec_share0,
+                        const std::vector<seal::Plaintext>& vec_share1,
+                        const std::vector<std::vector<seal::Plaintext>>& matrix, const Meta& meta,
                         std::vector<seal::Ciphertext>& out_share0, Tensor<uint64_t>& out_share1,
                         size_t nthreads) const {
     ENSURE_OR_RETURN(context_ && evaluator_, Code::ERR_CONFIG);
@@ -574,6 +606,14 @@ Code HomFCSS::decryptToVector(const std::vector<seal::Ciphertext>& enc_vector, c
 Code HomFCSS::idealFunctionality(const Tensor<uint64_t>& input_matrix,
                                  const Tensor<uint64_t>& weight_matrix, const Meta& meta,
                                  Tensor<uint64_t>& out) const {
+    out.Reshape(GetOutShape(meta));
+    for (int row = 0; row < weight_matrix.rows(); row++) {
+        for (int idx = 0; idx < weight_matrix.cols(); idx++) {
+            uint64_t partial = input_matrix(idx) * weight_matrix(row, idx);
+            out(row)         = out(row) + partial;
+        }
+    }
+
     return Code::OK;
 }
 } // namespace gemini

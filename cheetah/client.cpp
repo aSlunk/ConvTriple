@@ -5,7 +5,8 @@
 #include <io/net_io_channel.hpp>
 
 #include "defs.hpp"
-#include "proto.hpp"
+#include "protocols/conv_proto.hpp"
+#include "protocols/fc_proto.hpp"
 
 using namespace gemini;
 using Utils::Result;
@@ -45,7 +46,12 @@ int main(int argc, char** argv) {
     IO::recv_pkey(ioss[0][0], context, *pkey);
 
     HomConv2DSS hom_conv;
+    HomFCSS fc;
     hom_conv.setUp(context, skey, pkey);
+    fc.setUp(context, skey, pkey);
+
+    auto m = Utils::init_meta_fc(10, 5, 10);
+    Client::perform_proto(m, ioss[0], context, fc, threads_per_thread);
 
     double totalTime = 0;
     double totalData = 0;

@@ -9,6 +9,7 @@
 #include <thread>
 
 #include <gemini/cheetah/hom_conv2d_ss.h>
+#include <gemini/cheetah/hom_fc_ss.h>
 #include <gemini/cheetah/tensor.h>
 
 #include <seal/seal.h>
@@ -84,9 +85,12 @@ struct Result {
 seal::SEALContext init_he_context();
 void print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padding);
 
-gemini::HomConv2DSS::Meta init_meta(const long& ic, const long& ih, const long& iw, const long& fc,
-                                    const long& fh, const long& fw, const size_t& n_filter,
-                                    const size_t& stride, const size_t& padding);
+gemini::HomFCSS::Meta init_meta_fc(const long& image_h, const long& filter_h, const long& filter_w);
+
+gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const long& iw,
+                                         const long& fc, const long& fh, const long& fw,
+                                         const size_t& n_filter, const size_t& stride,
+                                         const size_t& padding);
 
 std::vector<gemini::HomConv2DSS::Meta> init_layers();
 
@@ -170,70 +174,86 @@ void Utils::op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B,
                        std::function<T(T, T)> op) {
     assert(A.shape() == B.shape());
 
-    for (int i = 0; i < A.channels(); ++i) {
-        for (int j = 0; j < A.width(); ++j) {
-            for (int k = 0; k < A.height(); ++k) {
-                A(i, j, k) = op(A(i, j, k), B(i, j, k));
+    switch (A.dims()) {
+    case 3:
+        for (int i = 0; i < A.channels(); ++i) {
+            for (int j = 0; j < A.width(); ++j) {
+                for (int k = 0; k < A.height(); ++k) {
+                    A(i, j, k) = op(A(i, j, k), B(i, j, k));
+                }
             }
         }
+        break;
+    case 2:
+        for (int i = 0; i < A.rows(); ++i) {
+            for (int j = 0; j < A.cols(); ++j) {
+                A(i, j) = op(A(i, j), B(i, j));
+            }
+        }
+        break;
+    case 1:
+        for (int i = 0; i < A.length(); ++i) {
+            A(i) = op(A(i), B(i));
+        }
+        break;
     }
 }
 
 std::vector<gemini::HomConv2DSS::Meta> Utils::init_layers() {
     std::vector<gemini::HomConv2DSS::Meta> layers;
-    layers.push_back(Utils::init_meta(3, 224, 224, 3, 7, 7, 64, 2, 3));
-    layers.push_back(Utils::init_meta(64, 56, 56, 64, 1, 1, 64, 1, 0));       // L1
-    layers.push_back(Utils::init_meta(64, 56, 56, 64, 3, 3, 64, 1, 1));       // L2
-    layers.push_back(Utils::init_meta(64, 56, 56, 64, 1, 1, 256, 1, 0));      // L3
-    layers.push_back(Utils::init_meta(64, 56, 56, 64, 1, 1, 256, 1, 0));      // L4
-    layers.push_back(Utils::init_meta(256, 56, 56, 256, 1, 1, 64, 1, 0));     // L5
-    layers.push_back(Utils::init_meta(64, 56, 56, 64, 3, 3, 64, 1, 1));       // L6
-    layers.push_back(Utils::init_meta(64, 56, 56, 64, 1, 1, 256, 1, 0));      // L7
-    layers.push_back(Utils::init_meta(256, 56, 56, 256, 1, 1, 64, 1, 0));     // L8
-    layers.push_back(Utils::init_meta(64, 56, 56, 64, 3, 3, 64, 1, 1));       // L9
-    layers.push_back(Utils::init_meta(64, 56, 56, 64, 1, 1, 256, 1, 1));      // L10
-    layers.push_back(Utils::init_meta(256, 56, 56, 256, 1, 1, 128, 1, 0));    // L11
-    layers.push_back(Utils::init_meta(128, 56, 56, 128, 3, 3, 128, 2, 1));    // L12
-    layers.push_back(Utils::init_meta(128, 28, 28, 128, 1, 1, 512, 1, 0));    // L13
-    layers.push_back(Utils::init_meta(256, 56, 56, 256, 1, 1, 512, 2, 0));    // L14
-    layers.push_back(Utils::init_meta(512, 28, 28, 512, 1, 1, 128, 1, 0));    // L15
-    layers.push_back(Utils::init_meta(128, 28, 28, 128, 3, 3, 128, 1, 1));    // L16
-    layers.push_back(Utils::init_meta(128, 28, 28, 128, 1, 1, 512, 1, 0));    // L17
-    layers.push_back(Utils::init_meta(512, 28, 28, 512, 1, 1, 128, 1, 0));    // L18
-    layers.push_back(Utils::init_meta(128, 28, 28, 128, 3, 3, 128, 1, 1));    // L19
-    layers.push_back(Utils::init_meta(128, 28, 28, 128, 1, 1, 512, 1, 0));    // L20
-    layers.push_back(Utils::init_meta(512, 28, 28, 512, 1, 1, 128, 1, 0));    // L21
-    layers.push_back(Utils::init_meta(128, 28, 28, 128, 3, 3, 128, 1, 1));    // L22
-    layers.push_back(Utils::init_meta(128, 28, 28, 128, 1, 1, 512, 1, 0));    // L23
-    layers.push_back(Utils::init_meta(512, 28, 28, 512, 1, 1, 256, 1, 0));    // L24
-    layers.push_back(Utils::init_meta(256, 28, 28, 256, 3, 3, 256, 2, 1));    // L25
-    layers.push_back(Utils::init_meta(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L26
-    layers.push_back(Utils::init_meta(512, 28, 28, 512, 1, 1, 1024, 2, 0));   // L27
-    layers.push_back(Utils::init_meta(1024, 14, 14, 1024, 1, 1, 256, 1, 0));  // L28
-    layers.push_back(Utils::init_meta(256, 14, 14, 256, 3, 3, 256, 1, 1));    // L29
-    layers.push_back(Utils::init_meta(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L30
-    layers.push_back(Utils::init_meta(1024, 14, 14, 1024, 1, 1, 256, 1, 0));  // L31
-    layers.push_back(Utils::init_meta(256, 14, 14, 256, 3, 3, 256, 1, 1));    // L32
-    layers.push_back(Utils::init_meta(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L33
-    layers.push_back(Utils::init_meta(1024, 14, 14, 1024, 1, 1, 256, 1, 0));  // L34
-    layers.push_back(Utils::init_meta(256, 14, 14, 256, 3, 3, 256, 1, 1));    // L35
-    layers.push_back(Utils::init_meta(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L36
-    layers.push_back(Utils::init_meta(1024, 14, 14, 1024, 1, 1, 256, 1, 0));  // L37
-    layers.push_back(Utils::init_meta(256, 14, 14, 256, 3, 3, 256, 1, 1));    // L38
-    layers.push_back(Utils::init_meta(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L39
-    layers.push_back(Utils::init_meta(1024, 14, 14, 1024, 1, 1, 256, 1, 0));  // L40
-    layers.push_back(Utils::init_meta(256, 14, 14, 256, 3, 3, 256, 1, 1));    // L41
-    layers.push_back(Utils::init_meta(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L42
-    layers.push_back(Utils::init_meta(1024, 14, 14, 1024, 1, 1, 512, 1, 0));  // L43
-    layers.push_back(Utils::init_meta(512, 14, 14, 512, 3, 3, 512, 2, 1));    // L44
-    layers.push_back(Utils::init_meta(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L45
-    layers.push_back(Utils::init_meta(1024, 14, 14, 1024, 1, 1, 2048, 2, 0)); // L46
-    layers.push_back(Utils::init_meta(2048, 7, 7, 2048, 1, 1, 512, 1, 0));    // L47
-    layers.push_back(Utils::init_meta(512, 7, 7, 512, 3, 3, 512, 1, 1));      // L48
-    layers.push_back(Utils::init_meta(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L49
-    layers.push_back(Utils::init_meta(2048, 7, 7, 2048, 1, 1, 512, 1, 0));    // L50
-    layers.push_back(Utils::init_meta(512, 7, 7, 512, 3, 3, 512, 1, 1));      // L51
-    layers.push_back(Utils::init_meta(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L52
+    layers.push_back(Utils::init_meta_conv(3, 224, 224, 3, 7, 7, 64, 2, 3));
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 1, 1, 64, 1, 0));       // L1
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 3, 3, 64, 1, 1));       // L2
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 1, 1, 256, 1, 0));      // L3
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 1, 1, 256, 1, 0));      // L4
+    layers.push_back(Utils::init_meta_conv(256, 56, 56, 256, 1, 1, 64, 1, 0));     // L5
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 3, 3, 64, 1, 1));       // L6
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 1, 1, 256, 1, 0));      // L7
+    layers.push_back(Utils::init_meta_conv(256, 56, 56, 256, 1, 1, 64, 1, 0));     // L8
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 3, 3, 64, 1, 1));       // L9
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 1, 1, 256, 1, 1));      // L10
+    layers.push_back(Utils::init_meta_conv(256, 56, 56, 256, 1, 1, 128, 1, 0));    // L11
+    layers.push_back(Utils::init_meta_conv(128, 56, 56, 128, 3, 3, 128, 2, 1));    // L12
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 1, 1, 512, 1, 0));    // L13
+    layers.push_back(Utils::init_meta_conv(256, 56, 56, 256, 1, 1, 512, 2, 0));    // L14
+    layers.push_back(Utils::init_meta_conv(512, 28, 28, 512, 1, 1, 128, 1, 0));    // L15
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 3, 3, 128, 1, 1));    // L16
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 1, 1, 512, 1, 0));    // L17
+    layers.push_back(Utils::init_meta_conv(512, 28, 28, 512, 1, 1, 128, 1, 0));    // L18
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 3, 3, 128, 1, 1));    // L19
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 1, 1, 512, 1, 0));    // L20
+    layers.push_back(Utils::init_meta_conv(512, 28, 28, 512, 1, 1, 128, 1, 0));    // L21
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 3, 3, 128, 1, 1));    // L22
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 1, 1, 512, 1, 0));    // L23
+    layers.push_back(Utils::init_meta_conv(512, 28, 28, 512, 1, 1, 256, 1, 0));    // L24
+    layers.push_back(Utils::init_meta_conv(256, 28, 28, 256, 3, 3, 256, 2, 1));    // L25
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L26
+    layers.push_back(Utils::init_meta_conv(512, 28, 28, 512, 1, 1, 1024, 2, 0));   // L27
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 256, 1, 0));  // L28
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 3, 3, 256, 1, 1));    // L29
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L30
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 256, 1, 0));  // L31
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 3, 3, 256, 1, 1));    // L32
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L33
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 256, 1, 0));  // L34
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 3, 3, 256, 1, 1));    // L35
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L36
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 256, 1, 0));  // L37
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 3, 3, 256, 1, 1));    // L38
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L39
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 256, 1, 0));  // L40
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 3, 3, 256, 1, 1));    // L41
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));   // L42
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 512, 1, 0));  // L43
+    layers.push_back(Utils::init_meta_conv(512, 14, 14, 512, 3, 3, 512, 2, 1));    // L44
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L45
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 2048, 2, 0)); // L46
+    layers.push_back(Utils::init_meta_conv(2048, 7, 7, 2048, 1, 1, 512, 1, 0));    // L47
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 3, 3, 512, 1, 1));      // L48
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L49
+    layers.push_back(Utils::init_meta_conv(2048, 7, 7, 2048, 1, 1, 512, 1, 0));    // L50
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 3, 3, 512, 1, 1));      // L51
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L52
     return layers;
 }
 
@@ -274,10 +294,21 @@ void Utils::print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padd
     log(Level::DEBUG, "n_filters: ", meta.n_filters);
 }
 
-gemini::HomConv2DSS::Meta Utils::init_meta(const long& ic, const long& ih, const long& iw,
-                                           const long& fc, const long& fh, const long& fw,
-                                           const size_t& n_filter, const size_t& stride,
-                                           const size_t& padding) {
+gemini::HomFCSS::Meta Utils::init_meta_fc(const long& image_h, const long& filter_h,
+                                          const long& filter_w) {
+    gemini::HomFCSS::Meta meta;
+
+    meta.input_shape     = {image_h};
+    meta.weight_shape    = {filter_h, filter_w};
+    meta.is_shared_input = true;
+
+    return meta;
+}
+
+gemini::HomConv2DSS::Meta Utils::init_meta_conv(const long& ic, const long& ih, const long& iw,
+                                                const long& fc, const long& fh, const long& fw,
+                                                const size_t& n_filter, const size_t& stride,
+                                                const size_t& padding) {
     gemini::HomConv2DSS::Meta meta;
 
     meta.ishape          = {ic, ih, iw};
@@ -316,11 +347,28 @@ seal::SEALContext Utils::init_he_context() {
 
 template <class T>
 void Utils::print_tensor(const gemini::Tensor<T>& t) {
-    for (long i = 0; i < t.height(); ++i) {
-        for (long j = 0; j < t.width(); ++j) {
-            std::cerr << static_cast<T>(t(0, i, j)) << " ";
+    switch (t.dims()) {
+    case 3:
+        for (long i = 0; i < t.height(); ++i) {
+            for (long j = 0; j < t.width(); ++j) {
+                std::cerr << static_cast<T>(t(0, i, j)) << " ";
+            }
+            std::cerr << "\n";
         }
-        std::cerr << "\n";
+        break;
+    case 2:
+        for (long i = 0; i < t.rows(); ++i) {
+            for (long j = 0; j < t.cols(); ++j) {
+                std::cerr << static_cast<T>(t(i, j)) << " ";
+            }
+            std::cerr << "\n";
+        }
+        break;
+    case 1:
+        for (long i = 0; i < t.length(); ++i) {
+            std::cerr << static_cast<T>(t(i)) << "\n";
+        }
+        break;
     }
 }
 

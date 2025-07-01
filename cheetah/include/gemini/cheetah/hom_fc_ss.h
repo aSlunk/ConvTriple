@@ -7,6 +7,7 @@
 #include <optional>
 #include <vector>
 
+#include "gemini/cheetah/hom_conv2d_ss.h"
 #include "gemini/cheetah/tensor.h"
 #include "gemini/cheetah/tensor_shape.h"
 #include "gemini/core/util/ThreadPool.h"
@@ -54,6 +55,11 @@ class HomFCSS {
                             std::vector<seal::Serializable<seal::Ciphertext>>& encrypted_share,
                             size_t nthreads = 1) const;
 
+    Code encryptInputVector(const Tensor<uint64_t>& vector, const Meta& meta,
+                            std::vector<seal::Serializable<seal::Ciphertext>>& encrypted_share,
+                            std::vector<seal::Plaintext>& encode,
+                            size_t nthreads = 1) const; // ADDED
+
     Code encodeInputVector(const Tensor<uint64_t>& vector, const Meta& meta,
                            std::vector<seal::Plaintext>& encoded_share, size_t nthreads = 1) const;
 
@@ -61,9 +67,9 @@ class HomFCSS {
                             std::vector<std::vector<seal::Plaintext>>& encoded_share,
                             size_t nthreads = 1) const;
 
-    Code matVecMul(const std::vector<std::vector<seal::Plaintext>>& matrix,
-                   const std::vector<seal::Ciphertext>& vec_share0,
-                   const std::vector<seal::Plaintext>& vec_share1, const Meta& meta,
+    Code MatVecMul(const std::vector<seal::Ciphertext>& vec_share0,
+                   const std::vector<seal::Plaintext>& vec_share1,
+                   const std::vector<std::vector<seal::Plaintext>>& matrix, const Meta& meta,
                    std::vector<seal::Ciphertext>& out_vec_share0, Tensor<uint64_t>& out_vec_share1,
                    size_t nthreads = 1) const;
 
