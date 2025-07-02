@@ -256,8 +256,6 @@ std::vector<gemini::HomConv2DSS::Meta> Utils::init_layers() {
     layers.push_back(Utils::init_meta_conv(2048, 7, 7, 2048, 1, 1, 512, 1, 0));    // L50
     layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 3, 3, 512, 1, 1));      // L51
     layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L52
-    layers.clear();
-    layers.push_back(Utils::init_meta_conv(3, 7, 7, 3, 3, 3, 3, 1, 0));     // L52
     return layers;
 }
 

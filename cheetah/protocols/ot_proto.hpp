@@ -26,9 +26,9 @@ void Test(cheetah::SilentOT<Channel>& ot) {
     T RA  = 10;
     T RA2 = 32;
     for (size_t i = 0; i < batchsize; ++i) {
-        M[i]       = new T[2];
-        M[i][0]    = RA2;
-        M[i][1]    = RA ^ RA2;
+        M[i]    = new T[2];
+        M[i][0] = RA2;
+        M[i][1] = RA ^ RA2;
     }
 
     ot.send_impl(M, batchsize, BIT_LEN);
@@ -58,8 +58,7 @@ void Test(cheetah::SilentOT<Channel>& ot) {
         Utils::log(Utils::Level::FAILED, "OT: FAILED");
 #endif
 
-    for (size_t i = 0; i < batchsize; ++i)
-        delete[] M[i];
+    for (size_t i = 0; i < batchsize; ++i) delete[] M[i];
 }
 
 } // namespace Server
@@ -84,7 +83,6 @@ void Test(cheetah::SilentOT<Channel>& ot) {
     ot.ferret->io->send_data(B2, sizeof(T) * batchsize);
     ot.ferret->io->send_data(C2, sizeof(T) * batchsize);
 #endif
-
 }
 
 } // namespace Client

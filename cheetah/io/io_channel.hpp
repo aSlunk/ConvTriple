@@ -29,8 +29,8 @@ Modified by Deevashwer Rathee
 #define IO_CHANNEL_H__
 #include <memory> // std::align
 
-#include <ot/block.h>
 #include <emp-tool/utils/group.h>
+#include <ot/block.h>
 
 #if defined(__BMI2__)
 #include <immintrin.h>
