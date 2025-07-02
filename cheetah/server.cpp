@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
             ios[i * threads_per_thread + j] = &ioss[i][j];
 
     cheetah::SilentOT<IO::NetIO> ot(PARTY, threads_per_thread, ios);
-    Server::Test<IO::NetIO, uint64_t>(ot);
+    Server::Test<IO::NetIO, uint64_t>(ot, 100);
 
     double total_time = 0;
     double total_data = 0;

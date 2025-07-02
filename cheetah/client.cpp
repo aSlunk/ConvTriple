@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
 
     cheetah::SilentOT<IO::NetIO> ot(PARTY, threads_per_thread, ios);
 
-    Client::Test<IO::NetIO, uint64_t>(ot);
+    Client::Test<IO::NetIO, uint64_t>(ot, 100);
 
     double totalTime = 0;
     double totalData = 0;

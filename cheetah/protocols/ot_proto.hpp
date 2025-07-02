@@ -5,7 +5,6 @@
 
 #include <ot/silent_ot.h>
 
-#define batchsize 10
 #define BIT_LEN 64
 
 template <class T>
@@ -21,7 +20,7 @@ T bitmask(int l) {
 namespace Server {
 
 template <class Channel, class T>
-void Test(cheetah::SilentOT<Channel>& ot) {
+void Test(cheetah::SilentOT<Channel>& ot, const size_t& batchsize) {
     T* M[batchsize];
     T RA  = 10;
     T RA2 = 32;
@@ -66,15 +65,19 @@ void Test(cheetah::SilentOT<Channel>& ot) {
 namespace Client {
 
 template <class Channel, class T>
-void Test(cheetah::SilentOT<Channel>& ot) {
+void Test(cheetah::SilentOT<Channel>& ot, const size_t& batchsize) {
     uint8_t RB[batchsize];
+#if VERIFY == 1
     T B2[batchsize];
+#endif
     for (size_t i = 0; i < batchsize; ++i) {
         RB[i] = i % 2;
+#if VERIFY == 1
         if (RB[i])
             B2[i] = bitmask<T>(BIT_LEN);
         else
             B2[i] = 0;
+#endif
     }
     T C2[batchsize];
     ot.recv_impl(C2, RB, batchsize, BIT_LEN);
