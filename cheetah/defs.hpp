@@ -87,7 +87,7 @@ struct Result {
 seal::SEALContext init_he_context();
 void print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padding);
 
-gemini::HomFCSS::Meta init_meta_fc(const long& image_h, const long& filter_h, const long& filter_w);
+gemini::HomFCSS::Meta init_meta_fc(const long& image_h, const long& filter_h);
 
 gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const long& iw,
                                          const long& fc, const long& fh, const long& fw,
@@ -256,6 +256,8 @@ std::vector<gemini::HomConv2DSS::Meta> Utils::init_layers() {
     layers.push_back(Utils::init_meta_conv(2048, 7, 7, 2048, 1, 1, 512, 1, 0));    // L50
     layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 3, 3, 512, 1, 1));      // L51
     layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L52
+    layers.clear();
+    layers.push_back(Utils::init_meta_conv(3, 7, 7, 3, 3, 3, 3, 1, 0));     // L52
     return layers;
 }
 
@@ -296,12 +298,11 @@ void Utils::print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padd
     log(Level::DEBUG, "n_filters: ", meta.n_filters);
 }
 
-gemini::HomFCSS::Meta Utils::init_meta_fc(const long& image_h, const long& filter_h,
-                                          const long& filter_w) {
+gemini::HomFCSS::Meta Utils::init_meta_fc(const long& image_h, const long& filter_h) {
     gemini::HomFCSS::Meta meta;
 
     meta.input_shape     = {image_h};
-    meta.weight_shape    = {filter_h, filter_w};
+    meta.weight_shape    = {filter_h, image_h};
     meta.is_shared_input = true;
 
     return meta;

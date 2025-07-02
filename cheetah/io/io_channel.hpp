@@ -29,6 +29,13 @@ Modified by Deevashwer Rathee
 #define IO_CHANNEL_H__
 #include <memory> // std::align
 
+#include <ot/block.h>
+#include <emp-tool/utils/group.h>
+
+#if defined(__BMI2__)
+#include <immintrin.h>
+#endif
+
 namespace IO {
 template <typename T>
 class IOChannel {
@@ -39,6 +46,40 @@ class IOChannel {
         derived().send_data_internal(data, nbyte);
     }
     void recv_data(void* data, int nbyte) { derived().recv_data_internal(data, nbyte); }
+
+    void send_block(const sci::block128* data, int nblock) {
+        send_data(data, nblock * sizeof(sci::block128));
+    }
+
+    void send_block(const sci::block256* data, int nblock) {
+        send_data(data, nblock * sizeof(sci::block256));
+    }
+
+    void recv_block(sci::block128* data, int nblock) {
+        recv_data(data, nblock * sizeof(sci::block128));
+    }
+
+    void send_pt(emp::Point* A, int num_pts = 1) {
+        for (int i = 0; i < num_pts; ++i) {
+            size_t len = A[i].size();
+            A[i].group->resize_scratch(len);
+            unsigned char* tmp = A[i].group->scratch;
+            send_data(&len, 4);
+            A[i].to_bin(tmp, len);
+            send_data(tmp, len);
+        }
+    }
+
+    void recv_pt(emp::Group* g, emp::Point* A, int num_pts = 1) {
+        size_t len = 0;
+        for (int i = 0; i < num_pts; ++i) {
+            recv_data(&len, 4);
+            g->resize_scratch(len);
+            unsigned char* tmp = g->scratch;
+            recv_data(tmp, len);
+            A[i].from_bin(g, tmp, len);
+        }
+    }
 
     void send_bool(bool* data, int length) {
         void* ptr           = (void*)data;

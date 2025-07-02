@@ -7,8 +7,10 @@
 #include "defs.hpp"
 #include "protocols/conv_proto.hpp"
 #include "protocols/fc_proto.hpp"
+#include "protocols/ot_proto.hpp"
 
-using namespace gemini;
+#define PARTY 2
+
 using Utils::Result;
 
 int main(int argc, char** argv) {
@@ -45,13 +47,22 @@ int main(int argc, char** argv) {
     IO::send_pkey(ioss[0][0], *pkey);
     IO::recv_pkey(ioss[0][0], context, *pkey);
 
-    HomConv2DSS hom_conv;
-    HomFCSS fc;
+    gemini::HomConv2DSS hom_conv;
+    gemini::HomFCSS fc;
     hom_conv.setUp(context, skey, pkey);
     fc.setUp(context, skey, pkey);
 
-    auto m = Utils::init_meta_fc(10, 5, 10);
+    auto m = Utils::init_meta_fc(10, 5);
     Client::perform_proto(m, ioss[0], context, fc, threads_per_thread);
+
+    IO::NetIO* ios[threads];
+    for (size_t i = 0; i < batch_threads; ++i)
+        for (size_t j = 0; j < threads_per_thread; ++j)
+            ios[i * threads_per_thread + j] = &ioss[i][j];
+
+    cheetah::SilentOT<IO::NetIO> ot(PARTY, threads_per_thread, ios);
+
+    Client::Test<IO::NetIO, uint64_t>(ot);
 
     double totalTime = 0;
     double totalData = 0;
@@ -62,7 +73,7 @@ int main(int argc, char** argv) {
     auto layers = Utils::init_layers();
     for (size_t i = 0; i < layers.size(); ++i) {
         for (int round = 0; round < samples; ++round) {
-            ThreadPool tpool(batch_threads);
+            gemini::ThreadPool tpool(batch_threads);
             std::vector<Result> batches_results(batch_threads);
             auto batch = [&](long wid, size_t start, size_t end) -> Code {
                 auto& ios = ioss[wid];

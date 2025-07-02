@@ -94,14 +94,11 @@ void IO::send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec) {
 
 void IO::send_encrypted_vector(IO::NetIO& io, std::stringstream& ct, const uint32_t& ncts) {
     io.send_data(&ncts, sizeof(uint32_t));
-    io.flush();
     uint64_t ct_size = ct.tellp();
     string ct_ser    = ct.str();
     io.send_data(&ct_size, sizeof(uint64_t));
-    io.flush();
     io.send_data(ct_ser.c_str(), ct_ser.size());
     io.flush();
-    ct.clear();
 }
 
 template <class EncVecCtType>
@@ -252,6 +249,8 @@ Code IO::send_recv(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, EncVec&
         }
 
         IO::send_encrypted_vector(server, is, end - start);
+        is.clear();
+
         uint32_t ncts = IO::recv_encrypted_vector(server, is);
         result[wid].resize(ncts);
         for (auto& res : result[wid]) res.load(ctx, is);
@@ -291,6 +290,7 @@ Code IO::recv_send(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, const V
         uint32_t ncts = IO::recv_encrypted_vector(client, os);
 
         IO::send_encrypted_vector(client, is, end - start);
+        is.clear();
         result[wid].resize(ncts);
 
         for (auto& res : result[wid]) {

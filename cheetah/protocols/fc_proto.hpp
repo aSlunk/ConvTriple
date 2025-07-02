@@ -15,7 +15,8 @@
 #define VERIFY 1
 #endif
 
-using namespace gemini;
+using gemini::HomFCSS;
+using gemini::Tensor;
 using Utils::Result;
 
 uint64_t add(const HomFCSS& conv, const uint64_t& a, const uint64_t& b) {
@@ -375,7 +376,7 @@ Result Client::perform_proto(HomFCSS::Meta& meta, Channel& client, const seal::S
 template <class T>
 void Server::Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv,
                          const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1) {
-    Utils::log(Utils::Level::INFO, "VERIFYING");
+    Utils::log(Utils::Level::INFO, "VERIFYING FC");
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(B1.shape());
     Tensor<T> C2(C1.shape());
@@ -404,10 +405,9 @@ void Server::Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS
     }
 
     if (same)
-        Utils::log(Utils::Level::PASSED, "PASSED");
+        Utils::log(Utils::Level::PASSED, "FC: PASSED");
     else
-        Utils::log(Utils::Level::FAILED, "FAILED");
-    Utils::log(Utils::Level::INFO, "FINISHED VERIFYING");
+        Utils::log(Utils::Level::FAILED, "FC: FAILED");
 }
 
 template <class T>

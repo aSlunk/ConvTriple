@@ -8,13 +8,13 @@
 
 #include <io/net_io_channel.hpp>
 
-#include <ot/silent_ot.h>
-
 #include "defs.hpp"
 #include "protocols/conv_proto.hpp"
 #include "protocols/fc_proto.hpp"
+#include "protocols/ot_proto.hpp"
 
-using namespace gemini;
+#define PARTY 1
+
 using Utils::Result;
 
 int main(int argc, char** argv) {
@@ -58,13 +58,21 @@ int main(int argc, char** argv) {
     IO::send_pkey(ioss[0][0], *pkey);
     IO::recv_pkey(ioss[0][0], context, *pkey);
 
-    HomConv2DSS conv;
-    HomFCSS fc;
+    gemini::HomConv2DSS conv;
+    gemini::HomFCSS fc;
     conv.setUp(context, skey, pkey);
     fc.setUp(context, skey, pkey);
 
-    auto m = Utils::init_meta_fc(10, 5, 10);
+    auto m = Utils::init_meta_fc(10, 5);
     Server::perform_proto(m, ioss[0], context, fc, threads_per_thread);
+
+    IO::NetIO* ios[threads];
+    for (size_t i = 0; i < batch_threads; ++i)
+        for (size_t j = 0; j < threads_per_thread; ++j)
+            ios[i * threads_per_thread + j] = &ioss[i][j];
+
+    cheetah::SilentOT<IO::NetIO> ot(PARTY, threads_per_thread, ios);
+    Server::Test<IO::NetIO, uint64_t>(ot);
 
     double total_time = 0;
     double total_data = 0;
@@ -90,11 +98,9 @@ int main(int argc, char** argv) {
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
                     if (PROTO == 2 || cur % 2 == 0) {
-                        Utils::log(Utils::Level::DEBUG, "Server", cur, " ", wid);
                         result = (Server::perform_proto(layers[i], ios, context, conv,
                                                         threads_per_thread));
                     } else {
-                        Utils::log(Utils::Level::DEBUG, "Client");
                         result = (Client::perform_proto(layers[i], ios, context, conv,
                                                         threads_per_thread));
                     }
