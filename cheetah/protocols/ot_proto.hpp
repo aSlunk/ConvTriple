@@ -66,19 +66,20 @@ namespace Client {
 
 template <class Channel, class T>
 void Test(cheetah::SilentOT<Channel>& ot, const size_t& batchsize) {
+    assert(sizeof(uint8_t) == sizeof(bool));
     uint8_t RB[batchsize];
+    emp::PRG prg;
+    prg.random_bool((bool*)RB, batchsize);
+
 #if VERIFY == 1
     T B2[batchsize];
-#endif
     for (size_t i = 0; i < batchsize; ++i) {
-        RB[i] = i % 2;
-#if VERIFY == 1
         if (RB[i])
             B2[i] = bitmask<T>(BIT_LEN);
         else
             B2[i] = 0;
-#endif
     }
+#endif
     T C2[batchsize];
     ot.recv_impl(C2, RB, batchsize, BIT_LEN);
 

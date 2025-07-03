@@ -71,25 +71,24 @@ int main(int argc, char** argv) {
         break;
     }
 
-    int port      = strtol(argv[1], NULL, 10);
-    int samples   = strtol(argv[2], NULL, 10);
-    int batchSize = strtol(argv[3], NULL, 10);
-    int threads;
+    size_t port      = strtoul(argv[1], NULL, 10);
+    size_t samples   = strtoul(argv[2], NULL, 10);
+    size_t batchSize = strtoul(argv[3], NULL, 10);
+    size_t threads;
     if (argc == 4)
         threads = N_THREADS;
     else
-        threads = std::min(atoi(argv[4]), N_THREADS);
-
-    auto context = Utils::init_he_context();
-
-    seal::KeyGenerator keygen(context);
-    seal::SecretKey skey = keygen.secret_key();
-    auto pkey            = std::make_shared<seal::PublicKey>();
-    keygen.create_public_key(*pkey);
+        threads = std::min(strtoul(argv[4], NULL, 10), (size_t)N_THREADS);
 
     size_t batch_threads      = batchSize > 1 ? batchSize : 1;
     size_t threads_per_thread = threads / batch_threads;
     auto ioss = Utils::init_ios<IO::NetIO>(nullptr, port, batch_threads, threads_per_thread);
+
+    auto context = Utils::init_he_context();
+    seal::KeyGenerator keygen(context);
+    seal::SecretKey skey = keygen.secret_key();
+    auto pkey            = std::make_shared<seal::PublicKey>();
+    keygen.create_public_key(*pkey);
 
     IO::send_pkey(ioss[0][0], *pkey);
     IO::recv_pkey(ioss[0][0], context, *pkey);
@@ -107,11 +106,8 @@ int main(int argc, char** argv) {
         for (size_t j = 0; j < threads_per_thread; ++j)
             ios[i * threads_per_thread + j] = &ioss[i][j];
 
-    cheetah::SilentOT<IO::NetIO> ot(PARTY, threads_per_thread, ios);
+    cheetah::SilentOT<IO::NetIO> ot(PARTY, threads_per_thread, ios, true, true, "preot-server");
     Server::Test<IO::NetIO, uint64_t>(ot, 100);
-
-    double total_time = 0;
-    double total_data = 0;
 
     Utils::log(Utils::Level::DEBUG, "Samples: ", samples);
     Utils::log(Utils::Level::DEBUG, "batchSize: ", batchSize);
@@ -119,24 +115,30 @@ int main(int argc, char** argv) {
     Utils::log(Utils::Level::DEBUG, "#threads: ", batch_threads);
     Utils::log(Utils::Level::DEBUG, "threads per thread: ", threads_per_thread);
 
-    std::vector<Result> results(samples);
-    double total = 0;
+    double total      = 0;
+    double total_data = 0;
 
     auto layers = Utils::init_layers();
+    std::vector<Result> results(samples);           // all samples
+    std::vector<Result> all_results(layers.size()); // averaged samples
+
     for (size_t i = 0; i < layers.size(); ++i) {
         Utils::log(Utils::Level::DEBUG, "Current layer: ", i);
+        double tmp_total = 0;
 
-        for (int round = 0; round < samples; ++round) {
-            results[round] = run_conv(ioss, batchSize, context, conv, layers[i], total);
+        for (size_t round = 0; round < samples; ++round) {
+            results[round] = run_conv(ioss, batchSize, context, conv, layers[i], tmp_total);
         }
-        auto res = Utils::average(results, true);
-        total_time += Utils::print_results(res, i, batchSize, threads);
-        total_data += res.bytes / 1'000'000.0;
+
+        total += tmp_total / samples;
+
+        all_results[i] = Utils::average(results, true);
+        total_data += all_results[i].bytes / 1'000'000.0;
     }
 
     total_data /= 1'000.0;
 
-    std::cout << "Party 1: total time [s]: " << total_time << "\n";
+    Utils::make_csv(all_results, batchSize, threads, "server.csv");
+    std::cout << "Party 1: total time [s]: " << total << "\n";
     std::cout << "Party 1: total data [GB]: " << total_data << "\n";
-    std::cout << "TOTAL: " << total << "\n";
 }

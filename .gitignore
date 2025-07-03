@@ -7,4 +7,6 @@ tmp/
 run.sh
 *.csv
 
-perf.data
+*perf.data*
+
+preot*

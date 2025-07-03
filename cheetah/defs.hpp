@@ -5,7 +5,9 @@
 #include <cassert>
 #include <chrono>
 #include <cstdint>
+#include <fstream>
 #include <functional>
+#include <ostream>
 #include <thread>
 
 #include <gemini/cheetah/hom_conv2d_ss.h>
@@ -130,8 +132,11 @@ void add_result(Result& res, const Result& res2);
 
 Result average(const std::vector<Result>& res, bool average_bytes);
 
-double print_results(const Result& res, const int& layer, const size_t& batchSize,
-                     const size_t& threads, std::ostream& out = std::cout);
+void print_results(const Result& res, const size_t& layer, const size_t& batchSize,
+                   const size_t& threads, std::ostream& out = std::cout);
+
+void make_csv(const std::vector<Result>& results, const size_t& batchSize, const size_t& threads,
+              const std::string& path = "");
 
 } // namespace Utils
 
@@ -255,7 +260,7 @@ std::vector<gemini::HomConv2DSS::Meta> Utils::init_layers() {
     layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L49
     layers.push_back(Utils::init_meta_conv(2048, 7, 7, 2048, 1, 1, 512, 1, 0));    // L50
     layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 3, 3, 512, 1, 1));      // L51
-    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L52
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0)); // L52
     return layers;
 }
 
@@ -386,8 +391,8 @@ gemini::Tensor<double> Utils::convert_double(const gemini::Tensor<uint64_t>& in)
     return out;
 }
 
-double Utils::print_results(const Result& res, const int& layer, const size_t& batchSize,
-                            const size_t& threads, std::ostream& out) {
+void Utils::print_results(const Result& res, const size_t& layer, const size_t& batchSize,
+                          const size_t& threads, std::ostream& out) {
     if (!layer)
         out << "Encryption [ms],Cipher Calculations [s],Serialization [s],Decryption [ms],Plain "
                "Calculations [ms], "
@@ -401,8 +406,6 @@ double Utils::print_results(const Result& res, const int& layer, const size_t& b
         << res.serial / 1'000'000.0 << ", " << res.decryption / 1'000. << ", "
         << res.plain_op / 1'000.0 << ", " << res.send_recv / 1'000.0 << ", " << total << ", "
         << res.bytes / 1'000'000.0 << ", " << batchSize << ", " << threads << "\n";
-
-    return total;
 }
 
 Utils::Result Utils::average(const std::vector<Result>& res, bool average_bytes) {
@@ -444,6 +447,23 @@ Utils::Result Utils::average(const std::vector<Result>& res, bool average_bytes)
         avg.bytes /= len;
 
     return avg;
+}
+
+void Utils::make_csv(const std::vector<Result>& results, const size_t& batchSize,
+                     const size_t& threads, const std::string& path) {
+    std::ofstream os;
+
+    if (!path.empty()) {
+        log(Level::INFO, "writing results to: ", path);
+        os.open(path, std::ios::out | std::ios::trunc);
+    }
+
+    for (size_t i = 0; i < results.size(); ++i) {
+        print_results(results[i], i, batchSize, threads, path.empty() ? std::cout : os);
+    }
+
+    if (os.is_open())
+        os.close();
 }
 
 #endif // DEFS_HPP
