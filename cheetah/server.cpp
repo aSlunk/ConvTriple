@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
     conv.setUp(context, skey, pkey);
     fc.setUp(context, skey, pkey);
 
-    auto m = Utils::init_meta_fc(10, 5);
+    auto m = Utils::init_meta_fc(1'000'000, 1);
     Server::perform_proto(m, ioss[0], context, fc, threads_per_thread);
 
     IO::NetIO* ios[threads];
@@ -106,8 +106,15 @@ int main(int argc, char** argv) {
         for (size_t j = 0; j < threads_per_thread; ++j)
             ios[i * threads_per_thread + j] = &ioss[i][j];
 
-    cheetah::SilentOT<IO::NetIO> ot(PARTY, threads_per_thread, ios, true, true, "preot-server");
-    Server::Test<IO::NetIO, uint64_t>(ot, 100);
+    for (size_t i = 0; i < threads; ++i) {
+        ios[i]->counter = 0;
+    }
+
+    cheetah::SilentOT<IO::NetIO> ot(PARTY, threads, ios, true, true, "preot-server");
+    cheetah::SilentOT<IO::NetIO> rev_ot(3 - PARTY, threads, ios, true, true, "");
+    auto start = measure::now();
+    Server::Test<IO::NetIO>(ot, rev_ot, 1'000'000);
+    Utils::log(Utils::Level::INFO, "TIME OT: ", Utils::to_sec(Utils::time_diff(start)));
 
     Utils::log(Utils::Level::DEBUG, "Samples: ", samples);
     Utils::log(Utils::Level::DEBUG, "batchSize: ", batchSize);

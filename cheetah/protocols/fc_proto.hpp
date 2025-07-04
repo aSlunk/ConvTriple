@@ -90,7 +90,7 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context, cons
     if (measures.ret != Code::OK)
         return measures;
 
-    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.encryption = Utils::time_diff(start);
 
     ////////////////////////////////////////////////////////////////////////////
     // recv A' + deserialize
@@ -100,7 +100,7 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context, cons
     std::vector<seal::Ciphertext> enc_A1;
     IO::recv_encrypted_vector(client, context, enc_A1);
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
     // M2' = (A1' + A2) ⊙ B2 - R
     ////////////////////////////////////////////////////////////////////////////
@@ -111,7 +111,7 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context, cons
     if (measures.ret != Code::OK)
         return measures;
 
-    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.cipher_op = Utils::time_diff(start);
 
     ////////////////////////////////////////////////////////////////////////////
     // serialize + send M2'
@@ -120,7 +120,7 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context, cons
 
     IO::send_encrypted_vector(client, M2);
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.send_recv += Utils::time_diff(start);
 
     for (auto& ele : client) measures.bytes += ele.counter;
     return measures;
@@ -148,7 +148,7 @@ Result Client::Protocol1(Channel& client, const seal::SEALContext& context, cons
     if (measures.ret != Code::OK)
         return measures;
 
-    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.encryption = Utils::time_diff(start);
     start               = measure::now();
 
     std::vector<seal::Ciphertext> enc_A1;
@@ -156,7 +156,7 @@ Result Client::Protocol1(Channel& client, const seal::SEALContext& context, cons
     if (measures.ret != Code::OK)
         return measures;
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
     // M2' = (A1' + A2) ⊙ B2 - R2
     ////////////////////////////////////////////////////////////////////////////
@@ -168,7 +168,7 @@ Result Client::Protocol1(Channel& client, const seal::SEALContext& context, cons
     if (measures.ret != Code::OK)
         return measures;
 
-    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.cipher_op = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
     // send M2' + recv M1'
     ////////////////////////////////////////////////////////////////////////////
@@ -179,7 +179,7 @@ Result Client::Protocol1(Channel& client, const seal::SEALContext& context, cons
     if (measures.ret != Code::OK)
         return measures;
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
     // dec(M1') + R2
     ////////////////////////////////////////////////////////////////////////////
@@ -187,14 +187,14 @@ Result Client::Protocol1(Channel& client, const seal::SEALContext& context, cons
 
     hom_conv.decryptToVector(enc_M1, meta, C2, threads);
 
-    measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.decryption = Utils::time_diff(start);
 
     start = measure::now();
 
     Utils::op_inplace<uint64_t>(
         C2, R2, [&hom_conv](uint64_t a, uint64_t b) -> uint64_t { return add(hom_conv, a, b); });
 
-    measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.plain_op = Utils::time_diff(start);
 
     for (auto& ele : client) measures.bytes += ele.counter;
     measures.ret = Code::OK;
@@ -219,13 +219,13 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel& server,
     if (measures.ret != Code::OK)
         return measures;
 
-    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.encryption = Utils::time_diff(start);
 
     start = measure::now();
 
     IO::send_encrypted_vector(server, enc_A1);
 
-    measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
     // recv C1 = dec(M2)
     ////////////////////////////////////////////////////////////////////////////
@@ -234,11 +234,11 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel& server,
     std::vector<seal::Ciphertext> enc_C1;
     IO::recv_encrypted_vector(server, context, enc_C1);
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.send_recv += Utils::time_diff(start);
     start = measure::now();
 
     measures.ret        = conv.decryptToVector(enc_C1, meta, C1, threads);
-    measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.decryption = Utils::time_diff(start);
 
     for (auto& ele : server) measures.bytes += ele.counter;
     return measures;
@@ -267,14 +267,14 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel& server,
     if (measures.ret != Code::OK)
         return measures;
 
-    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.encryption = Utils::time_diff(start);
 
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_A2;
     IO::send_recv(context, server, enc_A1, enc_A2);
 
-    measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
     // M1 = (A1 + A2') ⊙ B1 - R1
     ////////////////////////////////////////////////////////////////////////////
@@ -286,7 +286,7 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel& server,
     if (measures.ret != Code::OK)
         return measures;
 
-    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.cipher_op = Utils::time_diff(start);
 
     ////////////////////////////////////////////////////////////////////////////
     // Send(M1), Recv(M2), Dec(M2)
@@ -296,7 +296,7 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel& server,
     std::vector<seal::Ciphertext> enc_M2;
     IO::send_recv(context, server, M1, enc_M2);
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
     // Dec(M2) + R1
     ////////////////////////////////////////////////////////////////////////////
@@ -306,13 +306,13 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel& server,
     if (measures.ret != Code::OK)
         return measures;
 
-    measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.decryption = Utils::time_diff(start);
     start               = measure::now();
 
     Utils::op_inplace<uint64_t>(C1, R1,
                                 [&conv](uint64_t a, uint64_t b) { return add(conv, a, b); });
 
-    measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+    measures.plain_op = Utils::time_diff(start);
 
     for (auto& ele : server) measures.bytes += ele.counter;
     measures.ret = Code::OK;
@@ -323,10 +323,10 @@ template <class Channel>
 Result Server::perform_proto(HomFCSS::Meta& meta, Channel& server, const seal::SEALContext& context,
                              const HomFCSS& hom_conv, const size_t& threads) {
     Tensor<uint64_t> vec(meta.input_shape);
-    for (long i = 0; i < vec.length(); i++) vec(i) = i;
+    for (long i = 0; i < vec.length(); i++) vec(i) = 2;
     Tensor<uint64_t> weight(meta.weight_shape);
     for (long i = 0; i < weight.rows(); i++)
-        for (long j = 0; j < weight.cols(); j++) weight(i, j) = i * j;
+        for (long j = 0; j < weight.cols(); j++) weight(i, j) = 5;
 
     Tensor<uint64_t> C1;
 
@@ -349,10 +349,10 @@ template <class Channel>
 Result Client::perform_proto(HomFCSS::Meta& meta, Channel& client, const seal::SEALContext& context,
                              const HomFCSS& hom_conv, const size_t& threads) {
     Tensor<uint64_t> vec(meta.input_shape);
-    for (long i = 0; i < vec.length(); i++) vec(i) = i;
+    for (long i = 0; i < vec.length(); i++) vec(i) = 2;
     Tensor<uint64_t> weight(meta.weight_shape);
     for (long i = 0; i < weight.rows(); i++)
-        for (long j = 0; j < weight.cols(); j++) weight(i, j) = i * j;
+        for (long j = 0; j < weight.cols(); j++) weight(i, j) = 5;
 
     client[0].sync();
 

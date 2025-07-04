@@ -75,6 +75,36 @@ void log(const Level& l, const Args&... args) {
         exit(EXEC_FAILED);
 }
 
+template <class T>
+inline double to_sec(const T& num) {
+    if constexpr (std::is_same<Unit, std::chrono::microseconds>::value) {
+        return num / 1'000'000.0;
+    }
+
+    log(Level::ERROR, "Unknown <Unit>");
+    return 0.0;
+}
+
+template <class T>
+inline double to_msec(const T& num) {
+    if constexpr (std::is_same<Unit, std::chrono::microseconds>::value) {
+        return num / 1'000.0;
+    }
+
+    log(Level::ERROR, "Unknown <Unit>");
+    return 0.0;
+}
+
+template <class T>
+inline double to_MB(const T& bytes) {
+    return bytes / 1'000'000.0;
+}
+
+template <class Time>
+inline size_t time_diff(const Time& start) {
+    return std::chrono::duration_cast<Unit>(measure::now() - start).count();
+}
+
 struct Result {
     double encryption = 0;
     double cipher_op  = 0;
@@ -260,7 +290,7 @@ std::vector<gemini::HomConv2DSS::Meta> Utils::init_layers() {
     layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L49
     layers.push_back(Utils::init_meta_conv(2048, 7, 7, 2048, 1, 1, 512, 1, 0));    // L50
     layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 3, 3, 512, 1, 1));      // L51
-    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0)); // L52
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));     // L52
     return layers;
 }
 
@@ -398,14 +428,14 @@ void Utils::print_results(const Result& res, const size_t& layer, const size_t& 
                "Calculations [ms], "
                "Sending and Receiving [ms],Total [s],Bytes Send [MB],batchSize,threads\n";
 
-    double total = res.encryption / 1'000.0 + res.cipher_op / 1'000.0 + res.send_recv / 1'000.0
-                   + res.decryption / 1'000.0 + res.plain_op / 1'000.0 + res.serial / 1'000.0;
+    double total = to_msec(res.encryption) + to_msec(res.cipher_op) + to_msec(res.send_recv)
+                   + to_msec(res.decryption) + to_msec(res.plain_op) + to_msec(res.serial);
     total /= 1'000.0;
 
-    out << res.encryption / 1'000.0 << ", " << res.cipher_op / 1'000'000.0 << ", "
-        << res.serial / 1'000'000.0 << ", " << res.decryption / 1'000. << ", "
-        << res.plain_op / 1'000.0 << ", " << res.send_recv / 1'000.0 << ", " << total << ", "
-        << res.bytes / 1'000'000.0 << ", " << batchSize << ", " << threads << "\n";
+    out << to_msec(res.encryption) << ", " << to_sec(res.cipher_op) << ", " << to_sec(res.serial)
+        << ", " << to_msec(res.decryption) << ", " << to_msec(res.plain_op) << ", "
+        << to_msec(res.send_recv) << ", " << total << ", " << to_MB(res.bytes) << ", " << batchSize
+        << ", " << threads << "\n";
 }
 
 Utils::Result Utils::average(const std::vector<Result>& res, bool average_bytes) {

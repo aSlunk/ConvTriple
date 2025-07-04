@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
     hom_conv.setUp(context, skey, pkey);
     fc.setUp(context, skey, pkey);
 
-    auto m = Utils::init_meta_fc(10, 5);
+    auto m = Utils::init_meta_fc(1'000'000, 1);
     Client::perform_proto(m, ioss[0], context, fc, threads_per_thread);
 
     IO::NetIO* ios[threads];
@@ -95,9 +95,13 @@ int main(int argc, char** argv) {
         for (size_t j = 0; j < threads_per_thread; ++j)
             ios[i * threads_per_thread + j] = &ioss[i][j];
 
-    cheetah::SilentOT<IO::NetIO> ot(PARTY, threads_per_thread, ios, true, true, "preot-client");
+    cheetah::SilentOT<IO::NetIO> ot(PARTY, threads, ios, true, true, "preot-client");
+    cheetah::SilentOT<IO::NetIO> rev_ot(3 - PARTY, threads, ios, true, true, "");
+    Utils::log(Utils::Level::DEBUG, "Starting OT");
 
-    Client::Test<IO::NetIO, uint64_t>(ot, 100);
+    auto start = measure::now();
+    Client::Test<IO::NetIO>(ot, rev_ot, 1'000'000);
+    Utils::log(Utils::Level::INFO, "TIME OT: ", Utils::to_sec(Utils::time_diff(start)));
 
     double totalData = 0;
     double total     = 0;

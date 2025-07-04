@@ -3,9 +3,10 @@
 
 #include <iostream>
 
+#include <ot/bit-triple-generator.h>
 #include <ot/silent_ot.h>
 
-#define BIT_LEN 64
+#define BIT_LEN 1
 
 template <class T>
 T bitmask(int l) {
@@ -19,74 +20,95 @@ T bitmask(int l) {
 
 namespace Server {
 
-template <class Channel, class T>
-void Test(cheetah::SilentOT<Channel>& ot, const size_t& batchsize) {
-    T* M[batchsize];
-    T RA  = 10;
-    T RA2 = 32;
+template <class Channel>
+void Test(cheetah::SilentOT<Channel>& ot, cheetah::SilentOT<Channel>& rev_ot,
+          const size_t& batchsize) {
+    uint8_t* a = new uint8_t[batchsize];
+    uint8_t* b = new uint8_t[batchsize];
+    uint8_t* c = new uint8_t[batchsize];
+    uint8_t* u = new uint8_t[batchsize];
+    uint8_t* v = new uint8_t[batchsize];
+
+    rev_ot.recv_ot_rm_rc(u, (bool*)a, batchsize, BIT_LEN);
+    ot.send_ot_rm_rc(v, b, batchsize, BIT_LEN);
+
     for (size_t i = 0; i < batchsize; ++i) {
-        M[i]    = new T[2];
-        M[i][0] = RA2;
-        M[i][1] = RA ^ RA2;
+        b[i] = b[i] ^ v[i];
+        c[i] = (a[i] & b[i]) ^ u[i] ^ v[i];
     }
 
-    ot.send_impl(M, batchsize, BIT_LEN);
-
-    T A1 = RA;
-    T C1 = RA2;
+    size_t bytes = 0;
+    for (int i = 0; i < ot.ferret->threads; ++i) bytes += ot.ferret->ios[i]->counter;
+    std::cerr << "BYTES[MB]: " << Utils::to_MB(bytes) << "\n";
 
 #if VERIFY == 1
-    T B2[batchsize];
-    T C2[batchsize];
+    uint8_t A2[batchsize];
+    uint8_t B2[batchsize];
+    uint8_t C2[batchsize];
 
-    ot.ferret->io->recv_data(B2, sizeof(T) * batchsize);
-    ot.ferret->io->recv_data(C2, sizeof(T) * batchsize);
+    ot.ferret->io->recv_data(A2, sizeof(uint8_t) * batchsize);
+    ot.ferret->io->recv_data(B2, sizeof(uint8_t) * batchsize);
+    ot.ferret->io->recv_data(C2, sizeof(uint8_t) * batchsize);
 
     Utils::log(Utils::Level::INFO, "VERIFYING OT");
-    bool same = true;
+    bool same   = true;
+    size_t ones = 0;
     for (size_t i = 0; i < batchsize; ++i) {
-        if ((B2[i] & A1) != (C2[i] ^ C1)) {
+        if (((B2[i] ^ b[i]) & (a[i] ^ A2[i])) != (C2[i] ^ c[i])) {
             same = false;
             break;
         }
+
+        if (B2[i])
+            ones++;
     }
 
     if (same)
-        Utils::log(Utils::Level::PASSED, "OT: PASSED");
+        Utils::log(Utils::Level::PASSED, "OT: PASSED, Ones: ", ones);
     else
         Utils::log(Utils::Level::FAILED, "OT: FAILED");
 #endif
-
-    for (size_t i = 0; i < batchsize; ++i) delete[] M[i];
+    delete[] a;
+    delete[] b;
+    delete[] c;
+    delete[] u;
+    delete[] v;
 }
 
 } // namespace Server
 
 namespace Client {
 
-template <class Channel, class T>
-void Test(cheetah::SilentOT<Channel>& ot, const size_t& batchsize) {
+template <class Channel>
+void Test(cheetah::SilentOT<Channel>& ot, cheetah::SilentOT<Channel>& rev_ot,
+          const size_t& batchsize) {
     assert(sizeof(uint8_t) == sizeof(bool));
-    uint8_t RB[batchsize];
-    emp::PRG prg;
-    prg.random_bool((bool*)RB, batchsize);
+    uint8_t* b = new uint8_t[batchsize];
 
-#if VERIFY == 1
-    T B2[batchsize];
+    uint8_t* a = new uint8_t[batchsize];
+    uint8_t* c = new uint8_t[batchsize];
+    uint8_t* u = new uint8_t[batchsize];
+    uint8_t* v = new uint8_t[batchsize];
+
+    rev_ot.send_ot_rm_rc(v, b, batchsize, BIT_LEN);
+    ot.recv_ot_rm_rc(u, (bool*)a, batchsize, BIT_LEN);
+
     for (size_t i = 0; i < batchsize; ++i) {
-        if (RB[i])
-            B2[i] = bitmask<T>(BIT_LEN);
-        else
-            B2[i] = 0;
+        b[i] = b[i] ^ v[i];
+        c[i] = (a[i] & b[i]) ^ u[i] ^ v[i];
     }
-#endif
-    T C2[batchsize];
-    ot.recv_impl(C2, RB, batchsize, BIT_LEN);
 
 #if VERIFY == 1
-    ot.ferret->io->send_data(B2, sizeof(T) * batchsize);
-    ot.ferret->io->send_data(C2, sizeof(T) * batchsize);
+    ot.ferret->io->send_data(a, sizeof(uint8_t) * batchsize);
+    ot.ferret->io->send_data(b, sizeof(uint8_t) * batchsize);
+    ot.ferret->io->send_data(c, sizeof(uint8_t) * batchsize);
+    ot.ferret->io->flush();
 #endif
+    delete[] a;
+    delete[] b;
+    delete[] c;
+    delete[] u;
+    delete[] v;
 }
 
 } // namespace Client
