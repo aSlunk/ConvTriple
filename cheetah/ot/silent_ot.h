@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "ot/mitccrh.h"
 #include "ot/ot-utils.h"
 #include "ot/ot.h"
 
@@ -19,13 +20,14 @@ namespace cheetah {
 template <typename IO>
 class SilentOT : public sci::OT<SilentOT<IO>> {
     std::atomic<int64_t> count_rcot_;
+    cheetah::MITCCRH<8> mitccrh;
 
   public:
     FerretCOT<IO>* ferret;
 
-    SilentOT(int party, int threads, IO** ios, bool malicious = true, bool run_setup = true,
+    SilentOT(int party, int threads, IO** ios, bool malicious = false, bool run_setup = true,
              std::string pre_file = "", PrimalLPNParameter param = ferret_b13,
-             bool warm_up = true) {
+             bool warm_up = false) {
         ferret = new FerretCOT<IO>(party, threads, ios, malicious, run_setup, param, pre_file);
         if (warm_up) {
             block tmp;
@@ -35,6 +37,12 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
     }
 
     ~SilentOT() { delete ferret; }
+
+    void flush() {
+        for (int i = 0; i < ferret->threads; ++i) {
+            ferret->ios[i]->flush();
+        }
+    }
 
     void send_impl(const block* data0, const block* data1, int64_t length) {
         send_ot_cm_cc(data0, data1, length);
@@ -446,10 +454,10 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
         for (int64_t i = 0; i < length; i += ot_bsize) {
             std::memset(pad, 0, sizeof(block) * N * ot_bsize);
             for (int64_t j = i; j < std::min(i + ot_bsize, length); ++j) {
-                ferret->mitccrh.renew_ks(rm_data0 + j * logN, logN);
-                ferret->mitccrh.hash_exp(hash_out, hash_in0, logN);
-                ferret->mitccrh.renew_ks(rm_data1 + j * logN, logN);
-                ferret->mitccrh.hash_exp(hash_out + N - 1, hash_in1, logN);
+                mitccrh.renew_ks(rm_data0 + j * logN, logN);
+                mitccrh.hash_exp(hash_out, hash_in0, logN);
+                mitccrh.renew_ks(rm_data1 + j * logN, logN);
+                mitccrh.hash_exp(hash_out + N - 1, hash_in1, logN);
 
                 for (int64_t k = 0; k < N; k++) {
                     idx = 0;
@@ -517,8 +525,8 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
             for (int64_t j = i; j < std::min(i + ot_bsize, length); ++j) {
                 for (int64_t s = 0; s < logN; s++)
                     hash_in[s] = makeBlock(r[j] & ((1 << (s + 1)) - 1), 0);
-                ferret->mitccrh.renew_ks(rm_data + j * logN, logN);
-                ferret->mitccrh.hash_single(hash_out, hash_in, logN);
+                mitccrh.renew_ks(rm_data + j * logN, logN);
+                mitccrh.hash_single(hash_out, hash_in, logN);
 
                 for (int64_t s = 0; s < logN; s++) {
                     pad[j - i] ^= hash_out[s];
@@ -565,6 +573,8 @@ class SilentOTN : public sci::OT<SilentOTN<IO>> {
         this->silent_ot = silent_ot;
         this->N         = N;
     }
+
+    void flush() { silent_ot->flush(); }
 
     template <typename T>
     void send_impl(T** data, int length, int l) {

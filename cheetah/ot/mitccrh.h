@@ -18,7 +18,7 @@ static inline void ParaEncExp(block* blks, AES_KEY* keys) {
     for (size_t i = 0; i < numKeys; ++i) {
         block K     = keys[i].rd_key[0];
         int numEncs = 1 << i;
-        for (size_t j = 0; j < numEncs; ++j) {
+        for (int j = 0; j < numEncs; ++j) {
             *blks = *blks ^ K;
             ++blks;
         }
@@ -29,7 +29,7 @@ static inline void ParaEncExp(block* blks, AES_KEY* keys) {
         for (size_t i = 0; i < numKeys; ++i) {
             block K     = keys[i].rd_key[r];
             int numEncs = 1 << i;
-            for (size_t j = 0; j < numEncs; ++j) {
+            for (int j = 0; j < numEncs; ++j) {
                 *blks = _mm_aesenc_si128(*blks, K);
                 ++blks;
             }
@@ -40,7 +40,7 @@ static inline void ParaEncExp(block* blks, AES_KEY* keys) {
     for (size_t i = 0; i < numKeys; ++i) {
         block K     = keys[i].rd_key[10];
         int numEncs = 1 << i;
-        for (size_t j = 0; j < numEncs; ++j) {
+        for (int j = 0; j < numEncs; ++j) {
             *blks = _mm_aesenclast_si128(*blks, K);
             ++blks;
         }

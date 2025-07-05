@@ -30,19 +30,17 @@ class OTPack {
     int party;
     // bool do_setup = false;
 
-    T* ios[1];
-
-    OTPack(T* io, int threads, int party, bool do_setup = true) {
-        std::cout << "using silent ot pack" << std::endl;
+    OTPack(T** ios, int threads, int party, bool do_setup = true) {
+        // std::cout << "using silent ot pack" << std::endl;
 
         this->party = party;
         // this->do_setup = do_setup;
-        this->io = io;
+        this->io = ios[0];
 
-        ios[0]             = io;
-        silent_ot          = new cheetah::SilentOT<T>(party, threads, ios, false, true,
+        silent_ot = new cheetah::SilentOT<T>(party, threads, ios, false, true,
                                              party == emp::ALICE ? PRE_OT_DATA_REG_SEND_FILE_ALICE
-                                                                          : PRE_OT_DATA_REG_RECV_FILE_BOB);
+                                                                 : PRE_OT_DATA_REG_RECV_FILE_BOB);
+
         silent_ot_reversed = new cheetah::SilentOT<T>(
             3 - party, threads, ios, false, true,
             party == emp::ALICE ? PRE_OT_DATA_REG_RECV_FILE_ALICE : PRE_OT_DATA_REG_SEND_FILE_BOB);

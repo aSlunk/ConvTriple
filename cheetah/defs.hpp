@@ -127,6 +127,7 @@ gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const l
                                          const size_t& padding);
 
 std::vector<gemini::HomConv2DSS::Meta> init_layers();
+std::vector<gemini::HomFCSS::Meta> init_layers_fc();
 
 template <class Channel>
 std::vector<std::vector<Channel>> init_ios(const char* addr, const int& port,
@@ -236,6 +237,12 @@ void Utils::op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B,
     }
 }
 
+std::vector<gemini::HomFCSS::Meta> Utils::init_layers_fc() {
+    std::vector<gemini::HomFCSS::Meta> layers;
+    layers.push_back(Utils::init_meta_fc(1'000'000, 1));
+    return layers;
+}
+
 std::vector<gemini::HomConv2DSS::Meta> Utils::init_layers() {
     std::vector<gemini::HomConv2DSS::Meta> layers;
     layers.push_back(Utils::init_meta_conv(3, 224, 224, 3, 7, 7, 64, 2, 3));
@@ -331,11 +338,11 @@ void Utils::print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padd
     log(Level::DEBUG, "n_filters: ", meta.n_filters);
 }
 
-gemini::HomFCSS::Meta Utils::init_meta_fc(const long& image_h, const long& filter_h) {
+gemini::HomFCSS::Meta Utils::init_meta_fc(const long& common, const long& filter_h) {
     gemini::HomFCSS::Meta meta;
 
-    meta.input_shape     = {image_h};
-    meta.weight_shape    = {filter_h, image_h};
+    meta.input_shape     = {common};
+    meta.weight_shape    = {filter_h, common};
     meta.is_shared_input = true;
 
     return meta;
