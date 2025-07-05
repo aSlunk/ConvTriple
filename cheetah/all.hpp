@@ -52,8 +52,8 @@ class HE {
 
     ~HE() { delete[] ios_c; }
 
-    gemini::HomConv2DSS& get_conv() { return conv; }
-    gemini::HomFCSS& get_fc() { return fc; }
+    const gemini::HomConv2DSS& get_conv() const { return conv; }
+    const gemini::HomFCSS& get_fc() const { return fc; }
 
     template <class T>
     void run_he(std::vector<class T::Meta>& layers, const T& conv);
@@ -138,28 +138,12 @@ void HE::run_he(std::vector<class T::Meta>& layers, const T& conv) {
                 auto& ios = ios_vec[wid];
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
-                    if (PROTO == 2 || cur % 2 == 0) {
-                        switch (party) {
-                        case emp::ALICE:
-                            result = (Server::perform_proto(layers[i], ios, context, conv,
-                                                            ios.size()));
-                            break;
-                        case emp::BOB:
-                            result = (Client::perform_proto(layers[i], ios, context, conv,
-                                                            ios.size()));
-                            break;
-                        }
+                    if ((PROTO == 2 && party == emp::ALICE) || (PROTO == 1 && (cur + party - 1) % 2 == 0)) {
+                        result = Server::perform_proto(layers[i], ios, context, conv,
+                                                            ios.size());
                     } else {
-                        switch (party) {
-                        case emp::ALICE:
-                            result = (Client::perform_proto(layers[i], ios, context, conv,
-                                                            ios.size()));
-                            break;
-                        case emp::BOB:
-                            result = (Server::perform_proto(layers[i], ios, context, conv,
-                                                            ios.size()));
-                            break;
-                        }
+                        result = Client::perform_proto(layers[i], ios, context, conv,
+                                                            ios.size());
                     }
 
                     if (result.ret != Code::OK)
