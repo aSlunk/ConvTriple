@@ -203,7 +203,7 @@ void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
         break;
     }
     std::cout << "Party " << party << ": total time [s]: " << total << "\n";
-    std::cout << "Party " << party << ": total data [GB]: " << total_data << "\n";
+    std::cout << "Party " << party << ": total data [MB]: " << total_data << "\n";
 
     reset_counter();
 }
