@@ -69,7 +69,7 @@ void log(const Level& l, const Args&... args) {
         stream = &std::cerr;
     }
 
-    (*stream << ... << args) << NC << std::endl;
+    (*stream << ... << args) << (l != Level::INFO ? NC : "") << std::endl;
 
     if (l == Level::ERROR)
         exit(EXEC_FAILED);
