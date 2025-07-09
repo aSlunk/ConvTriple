@@ -34,10 +34,10 @@ int main(int argc, char** argv) {
         threads = std::min(strtoul(argv[4], NULL, 10), (size_t)N_THREADS);
 
     HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, batchSize, samples);
-    // auto layers_fc = Utils::init_layers_fc();
-    // all.run_he(layers_fc, all.get_fc());
+    auto layers_fc = Utils::init_layers_fc();
+    all.run_he(layers_fc, all.get_fc());
 
-    all.run_ot(20'000'000, false);
+    // all.run_ot(20'000'000, false);
 
     // auto layers = Utils::init_layers();
     // all.run_he(layers, all.get_conv());
