@@ -424,9 +424,9 @@ template <class T>
 void Client::Verify_Conv(IO::NetIO& io, const Tensor<T>& A2, const std::vector<Tensor<T>>& B2,
                          const Tensor<T>& C2) {
     log(Utils::Level::INFO, "SENDING");
-    io.send_data(A2.data(), A2.NumElements() * sizeof(T));
-    for (auto& filter : B2) io.send_data(filter.data(), filter.NumElements() * sizeof(T));
-    io.send_data(C2.data(), C2.NumElements() * sizeof(T));
+    io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);
+    for (auto& filter : B2) io.send_data(filter.data(), filter.NumElements() * sizeof(T), false);
+    io.send_data(C2.data(), C2.NumElements() * sizeof(T), false);
     io.flush();
 }
 #endif

@@ -16,33 +16,33 @@ namespace sci {
 template <typename T>
 class OTPack {
   public:
-    cheetah::SilentOT<T>* silent_ot;
-    cheetah::SilentOT<T>* silent_ot_reversed;
+    cheetah::SilentOT<T>* silent_ot          = nullptr;
+    cheetah::SilentOT<T>* silent_ot_reversed = nullptr;
 
-    cheetah::SilentOTN<T>* kkot[KKOT_TYPES];
+    cheetah::SilentOTN<T>* kkot[KKOT_TYPES] = {nullptr};
 
     // iknp_straight and iknp_reversed: party
     // acts as sender in straight and receiver in reversed.
     // Needed for MUX calls.
-    cheetah::SilentOT<T>* iknp_straight;
-    cheetah::SilentOT<T>* iknp_reversed;
-    T* io;
+    cheetah::SilentOT<T>* iknp_straight = nullptr;
+    cheetah::SilentOT<T>* iknp_reversed = nullptr;
+    T* io                               = nullptr;
     int party;
     // bool do_setup = false;
 
-    OTPack(T** ios, int threads, int party, bool do_setup = true) {
+    OTPack(T** ios, int threads, int party, bool do_setup = true, bool malicious = true) {
         // std::cout << "using silent ot pack" << std::endl;
 
         this->party = party;
         // this->do_setup = do_setup;
         this->io = ios[0];
 
-        silent_ot = new cheetah::SilentOT<T>(party, threads, ios, false, true,
+        silent_ot = new cheetah::SilentOT<T>(party, threads, ios, malicious, do_setup,
                                              party == emp::ALICE ? PRE_OT_DATA_REG_SEND_FILE_ALICE
                                                                  : PRE_OT_DATA_REG_RECV_FILE_BOB);
 
         silent_ot_reversed = new cheetah::SilentOT<T>(
-            3 - party, threads, ios, false, true,
+            3 - party, threads, ios, malicious, do_setup,
             party == emp::ALICE ? PRE_OT_DATA_REG_RECV_FILE_ALICE : PRE_OT_DATA_REG_SEND_FILE_BOB);
 
         for (int i = 0; i < KKOT_TYPES; i++) {
@@ -54,9 +54,14 @@ class OTPack {
     }
 
     ~OTPack() {
-        delete silent_ot;
-        for (int i = 0; i < KKOT_TYPES; i++) delete kkot[i];
-        delete iknp_reversed;
+        if (silent_ot)
+            delete silent_ot;
+        for (int i = 0; i < KKOT_TYPES; i++) {
+            if (kkot[i])
+                delete kkot[i];
+        }
+        if (iknp_reversed)
+            delete iknp_reversed;
     }
 
     void SetupBaseOTs() {}

@@ -414,9 +414,9 @@ template <class T>
 void Client::Verify_Conv(IO::NetIO& io, const Tensor<T>& A2, const Tensor<T>& B2,
                          const Tensor<T>& C2) {
     log(Utils::Level::INFO, "SENDING");
-    io.send_data(A2.data(), A2.NumElements() * sizeof(T));
-    io.send_data(B2.data(), B2.NumElements() * sizeof(T));
-    io.send_data(C2.data(), C2.NumElements() * sizeof(T));
+    io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);
+    io.send_data(B2.data(), B2.NumElements() * sizeof(T), false);
+    io.send_data(C2.data(), C2.NumElements() * sizeof(T), false);
     io.flush();
 }
 #endif

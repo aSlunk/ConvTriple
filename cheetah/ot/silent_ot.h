@@ -27,7 +27,7 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
 
     SilentOT(int party, int threads, IO** ios, bool malicious = false, bool run_setup = true,
              std::string pre_file = "", PrimalLPNParameter param = ferret_b13,
-             bool warm_up = false) {
+             bool warm_up = true) {
         ferret = new FerretCOT<IO>(party, threads, ios, malicious, run_setup, param, pre_file);
         if (warm_up) {
             block tmp;
