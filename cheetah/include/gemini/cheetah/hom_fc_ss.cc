@@ -467,8 +467,7 @@ Code HomFCSS::MatVecMul(const std::vector<seal::Ciphertext>& vec_share0,
     };
     (void)LaunchWorks(tpool, n_ct_out, fma_prg);
 
-    ThreadPool tpool1(1);
-    addRandomMask(out_share0, out_share1, meta, tpool1);
+    addRandomMask(out_share0, out_share1, meta, tpool);
 
     if (scheme() == seal::scheme_type::bfv) {
         for (auto& c : out_share0) {
@@ -493,11 +492,11 @@ Code HomFCSS::addRandomMask(std::vector<seal::Ciphertext>& cts, Tensor<uint64_t>
         targets[i] = i * split_shape.cols();
     }
 
+    mask_vector.Reshape(GetOutShape(meta));
     auto mask_prg = [&](long wid, size_t start, size_t end) {
         RLWECt zero;
         RLWEPt mask;
         std::vector<U64> coeffs(targets.size());
-        mask_vector.Reshape(GetOutShape(meta));
         auto prng = context_->first_context_data()->parms().random_generator()->create();
         for (size_t r_blk = start; r_blk < end; ++r_blk) {
             auto& this_ct = cts.at(r_blk);
