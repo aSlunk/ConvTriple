@@ -326,7 +326,7 @@ Result Server::perform_proto(HomFCSS::Meta& meta, Channel& server, const seal::S
     for (long i = 0; i < vec.length(); i++) vec(i) = 2;
     Tensor<uint64_t> weight(meta.weight_shape);
     for (long i = 0; i < weight.rows(); i++)
-        for (long j = 0; j < weight.cols(); j++) weight(i, j) = 5;
+        for (long j = 0; j < weight.cols(); j++) weight(i, j) = 2;
 
     Tensor<uint64_t> C1;
 
@@ -335,11 +335,12 @@ Result Server::perform_proto(HomFCSS::Meta& meta, Channel& server, const seal::S
 #if PROTO == 1
     auto measures = Server::Protocol1(meta, server, context, hom_conv, vec, weight, C1, threads);
 #else
-    auto measures = Server::Protocol2(meta, server, context, hom_conv, vec, weight, threads);
+    auto measures = Server::Protocol2(meta, server, context, hom_conv, vec, C1, threads);
 #endif
     for (auto& ele : server) ele.counter = 0;
 
 #if VERIFY == 1
+    server[0].sync();
     Verify_Conv(server[0], meta, hom_conv, vec, weight, C1);
 #endif
     return measures;
@@ -352,7 +353,7 @@ Result Client::perform_proto(HomFCSS::Meta& meta, Channel& client, const seal::S
     for (long i = 0; i < vec.length(); i++) vec(i) = 2;
     Tensor<uint64_t> weight(meta.weight_shape);
     for (long i = 0; i < weight.rows(); i++)
-        for (long j = 0; j < weight.cols(); j++) weight(i, j) = 5;
+        for (long j = 0; j < weight.cols(); j++) weight(i, j) = 2;
 
     client[0].sync();
 
@@ -367,6 +368,7 @@ Result Client::perform_proto(HomFCSS::Meta& meta, Channel& client, const seal::S
     for (auto& ele : client) ele.counter = 0;
 
 #if VERIFY == 1
+    client[0].sync();
     Verify_Conv(client[0], vec, weight, C2);
 #endif
     return measures;
@@ -378,18 +380,18 @@ void Server::Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS
                          const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1) {
     Utils::log(Utils::Level::INFO, "VERIFYING FC");
     Tensor<T> A2(A1.shape());
-    Tensor<T> B2(B1.shape());
+    Tensor<T> B2(meta.weight_shape);
     Tensor<T> C2(C1.shape());
 
     io.recv_data(A2.data(), A2.NumElements() * sizeof(T));
     io.recv_data(B2.data(), B2.NumElements() * sizeof(T));
     io.recv_data(C2.data(), C2.NumElements() * sizeof(T));
 
-    Utils::op_inplace<T>(C2, C1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // C
-    Utils::op_inplace<T>(A2, A1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // A1 + A2
+    Utils::op_inplace<T>(C2, C1, [&conv](T a, T b) -> T { return add(conv, a, b); }); // C
+    Utils::op_inplace<T>(A2, A1, [&conv](T a, T b) -> T { return add(conv, a, b); }); // A1 + A2
 
 #if PROTO == 1
-    Utils::op_inplace<T>(B2, B1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; });
+    Utils::op_inplace<T>(B2, B1, [&conv](T a, T b) -> T { return add(conv, a, b); });
 #endif
 
     Tensor<T> test;                              // (A1 + A2) (B1 + B2)
@@ -399,6 +401,7 @@ void Server::Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS
 
     for (long i = 0; i < C2.length(); ++i) {
         if (!same || test(i) != C2(i)) {
+            std::cerr << i << ", " << test(i) << ", " << C2(i) << "\n";
             same = false;
             break;
         }

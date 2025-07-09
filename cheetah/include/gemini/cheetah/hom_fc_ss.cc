@@ -467,7 +467,8 @@ Code HomFCSS::MatVecMul(const std::vector<seal::Ciphertext>& vec_share0,
     };
     (void)LaunchWorks(tpool, n_ct_out, fma_prg);
 
-    addRandomMask(out_share0, out_share1, meta, tpool);
+    ThreadPool tpool1(1);
+    addRandomMask(out_share0, out_share1, meta, tpool1);
 
     if (scheme() == seal::scheme_type::bfv) {
         for (auto& c : out_share0) {
@@ -607,10 +608,14 @@ Code HomFCSS::idealFunctionality(const Tensor<uint64_t>& input_matrix,
                                  const Tensor<uint64_t>& weight_matrix, const Meta& meta,
                                  Tensor<uint64_t>& out) const {
     out.Reshape(GetOutShape(meta));
+    auto mod = plain_modulus();
     for (int row = 0; row < weight_matrix.rows(); row++) {
         for (int idx = 0; idx < weight_matrix.cols(); idx++) {
-            uint64_t partial = input_matrix(idx) * weight_matrix(row, idx);
-            out(row)         = out(row) + partial;
+            uint64_t partial
+                = seal::util::multiply_uint_mod(input_matrix(idx), weight_matrix(row, idx), mod);
+            // uint64_t partial = input_matrix(idx) * weight_matrix(row, idx);
+            out(row) = out(row) + partial;
+            out(row) = seal::util::barrett_reduce_64(out(row), mod);
         }
     }
 
