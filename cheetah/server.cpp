@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
     // auto layers_fc = Utils::init_layers_fc();
     // all.run_he(layers_fc, all.get_fc());
 
-    all.run_ot(20'000'000, false);
+    all.run_ot(20'000'000, true);
 
     // auto layers = Utils::init_layers();
     // all.run_he(layers, all.get_conv());
