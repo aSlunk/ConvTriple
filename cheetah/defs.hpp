@@ -239,6 +239,7 @@ void Utils::op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B,
 
 std::vector<gemini::HomFCSS::Meta> Utils::init_layers_fc() {
     std::vector<gemini::HomFCSS::Meta> layers;
+    layers.push_back(Utils::init_meta_fc(1, 1'000'000));
     layers.push_back(Utils::init_meta_fc(1'000'000, 1));
     return layers;
 }
