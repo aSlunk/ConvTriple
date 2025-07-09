@@ -50,17 +50,17 @@ template <class Channel>
 void Server::RunGen(TripleGenerator<Channel>& triple_gen, const size_t& batchSize,
                     const bool& packed) {
     size_t len = batchSize / (packed ? 8 : 1);
-    uint8_t a[len];
-    uint8_t b[len];
-    uint8_t c[len];
+    uint8_t* a = new uint8_t[len];
+    uint8_t* b = new uint8_t[len];
+    uint8_t* c = new uint8_t[len];
 
     triple_gen.generate(emp::ALICE, a, b, c, batchSize, METHOD, packed);
 
 #if VERIFY == 1
     Utils::log(Utils::Level::INFO, "VERIFYING OT");
-    uint8_t a2[len];
-    uint8_t b2[len];
-    uint8_t c2[len];
+    uint8_t* a2 = new uint8_t[len];
+    uint8_t* b2 = new uint8_t[len];
+    uint8_t* c2 = new uint8_t[len];
 
     triple_gen.io->recv_data(a2, sizeof(uint8_t) * len);
     triple_gen.io->recv_data(b2, sizeof(uint8_t) * len);
@@ -78,7 +78,13 @@ void Server::RunGen(TripleGenerator<Channel>& triple_gen, const size_t& batchSiz
         Utils::log(Utils::Level::PASSED, "OT: PASSED");
     else
         Utils::log(Utils::Level::FAILED, "OT: FAILED");
+    delete[] a2;
+    delete[] b2;
+    delete[] c2;
 #endif
+    delete[] a;
+    delete[] b;
+    delete[] c;
 }
 
 template <class Channel>
@@ -136,9 +142,9 @@ template <class Channel>
 void Client::RunGen(TripleGenerator<Channel>& triple_gen, const size_t& batchSize,
                     const bool& packed) {
     size_t len = batchSize / (packed ? 8 : 1);
-    uint8_t a[len];
-    uint8_t b[len];
-    uint8_t c[len];
+    uint8_t* a = new uint8_t[len];
+    uint8_t* b = new uint8_t[len];
+    uint8_t* c = new uint8_t[len];
 
     triple_gen.generate(emp::BOB, a, b, c, batchSize, METHOD, packed);
 
@@ -148,6 +154,9 @@ void Client::RunGen(TripleGenerator<Channel>& triple_gen, const size_t& batchSiz
     triple_gen.io->send_data(c, sizeof(uint8_t) * len, false);
     triple_gen.io->flush();
 #endif
+    delete[] a;
+    delete[] b;
+    delete[] c;
 }
 
 template <class Channel>
