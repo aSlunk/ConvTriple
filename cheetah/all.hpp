@@ -90,11 +90,11 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
         for (size_t j = 0; j < threads_per_thread; ++j)
             ios_c[i * threads_per_thread + j] = &ios_vec[i][j];
 
-    // auto start = measure::now();
-    // ot_pack    = std::make_unique<sci::OTPack<Channel>>(ios_c, threads, party);
-    // triple_gen = std::make_unique<TripleGenerator<Channel>>(party, ios_c[0], ot_pack.get());
-    // Utils::log(Utils::Level::INFO, "P", party,
-    //            ": OT startup time: ", Utils::to_sec(Utils::time_diff(start)));
+    auto start = measure::now();
+    ot_pack    = std::make_unique<sci::OTPack<Channel>>(ios_c, threads, party);
+    triple_gen = std::make_unique<TripleGenerator<Channel>>(party, ios_c[0], ot_pack.get());
+    Utils::log(Utils::Level::INFO, "P", party,
+               ": OT startup time: ", Utils::to_sec(Utils::time_diff(start)));
 
     seal::KeyGenerator keygen(context);
     seal::SecretKey skey = keygen.secret_key();

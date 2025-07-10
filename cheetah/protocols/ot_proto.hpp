@@ -56,7 +56,7 @@ void Server::RunGen(TripleGenerator<Channel>& triple_gen, const size_t& batchSiz
 
     triple_gen.generate(emp::ALICE, a, b, c, batchSize, METHOD, packed);
 
-#if VERIFY == 1
+#ifdef VERIFY
     Utils::log(Utils::Level::INFO, "VERIFYING OT");
     uint8_t* a2 = new uint8_t[len];
     uint8_t* b2 = new uint8_t[len];
@@ -104,7 +104,7 @@ void Server::Test(cheetah::SilentOT<Channel>& ot, cheetah::SilentOT<Channel>& re
         c[i] = (a[i] & b[i]) ^ u[i] ^ v[i];
     }
 
-#if VERIFY == 1
+#ifdef VERIFY
     Utils::log(Utils::Level::INFO, "VERIFYING OT");
     uint8_t A2[batchsize];
     uint8_t B2[batchsize];
@@ -148,7 +148,7 @@ void Client::RunGen(TripleGenerator<Channel>& triple_gen, const size_t& batchSiz
 
     triple_gen.generate(emp::BOB, a, b, c, batchSize, METHOD, packed);
 
-#if VERIFY == 1
+#ifdef VERIFY
     triple_gen.io->send_data(a, sizeof(uint8_t) * len, false);
     triple_gen.io->send_data(b, sizeof(uint8_t) * len, false);
     triple_gen.io->send_data(c, sizeof(uint8_t) * len, false);
@@ -178,7 +178,7 @@ void Client::Test(cheetah::SilentOT<Channel>& ot, cheetah::SilentOT<Channel>& re
         c[i] = (a[i] & b[i]) ^ u[i] ^ v[i];
     }
 
-#if VERIFY == 1
+#ifdef VERIFY
     ot.ferret->io->send_data(a, sizeof(uint8_t) * batchsize);
     ot.ferret->io->send_data(b, sizeof(uint8_t) * batchsize);
     ot.ferret->io->send_data(c, sizeof(uint8_t) * batchsize);

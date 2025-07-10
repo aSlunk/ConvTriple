@@ -11,10 +11,6 @@
 
 #include "defs.hpp"
 
-#ifndef VERIFY
-#define VERIFY 1
-#endif
-
 using gemini::HomFCSS;
 using gemini::Tensor;
 using Utils::Result;
@@ -41,7 +37,7 @@ template <class Channel>
 Result perform_proto(HomFCSS::Meta& meta, Channel& server, const seal::SEALContext& context,
                      const HomFCSS& hom_conv, const size_t& threads = 1);
 
-#if VERIFY == 1
+#ifdef VERIFY
 template <class T>
 void Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv, const Tensor<T>& A1,
                  const Tensor<T>& B1, const Tensor<T>& C1);
@@ -65,7 +61,7 @@ template <class Channel>
 Result perform_proto(HomFCSS::Meta& meta, Channel& client, const seal::SEALContext& context,
                      const HomFCSS& hom_conv, const size_t& threads);
 
-#if VERIFY == 1
+#ifdef VERIFY
 template <class T>
 void Verify_Conv(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
 #endif
@@ -339,7 +335,7 @@ Result Server::perform_proto(HomFCSS::Meta& meta, Channel& server, const seal::S
 #endif
     for (auto& ele : server) ele.counter = 0;
 
-#if VERIFY == 1
+#ifdef VERIFY
     server[0].sync();
     Verify_Conv(server[0], meta, hom_conv, vec, weight, C1);
 #endif
@@ -367,14 +363,14 @@ Result Client::perform_proto(HomFCSS::Meta& meta, Channel& client, const seal::S
 
     for (auto& ele : client) ele.counter = 0;
 
-#if VERIFY == 1
+#ifdef VERIFY
     client[0].sync();
     Verify_Conv(client[0], vec, weight, C2);
 #endif
     return measures;
 }
 
-#if VERIFY == 1
+#ifdef VERIFY
 template <class T>
 void Server::Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv,
                          const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1) {

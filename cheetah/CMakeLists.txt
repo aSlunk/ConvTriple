@@ -37,36 +37,40 @@ add_library(IO INTERFACE)
 target_include_directories(IO INTERFACE io)
 target_link_libraries(IO INTERFACE SEAL::seal gemini OT)
 
-set(exe cheetah)
-add_executable(${exe} server.cpp)
-target_link_libraries(${exe} PRIVATE gemini IO OT)
-if(VERIFY)
-  target_compile_definitions(${exe} PUBLIC USE_CHEETAH=1 VERIFY=1)
-else()
-  target_compile_definitions(${exe} PUBLIC USE_CHEETAH=1 VERIFY=0)
-endif()
+set(server cheetah)
+add_executable(${server} server.cpp)
+target_link_libraries(${server} PRIVATE gemini IO OT)
+target_compile_definitions(${server} PUBLIC USE_CHEETAH=1)
 target_compile_options(
-    ${exe} PRIVATE
+    ${server} PRIVATE
     "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra;-Wno-unused-parameter>"
     "$<$<CONFIG:Release>:-Wall;-Wextra;-Wno-unused-parameter>"
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers"
 )
 
-
-set(exe cheetah_client)
-add_executable(${exe} client.cpp)
-target_link_libraries(${exe} PRIVATE gemini IO OT)
-if(VERIFY)
-  target_compile_definitions(${exe} PUBLIC USE_CHEETAH=1 VERIFY=1)
-else()
-  target_compile_definitions(${exe} PUBLIC USE_CHEETAH=1 VERIFY=0)
-endif()
+set(client cheetah_client)
+add_executable(${client} client.cpp)
+target_link_libraries(${client} PRIVATE gemini IO OT)
+target_compile_definitions(${client} PUBLIC USE_CHEETAH=1)
 target_compile_options(
-    ${exe} PRIVATE
+    ${client} PRIVATE
     "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra;-Wno-unused-parameter>"
     "$<$<CONFIG:Release>:-Wall;-Wextra;-Wno-unused-parameter>"
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers"
 )
+
+message(STATUS "TRIP_VERIFY: ${TRIP_VERIFY}")
+message(STATUS "TRIP_COLOR: ${TRIP_COLOR}")
+
+if(TRIP_VERIFY)
+  target_compile_definitions(${server} PRIVATE VERIFY)
+  target_compile_definitions(${client} PRIVATE VERIFY)
+endif()
+
+if(TRIP_COLOR)
+  target_compile_definitions(${server} PRIVATE COLOR)
+  target_compile_definitions(${client} PRIVATE COLOR)
+endif()
 
 file(GLOB_RECURSE SRC_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"

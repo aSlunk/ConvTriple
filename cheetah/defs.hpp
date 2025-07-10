@@ -16,10 +16,17 @@
 
 #include <seal/seal.h>
 
+#ifdef COLOR
 #define NC "\033[0m"
 #define RED "\033[31m"
 #define GREEN "\033[32m"
 #define PURPLE "\033[35m"
+#else
+#define NC ""
+#define RED ""
+#define GREEN ""
+#define PURPLE ""
+#endif
 
 #define EXEC_FAILED -1
 #define PROTO 1 // 1 or 2
