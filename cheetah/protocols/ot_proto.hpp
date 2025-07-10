@@ -10,8 +10,6 @@
 
 #include "defs.hpp"
 
-#define BIT_LEN 1
-
 static constexpr TripleGenMethod METHOD = TripleGenMethod::_2ROT;
 
 template <class T>
@@ -96,8 +94,8 @@ void Server::Test(cheetah::SilentOT<Channel>& ot, cheetah::SilentOT<Channel>& re
     uint8_t* u = new uint8_t[batchsize];
     uint8_t* v = new uint8_t[batchsize];
 
-    rev_ot.recv_ot_rm_rc(u, (bool*)a, batchsize, BIT_LEN);
-    ot.send_ot_rm_rc(v, b, batchsize, BIT_LEN);
+    rev_ot.recv_ot_rm_rc(u, (bool*)a, batchsize, 1);
+    ot.send_ot_rm_rc(v, b, batchsize, 1);
 
     for (size_t i = 0; i < batchsize; ++i) {
         b[i] = b[i] ^ v[i];
@@ -170,8 +168,8 @@ void Client::Test(cheetah::SilentOT<Channel>& ot, cheetah::SilentOT<Channel>& re
     uint8_t* u = new uint8_t[batchsize];
     uint8_t* v = new uint8_t[batchsize];
 
-    rev_ot.send_ot_rm_rc(v, b, batchsize, BIT_LEN);
-    ot.recv_ot_rm_rc(u, (bool*)a, batchsize, BIT_LEN);
+    rev_ot.send_ot_rm_rc(v, b, batchsize, 1);
+    ot.recv_ot_rm_rc(u, (bool*)a, batchsize, 1);
 
     for (size_t i = 0; i < batchsize; ++i) {
         b[i] = b[i] ^ v[i];

@@ -406,6 +406,7 @@ void Server::Verify_Conv(IO::NetIO& io, const gemini::HomConv2DSS::Meta& meta,
         for (long h = 0; h < C2.height(); ++h)
             for (long w = 0; w < C2.width(); ++w)
                 if (!same || test(c, h, w) != C2(c, h, w)) {
+                    Utils::log(Utils::Level::FAILED, test(c, h, w), ", ", C2(c, h, w));
                     same = false;
                     goto end;
                 }

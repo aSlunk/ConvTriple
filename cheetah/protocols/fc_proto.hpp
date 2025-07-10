@@ -397,7 +397,7 @@ void Server::Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS
 
     for (long i = 0; i < C2.length(); ++i) {
         if (!same || test(i) != C2(i)) {
-            std::cerr << i << ", " << test(i) << ", " << C2(i) << "\n";
+            Utils::log(Utils::Level::FAILED, i, ", ", test(i), ", ", C2(i));
             same = false;
             break;
         }

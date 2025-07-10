@@ -38,8 +38,11 @@ const int N_THREADS = std::max(1u, std::thread::hardware_concurrency());
 
 constexpr size_t filter_prec = 0ULL;
 
-constexpr int64_t POLY_MOD  = 4096;
-constexpr int64_t PLAIN_MOD = 1ULL << 50;
+constexpr seal::sec_level_type SEC_LEVEL = seal::sec_level_type::tc128;
+
+constexpr uint64_t BIT_LEN   = 41;
+constexpr uint64_t POLY_MOD  = 1ULL << 12;
+constexpr uint64_t PLAIN_MOD = 1ULL << BIT_LEN;
 
 constexpr uint64_t MOD         = PLAIN_MOD;
 constexpr uint64_t moduloMask  = MOD - 1;
@@ -388,10 +391,12 @@ gemini::Tensor<uint64_t> Utils::convert_fix_point(const gemini::Tensor<T>& in) {
 seal::SEALContext Utils::init_he_context() {
     seal::EncryptionParameters params(seal::scheme_type::bfv);
     params.set_poly_modulus_degree(POLY_MOD);
-    params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD));
+    // params.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {47}));
+    // params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD));
+    params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD, SEC_LEVEL));
     params.set_plain_modulus(PLAIN_MOD);
 
-    seal::SEALContext context(params);
+    seal::SEALContext context(params, true, SEC_LEVEL);
 
     return context;
 }
