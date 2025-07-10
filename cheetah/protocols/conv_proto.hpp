@@ -152,8 +152,6 @@ Result Client::Protocol1(Channel& client, const seal::SEALContext& context,
     if (measures.ret != Code::OK)
         return measures;
     
-    hom_conv.filtersToNtt(enc_B2, threads);
-
     measures.encryption = Utils::time_diff(start);
     start               = measure::now();
 
@@ -275,7 +273,6 @@ Result Server::Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel& server,
     if (measures.ret != Code::OK)
         return measures;
 
-    conv.filtersToNtt(enc_B1, threads);
     measures.encryption = Utils::time_diff(start);
 
     start = measure::now();
