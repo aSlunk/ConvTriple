@@ -391,9 +391,9 @@ gemini::Tensor<uint64_t> Utils::convert_fix_point(const gemini::Tensor<T>& in) {
 seal::SEALContext Utils::init_he_context() {
     seal::EncryptionParameters params(seal::scheme_type::bfv);
     params.set_poly_modulus_degree(POLY_MOD);
-    // params.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {47}));
+    params.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {47}));
     // params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD));
-    params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD, SEC_LEVEL));
+    // params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD, SEC_LEVEL));
     params.set_plain_modulus(PLAIN_MOD);
 
     seal::SEALContext context(params, true, SEC_LEVEL);
