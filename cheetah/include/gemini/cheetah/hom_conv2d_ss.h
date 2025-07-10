@@ -4,10 +4,10 @@
 #include <seal/secretkey.h>
 #include <seal/serializable.h>
 
+#include "gemini/cheetah/tensor.h"
 #include <optional>
 #include <vector>
 
-#include "gemini/cheetah/tensor.h"
 #include "gemini/cheetah/tensor_shape.h"
 #include "gemini/core/util/ThreadPool.h"
 
@@ -21,6 +21,12 @@ class Ciphertext;
 class Evaluator;
 } // namespace seal
 
+// Forward troyn
+namespace troy {
+class SEALContextCuda;
+class EvaluatorCuda;
+} // namespace troy
+
 namespace gemini {
 
 Code LaunchWorks(ThreadPool& tpool, size_t num_works,
@@ -28,13 +34,19 @@ Code LaunchWorks(ThreadPool& tpool, size_t num_works,
 
 class TensorEncoder;
 
+// template <typename T> class Tensor;
+
 class HomConv2DSS {
   public:
+// #if CONV_USE_CUDA
+//   static constexpr size_t kMaxThreads = 1;
+// #else
 #ifdef HOM_CONV2D_SS_MAX_THREADS
     static constexpr size_t kMaxThreads = HOM_CONV2D_SS_MAX_THREADS;
 #else
-    static constexpr size_t kMaxThreads = 32ULL;
+    static constexpr size_t kMaxThreads = 16;
 #endif
+    // #endif
 
     struct Meta {
         TensorShape ishape;
@@ -60,48 +72,29 @@ class HomConv2DSS {
 
     Code encryptImage(const Tensor<uint64_t>& in_tensor_share, const Meta& meta,
                       std::vector<seal::Serializable<seal::Ciphertext>>& encrypted_share,
-                      size_t nthreads = 1) const;
-
-    Code encryptImage(const Tensor<uint64_t>& in_tensor_share, const Meta& meta,
-                      std::vector<seal::Serializable<seal::Ciphertext>>& encrypted_share,
                       std::vector<seal::Plaintext>& encoded_share,
                       size_t nthreads = 1) const; // added
 
+    Code encryptImage(const Tensor<uint64_t>& in_tensor_share, const Meta& meta,
+                      std::vector<seal::Serializable<seal::Ciphertext>>& encrypted_share,
+                      size_t nthreads = 1) const;
+
     Code encodeImage(const Tensor<uint64_t>& in_tensor_share, const Meta& meta,
                      std::vector<seal::Plaintext>& encoded_share, size_t nthreads = 1) const;
-
-    Code encryptFilters(const std::vector<Tensor<uint64_t>>& filters, const Meta& meta,
-                        std::vector<std::vector<seal::Ciphertext>>& encoded_filters,
-                        size_t nthreads = 1) const; // ADDED
 
     Code encodeFilters(const std::vector<Tensor<uint64_t>>& filters, const Meta& meta,
                        std::vector<std::vector<seal::Plaintext>>& encoded_filters,
                        size_t nthreads = 1) const;
 
-    template <class Vec>
-    static Code serialize(Vec& cts, std::stringstream& is, const size_t& nthreads = 1);
+    Code filtersToNtt(std::vector<std::vector<seal::Plaintext>>& encoded_filters,
+                      size_t nthreads = 1) const;
 
     Code conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
                   const std::vector<seal::Plaintext>& img_share1,
                   const std::vector<std::vector<seal::Plaintext>>& filters, const Meta& meta,
                   std::vector<seal::Ciphertext>& out_share0, Tensor<uint64_t>& out_share1,
-                  size_t nthreads = 1) const;
-
-    Code conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
-                  const std::vector<std::vector<seal::Plaintext>>& filters, const Meta& meta,
-                  const Tensor<uint64_t>& R, std::vector<seal::Ciphertext>& out_share0,
-                  size_t nthreads = 1) const; // MODIFIED CONV2DSS
-
-    Code conv2DSS(const std::vector<seal::Plaintext>& img_share0,
-                  const std::vector<std::vector<seal::Ciphertext>>& filters, const Meta& meta,
-                  std::vector<seal::Ciphertext>& out_share0, size_t nthreads = 1) const; // ADDED
-
-    Code add_plain_inplace(std::vector<seal::Ciphertext>& ciphers,
-                           const std::vector<seal::Plaintext>& plain,
-                           const size_t& nthreads = 1ULL) const; // ADDED
-
-    Code add_inplace(std::vector<seal::Ciphertext>& A, const std::vector<seal::Ciphertext>& B,
-                     const size_t& nthreads = 1ULL) const; // ADDED
+                  size_t nthreads = 1, bool in_ntt = true, bool fil_ntt = true,
+                  bool out_ntt = true) const;
 
     Code decryptToTensor(const std::vector<seal::Ciphertext>& enc_tensor, const Meta& meta,
                          Tensor<uint64_t>& out, size_t nthreads = 1) const;
@@ -110,16 +103,11 @@ class HomConv2DSS {
                             const std::vector<Tensor<uint64_t>>& filters, const Meta& meta,
                             Tensor<uint64_t>& out_tensor) const;
 
-    static TensorShape GetConv2DOutShape(const HomConv2DSS::Meta& meta);
-
   protected:
     size_t conv2DOneFilter(const std::vector<seal::Ciphertext>& enc_tensor,
                            const std::vector<seal::Plaintext>& filter, const Meta& meta,
-                           seal::Ciphertext* out_buff, size_t out_buff_sze) const;
-
-    size_t conv2DOneFilter(const std::vector<seal::Plaintext>& enc_tensor,
-                           const std::vector<seal::Ciphertext>& filter, const Meta& meta,
-                           seal::Ciphertext* out_buff, size_t out_buff_sze) const; // ADDED
+                           seal::Ciphertext* out_buff, size_t out_buff_sze,
+                           bool to_ntt = false) const;
 
     Code sampleRandomMask(const std::vector<size_t>& targets, uint64_t* coeffs_buff,
                           size_t buff_size, seal::Plaintext& mask, seal::parms_id_type pid,
@@ -139,36 +127,8 @@ class HomConv2DSS {
     std::shared_ptr<seal::Evaluator> evaluator_{nullptr};
     std::shared_ptr<seal::Encryptor> encryptor_{nullptr};
     std::shared_ptr<seal::PublicKey> pk_{nullptr};
-
     std::optional<seal::SecretKey> sk_{std::nullopt};
 };
-
-template <class Vec>
-Code HomConv2DSS::serialize(Vec& cts, std::stringstream& is, const size_t& nthreads) {
-    size_t n = cts.size();
-
-    auto pool_sze = std::min(std::max(1UL, nthreads), kMaxThreads);
-    ThreadPool tpool(pool_sze);
-    std::vector<std::string> ser(pool_sze);
-
-    auto serial = [&](long wid, size_t start, size_t end) -> Code {
-        std::stringstream tmp;
-        for (size_t i = start; i < end; ++i) {
-            cts[i].save(tmp);
-        }
-
-        ser[wid] = tmp.str();
-        return Code::OK;
-    };
-
-    auto code = LaunchWorks(tpool, n, serial);
-    if (code != Code::OK)
-        return code;
-
-    for (auto& str : ser) is << str;
-
-    return Code::OK;
-}
 
 }; // namespace gemini
 #endif // GEMINI_CHEETAH_HOMCONVSS_H_
