@@ -157,6 +157,9 @@ class HomBNSS {
         return Code::OK;
     }
 
+    Code idealFunctionality(const Tensor<uint64_t>& image, const Tensor<uint64_t>& scales,
+                            const Meta& meta, Tensor<uint64_t>& out);
+
   protected:
     TensorShape getSplit(const Meta& meta) const;
 

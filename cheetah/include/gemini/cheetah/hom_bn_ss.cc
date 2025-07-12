@@ -821,4 +821,20 @@ Code HomBNSS::decryptToTensor(const std::vector<seal::Ciphertext>& cts, const Me
     return LaunchWorks(tpool, n_ct, decrypt_prg);
 }
 
+Code HomBNSS::idealFunctionality(const Tensor<uint64_t>& image, const Tensor<uint64_t>& scales,
+                                 const Meta& meta, Tensor<uint64_t>& out) {
+    out.Reshape(meta.ishape);
+
+    for (long c = 0; c < image.channels(); ++c) {
+        for (long h = 0; h < image.height(); ++h) {
+            for (long w = 0; w < image.width(); ++w) {
+                out(c, h, w)
+                    = seal::util::multiply_uint_mod(image(c, h, w), scales(c), plain_modulus());
+            }
+        }
+    }
+
+    return Code::OK;
+}
+
 } // namespace gemini

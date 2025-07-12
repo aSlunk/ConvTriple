@@ -14,7 +14,7 @@
 using gemini::Tensor;
 using Utils::Result;
 
-uint64_t add(const gemini::HomConv2DSS& conv, const uint64_t& a, const uint64_t& b) {
+static uint64_t add(const gemini::HomConv2DSS& conv, const uint64_t& a, const uint64_t& b) {
     uint64_t sum;
     seal::util::add_uint(&a, 1, b, &sum);
     return seal::util::barrett_reduce_64(sum, conv.plain_modulus());
@@ -93,6 +93,8 @@ Result Client::Protocol2(Channel& client, const seal::SEALContext& context,
     if (measures.ret != Code::OK)
         return measures;
 
+    hom_conv.filtersToNtt(enc_B2, threads);
+
     measures.encryption = Utils::time_diff(start);
 
     ////////////////////////////////////////////////////////////////////////////
@@ -151,7 +153,9 @@ Result Client::Protocol1(Channel& client, const seal::SEALContext& context,
     measures.ret = hom_conv.encodeFilters(B2, meta, enc_B2, threads);
     if (measures.ret != Code::OK)
         return measures;
-    
+
+    hom_conv.filtersToNtt(enc_B2, threads);
+
     measures.encryption = Utils::time_diff(start);
     start               = measure::now();
 
@@ -272,6 +276,8 @@ Result Server::Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel& server,
     measures.ret = conv.encodeFilters(B1, meta, enc_B1, threads);
     if (measures.ret != Code::OK)
         return measures;
+
+    conv.filtersToNtt(enc_B1, threads);
 
     measures.encryption = Utils::time_diff(start);
 

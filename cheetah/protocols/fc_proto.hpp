@@ -15,7 +15,7 @@ using gemini::HomFCSS;
 using gemini::Tensor;
 using Utils::Result;
 
-uint64_t add(const HomFCSS& conv, const uint64_t& a, const uint64_t& b) {
+static uint64_t add(const HomFCSS& conv, const uint64_t& a, const uint64_t& b) {
     uint64_t sum;
     seal::util::add_uint(&a, 1, b, &sum);
     return seal::util::barrett_reduce_64(sum, conv.plain_modulus());

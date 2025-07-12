@@ -40,7 +40,7 @@ constexpr size_t filter_prec = 0ULL;
 
 constexpr seal::sec_level_type SEC_LEVEL = seal::sec_level_type::tc128;
 
-constexpr uint64_t BIT_LEN   = 41;
+constexpr uint64_t BIT_LEN   = 32;
 constexpr uint64_t POLY_MOD  = 1ULL << 12;
 constexpr uint64_t PLAIN_MOD = 1ULL << BIT_LEN;
 
@@ -148,7 +148,7 @@ template <class T>
 gemini::Tensor<uint64_t> convert_fix_point(const gemini::Tensor<T>& in);
 
 template <class T>
-void print_tensor(const gemini::Tensor<T>& t);
+void print_tensor(const gemini::Tensor<T>& t, const long& channel = 0);
 
 double convert(uint64_t v, int nbits);
 gemini::Tensor<double> convert_double(const gemini::Tensor<uint64_t>& in);
@@ -173,8 +173,8 @@ void add_result(Result& res, const Result& res2);
 
 Result average(const std::vector<Result>& res, bool average_bytes);
 
-void print_results(const Result& res, const size_t& layer, const size_t& batchSize,
-                   const size_t& threads, std::ostream& out = std::cout);
+double print_results(const Result& res, const size_t& layer, const size_t& batchSize,
+                     const size_t& threads, std::ostream& out = std::cout);
 
 void make_csv(const std::vector<Result>& results, const size_t& batchSize, const size_t& threads,
               const std::string& path = "");
@@ -225,8 +225,8 @@ void Utils::op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B,
     switch (A.dims()) {
     case 3:
         for (int i = 0; i < A.channels(); ++i) {
-            for (int j = 0; j < A.width(); ++j) {
-                for (int k = 0; k < A.height(); ++k) {
+            for (int j = 0; j < A.height(); ++j) {
+                for (int k = 0; k < A.width(); ++k) {
                     A(i, j, k) = op(A(i, j, k), B(i, j, k));
                 }
             }
@@ -391,9 +391,9 @@ gemini::Tensor<uint64_t> Utils::convert_fix_point(const gemini::Tensor<T>& in) {
 seal::SEALContext Utils::init_he_context() {
     seal::EncryptionParameters params(seal::scheme_type::bfv);
     params.set_poly_modulus_degree(POLY_MOD);
-    // params.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {47}));
+    params.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
     // params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD));
-    params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD, SEC_LEVEL));
+    // params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD, SEC_LEVEL));
     params.set_plain_modulus(PLAIN_MOD);
 
     seal::SEALContext context(params, true, SEC_LEVEL);
@@ -402,12 +402,12 @@ seal::SEALContext Utils::init_he_context() {
 }
 
 template <class T>
-void Utils::print_tensor(const gemini::Tensor<T>& t) {
+void Utils::print_tensor(const gemini::Tensor<T>& t, const long& channel) {
     switch (t.dims()) {
     case 3:
         for (long i = 0; i < t.height(); ++i) {
             for (long j = 0; j < t.width(); ++j) {
-                std::cerr << static_cast<T>(t(0, i, j)) << " ";
+                std::cerr << static_cast<T>(t(channel, i, j)) << " ";
             }
             std::cerr << "\n";
         }
@@ -441,8 +441,8 @@ gemini::Tensor<double> Utils::convert_double(const gemini::Tensor<uint64_t>& in)
     return out;
 }
 
-void Utils::print_results(const Result& res, const size_t& layer, const size_t& batchSize,
-                          const size_t& threads, std::ostream& out) {
+double Utils::print_results(const Result& res, const size_t& layer, const size_t& batchSize,
+                            const size_t& threads, std::ostream& out) {
     if (!layer)
         out << "Encryption [ms],Cipher Calculations [s],Serialization [s],Decryption [ms],Plain "
                "Calculations [ms], "
@@ -456,6 +456,8 @@ void Utils::print_results(const Result& res, const size_t& layer, const size_t& 
         << ", " << to_msec(res.decryption) << ", " << to_msec(res.plain_op) << ", "
         << to_msec(res.send_recv) << ", " << total << ", " << to_MB(res.bytes) << ", " << batchSize
         << ", " << threads << "\n";
+
+    return total;
 }
 
 Utils::Result Utils::average(const std::vector<Result>& res, bool average_bytes) {
@@ -508,9 +510,16 @@ void Utils::make_csv(const std::vector<Result>& results, const size_t& batchSize
         os.open(path, std::ios::out | std::ios::trunc);
     }
 
+    double total = 0;
     for (size_t i = 0; i < results.size(); ++i) {
-        print_results(results[i], i, batchSize, threads, path.empty() ? std::cout : os);
+        total += print_results(results[i], i, batchSize, threads, path.empty() ? std::cout : os);
     }
+
+    os << "Total time[s]: " << total << "\n";
+    size_t data
+        = std::accumulate(results.begin(), results.end(), 0,
+                          [](size_t acc, const Result& res) -> size_t { return acc + res.bytes; });
+    os << "Total data[MB]: " << to_MB(data) << "\n";
 
     if (os.is_open())
         os.close();

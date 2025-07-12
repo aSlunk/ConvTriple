@@ -508,8 +508,7 @@ Code HomConv2DSS::setUp(const seal::SEALContext& context, std::optional<seal::Se
 
 Code HomConv2DSS::encryptImage(const Tensor<uint64_t>& img, const Meta& meta,
                                std::vector<seal::Serializable<seal::Ciphertext>>& encrypted_img,
-                               std::vector<seal::Plaintext>& polys,
-                               size_t nthreads) const {
+                               std::vector<seal::Plaintext>& polys, size_t nthreads) const {
     ENSURE_OR_RETURN(context_ && encryptor_ && tencoder_, Code::ERR_CONFIG);
     ENSURE_OR_RETURN(img.shape().IsSameSize(meta.ishape), Code::ERR_DIM_MISMATCH);
 
@@ -852,7 +851,8 @@ Code HomConv2DSS::addRandomMask(std::vector<seal::Ciphertext>& enc_tensor,
                 for (int sw = 0, woffset = 0; sw < indexer.slice_size(2); ++sw) {
                     CHECK_ERR(indexer.Get({sh, sw}, slice_shape, targets), "Get");
 
-                    if (static_cast<size_t>(slice_shape.height() * slice_shape.width()) != targets.size()) {
+                    if (static_cast<size_t>(slice_shape.height() * slice_shape.width())
+                        != targets.size()) {
                         return Code::ERR_DIM_MISMATCH;
                     }
                     auto& this_ct = enc_tensor.at(cid++);
@@ -920,7 +920,8 @@ Code HomConv2DSS::removeUnusedCoeffs(std::vector<seal::Ciphertext>& ct, const Me
             for (int sw = 0; sw < indexer.slice_size(2); ++sw) {
                 CHECK_ERR(indexer.Get({sh, sw}, slice_shape, indices), "Get");
 
-                if (static_cast<size_t>(slice_shape.height() * slice_shape.width()) != indices.size()) {
+                if (static_cast<size_t>(slice_shape.height() * slice_shape.width())
+                    != indices.size()) {
                     LOG(WARNING) << "slice_shape.size != indices.size";
                     return Code::ERR_INTERNAL;
                 }
@@ -982,7 +983,8 @@ Code HomConv2DSS::decryptToTensor(const std::vector<seal::Ciphertext>& enc_tenso
             for (int sh = 0, hoffset = 0; sh < indexer.slice_size(1); ++sh) {
                 for (int sw = 0, woffset = 0; sw < indexer.slice_size(2); ++sw) {
                     CHECK_ERR(indexer.Get({sh, sw}, slice_shape, indices), "Get");
-                    if (static_cast<size_t>(slice_shape.height() * slice_shape.width()) != indices.size()) {
+                    if (static_cast<size_t>(slice_shape.height() * slice_shape.width())
+                        != indices.size()) {
                         return Code::ERR_DIM_MISMATCH;
                     }
 
@@ -1031,7 +1033,7 @@ Code HomConv2DSS::postProcessInplace(seal::Plaintext& pt, std::vector<size_t>& t
     auto cntxt = context_->first_context_data();
     ENSURE_OR_RETURN(cntxt, Code::ERR_SEAL_MEMORY);
 
-    const size_t N   = cntxt->parms().poly_modulus_degree();
+    const size_t N = cntxt->parms().poly_modulus_degree();
     // const size_t L   = cntxt->parms().coeff_modulus().size();
     const size_t len = targets.empty() ? N : targets.size();
     ENSURE_OR_RETURN(out_poly && out_buff_size >= len && len <= N, Code::ERR_DIM_MISMATCH);
