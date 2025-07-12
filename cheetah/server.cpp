@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
     else
         threads = std::min(strtoul(argv[4], NULL, 10), (size_t)N_THREADS);
 
-    HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, batchSize, samples);
+    HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, batchSize, samples, false);
     auto start = measure::now();
     all.test_bn();
     std::cerr << Utils::to_sec(Utils::time_diff(start)) << "\n";

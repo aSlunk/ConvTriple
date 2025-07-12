@@ -60,7 +60,7 @@ class HE {
 
   public:
     explicit HE(const int& party, const char* addr, const int& port, const size_t& threads,
-                const size_t& batchSize, size_t& samples);
+                const size_t& batchSize, size_t& samples, bool setup_ot = true);
 
     HE(const HE& other) = delete;
     HE(HE&& other)      = delete;
@@ -69,6 +69,8 @@ class HE {
     HE& operator=(HE&& other)      = delete;
 
     ~HE() { delete[] ios_c_; }
+
+    void setup_OT();
 
     const gemini::HomConv2DSS& get_conv() const { return conv_; }
     const gemini::HomFCSS& get_fc() const { return fc_; }
@@ -94,7 +96,7 @@ class HE {
 
 template <class Channel>
 HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_t& threads,
-                const size_t& batchSize, size_t& samples)
+                const size_t& batchSize, size_t& samples, bool setup_ot)
     : threads_(threads), batchSize_(batchSize), samples_(samples), party_(party) {
     size_t batch_threads      = batchSize > 1 ? batchSize : 1;
     size_t threads_per_thread = threads / batch_threads;
@@ -106,11 +108,8 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
         for (size_t j = 0; j < threads_per_thread; ++j)
             ios_c_[i * threads_per_thread + j] = &ios_vec_[i][j];
 
-    auto start  = measure::now();
-    ot_pack_    = std::make_unique<sci::OTPack<Channel>>(ios_c_, threads, party);
-    triple_gen_ = std::make_unique<TripleGenerator<Channel>>(party, ios_c_[0], ot_pack_.get());
-    Utils::log(Utils::Level::INFO, "P", party,
-               ": OT startup time: ", Utils::to_sec(Utils::time_diff(start)));
+    if (setup_ot)
+        setup_OT();
 
     seal::KeyGenerator keygen(context_);
     seal::SecretKey skey = keygen.secret_key();
@@ -126,6 +125,15 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     encryptor_ = std::make_unique<seal::Encryptor>(context_, skey);
 
     reset_counter_();
+}
+
+template <class Channel>
+void HE<Channel>::setup_OT() {
+    auto start  = measure::now();
+    ot_pack_    = std::make_unique<sci::OTPack<Channel>>(ios_c_, threads_, party_);
+    triple_gen_ = std::make_unique<TripleGenerator<Channel>>(party_, ios_c_[0], ot_pack_.get());
+    Utils::log(Utils::Level::INFO, "P", party_,
+               ": OT startup time: ", Utils::to_sec(Utils::time_diff(start)));
 }
 
 template <class Channel>
