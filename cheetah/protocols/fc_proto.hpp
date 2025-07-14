@@ -142,9 +142,14 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
         auto mess = measure::now();
 
         vector<vector<seal::Plaintext>> encoded_A2(ele);
-        vector<vector<seal::Serializable<seal::Ciphertext>>> enc_A2(ele);
-        for (size_t i = 0; i < ele; ++i)
-            measures.ret = hom_conv.encryptInputVector(A2[start + i], meta, enc_A2[i], encoded_A2[i], 1);
+        vector<seal::Serializable<seal::Ciphertext>> enc_A2;
+        for (size_t i = 0; i < ele; ++i) {
+            vector<seal::Plaintext> tmp_encoded_A2(ele);
+            vector<seal::Serializable<seal::Ciphertext>> tmp_enc_A2;
+            measures.ret = hom_conv.encryptInputVector(A2[start + i], meta, tmp_enc_A2, tmp_encoded_A2, 1);
+            encoded_A2[i].push_back(tmp_encoded_A2[0]);
+            enc_A2.push_back(tmp_enc_A2[0]);
+        }
         if (measures.ret != Code::OK)
             return measures.ret;
 
@@ -157,9 +162,12 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
         measures.encryption = Utils::time_diff(mess);
         mess               = measure::now();
 
+        vector<seal::Ciphertext> tmp_enc_A1;
+        IO::recv_send(context, client + wid, enc_A2, tmp_enc_A1, 1);
         vector<vector<seal::Ciphertext>> enc_A1(ele);
-        for (size_t i = 0; i < ele; ++i)
-            IO::recv_send(context, client + wid, enc_A2[i], enc_A1[i], 1);
+        for (size_t i = 0; i < ele; ++i) {
+            enc_A1[i].push_back(tmp_enc_A1[i]);
+        }
 
         measures.send_recv += Utils::time_diff(mess);
         ////////////////////////////////////////////////////////////////////////////
@@ -181,10 +189,7 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
         mess = measure::now();
 
         vector<vector<seal::Ciphertext>> enc_M1(ele);
-        for (size_t i = 0; i < ele; ++i)
-            measures.ret = IO::recv_send(context, client + wid, enc_M2[i], enc_M1[i], 1);
-        if (measures.ret != Code::OK)
-            return measures.ret;
+        measures.ret = IO::recv_send(context, client + wid, enc_M2, enc_M1, 1);
 
         measures.send_recv += Utils::time_diff(mess);
         ////////////////////////////////////////////////////////////////////////////
@@ -273,11 +278,16 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server,
         // Enc(A1), enc(B1), send(A1), recv(A2)
         ////////////////////////////////////////////////////////////////////////////
         auto start = measure::now();
-        vector<vector<seal::Serializable<seal::Ciphertext>>> enc_A1(ele);
+        vector<seal::Serializable<seal::Ciphertext>> enc_A1;
         vector<vector<seal::Plaintext>> encoded_A1(ele);
 
-        for (size_t i = 0; i < ele; ++i)
-            measures.ret = conv.encryptInputVector(A1[first + i], meta, enc_A1[i], encoded_A1[i], 1);
+        for (size_t i = 0; i < ele; ++i) {
+            vector<seal::Serializable<seal::Ciphertext>> tmp_enc_A1;
+            vector<seal::Plaintext> tmp_encoded_A1;
+            measures.ret = conv.encryptInputVector(A1[first + i], meta, tmp_enc_A1, tmp_encoded_A1, 1);
+            enc_A1.push_back(tmp_enc_A1[0]);
+            encoded_A1[i].push_back(tmp_encoded_A1[0]);
+        }
         if (measures.ret != Code::OK)
             return measures.ret;
 
@@ -291,9 +301,12 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server,
 
         start = measure::now();
 
+        vector<seal::Ciphertext> tmp_enc_A2;
         vector<vector<seal::Ciphertext>> enc_A2(ele);
-        for (size_t i = 0; i < ele; ++i)
-            IO::send_recv(context, server + wid, enc_A1[i], enc_A2[i], 1);
+        IO::send_recv(context, server + wid, enc_A1, tmp_enc_A2, 1);
+        for (size_t i = 0; i < ele; ++i) {
+            enc_A2[i].push_back(tmp_enc_A2[0]);
+        }
 
         measures.send_recv = Utils::time_diff(start);
         ////////////////////////////////////////////////////////////////////////////
@@ -316,8 +329,7 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server,
         start = measure::now();
 
         vector<vector<seal::Ciphertext>> enc_M2(ele);
-        for (size_t i = 0; i < ele; ++i)
-            IO::send_recv(context, server + wid, M1[i], enc_M2[i], 1);
+        IO::send_recv(context, server + wid, M1, enc_M2, 1);
 
         measures.send_recv += Utils::time_diff(start);
         ////////////////////////////////////////////////////////////////////////////

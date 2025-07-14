@@ -308,7 +308,7 @@ std::vector<gemini::HomBNSS::Meta> Utils::init_layers_bn() {
 
 std::vector<gemini::HomFCSS::Meta> Utils::init_layers_fc() {
     std::vector<gemini::HomFCSS::Meta> layers;
-    layers.push_back(Utils::init_meta_fc(1, 12544));
+    // layers.push_back(Utils::init_meta_fc(1, 12544));
     layers.push_back(Utils::init_meta_fc(1, 49));
     return layers;
 }

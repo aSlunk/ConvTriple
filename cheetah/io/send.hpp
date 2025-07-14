@@ -20,12 +20,20 @@ using Unit = std::chrono::milliseconds;
 using CLK  = std::chrono::high_resolution_clock;
 
 template <class EncVec>
+Code send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, std::vector<EncVec>& send,
+               vector<vector<seal::Ciphertext>>& recv, const size_t& threads = 1);
+
+template <class EncVec>
 Code send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, EncVec& send,
                vector<seal::Ciphertext>& recv, const size_t& threads = 1);
 
 template <class EncVec>
 Code send_recv(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, EncVec& send,
                vector<seal::Ciphertext>& recv);
+
+template <class Vec>
+Code recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const vector<Vec>& send,
+               vector<vector<seal::Ciphertext>>& recv, const size_t& threads = 1);
 
 template <class Vec>
 Code recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const Vec& send,
@@ -271,6 +279,31 @@ void IO::send_pkey(IO::NetIO& io, const PKey& pkey) {
 }
 
 template <class EncVec>
+Code IO::send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, std::vector<EncVec>& send,
+               vector<vector<seal::Ciphertext>>& recv, const size_t& threads) {
+    EncVec to_send;
+    vector<seal::Ciphertext> to_recv;
+    
+    for (size_t i = 0; i < send.size(); i++) {
+        for (size_t j = 0; j < send[i].size(); j++) {
+            to_send.push_back(send[i][j]);
+        }
+    }
+
+    send_recv(ctx, ios, to_send, to_recv, threads);
+
+    recv.resize(send.size());
+    for (size_t i = 0; i < send.size(); ++i) {
+        recv[i].reserve(send[i].size());
+        for (size_t j = 0; j < send[i].size(); ++j) {
+            recv[i].push_back(to_recv[i * send[i].size() + j]);
+        }
+    }
+
+    return Code::OK;
+}
+
+template <class EncVec>
 Code IO::send_recv(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, EncVec& send,
                    vector<seal::Ciphertext>& recv) {
     NetIO** ios_c = new NetIO*[ios.size()];
@@ -318,6 +351,31 @@ Code IO::send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, EncVec& send,
         recv.reserve(recv.size() + vec.size());
         for (auto& ele : vec) recv.push_back(ele);
     }
+    return Code::OK;
+}
+
+template <class Vec>
+Code IO::recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const std::vector<Vec>& send,
+               vector<vector<seal::Ciphertext>>& recv, const size_t& threads) {
+    Vec to_send;
+    vector<seal::Ciphertext> to_recv;
+    
+    for (size_t i = 0; i < send.size(); i++) {
+        for (size_t j = 0; j < send[i].size(); j++) {
+            to_send.push_back(send[i][j]);
+        }
+    }
+
+    recv_send(ctx, ios, to_send, to_recv, threads);
+
+    recv.resize(send.size());
+    for (size_t i = 0; i < send.size(); ++i) {
+        recv[i].reserve(send[i].size());
+        for (size_t j = 0; j < send[i].size(); ++j) {
+            recv[i].push_back(to_recv[i * send[i].size() + j]);
+        }
+    }
+
     return Code::OK;
 }
 
