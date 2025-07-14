@@ -26,7 +26,7 @@ namespace Server {
 
 template <class Channel>
 Result Protocol2(const HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
-                 const HomFCSS& conv, const Tensor<uint64_t>& A1, Tensor<uint64_t>& C1,
+                 const HomFCSS& conv, const vector<Tensor<uint64_t>>& A1, vector<Tensor<uint64_t>>& C1,
                  const size_t& threads = 1, const size_t& batch = 1);
 
 template <class Channel>
@@ -55,8 +55,8 @@ Result Protocol1(Channel** client, const seal::SEALContext& context, const HomFC
 
 template <class Channel>
 Result Protocol2(Channel** client, const seal::SEALContext& context, const HomFCSS& hom_conv,
-                 const HomFCSS::Meta& meta, const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2,
-                 Tensor<uint64_t>& C2, const size_t& threads = 1, const size_t& batch = 1);
+                 const HomFCSS::Meta& meta, const vector<Tensor<uint64_t>>& A2, const vector<Tensor<uint64_t>>& B2,
+                 vector<Tensor<uint64_t>>& C2, const size_t& threads = 1, const size_t& batch = 1);
 
 template <class Channel>
 Result perform_proto(HomFCSS::Meta& meta, Channel** client, const seal::SEALContext& context,
@@ -71,19 +71,22 @@ void Verify_Conv(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1, const 
 
 template <class Channel>
 Result Client::Protocol2(Channel** client, const seal::SEALContext& context, const HomFCSS& hom_fc,
-                         const HomFCSS::Meta& meta, const Tensor<uint64_t>& A2,
-                         const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2, const size_t& threads, const size_t& batch) {
+                         const HomFCSS::Meta& meta, const vector<Tensor<uint64_t>>& A2,
+                         const vector<Tensor<uint64_t>>& B2, vector<Tensor<uint64_t>>& C2, const size_t& threads, const size_t& batch) {
     Result measures;
 
     auto start = measure::now();
 
-    vector<seal::Plaintext> enc_A2;
-    measures.ret = hom_fc.encodeInputVector(A2, meta, enc_A2, threads);
+    vector<vector<seal::Plaintext>> enc_A2(batch);
+    for (size_t i = 0; i < batch; ++i) {
+        measures.ret = hom_fc.encodeInputVector(A2[i], meta, enc_A2[i], threads);
+    }
     if (measures.ret != Code::OK)
         return measures;
 
-    vector<vector<seal::Plaintext>> enc_B2;
-    measures.ret = hom_fc.encodeWeightMatrix(B2, meta, enc_B2, threads);
+    vector<vector<vector<seal::Plaintext>>> enc_B2(batch);
+    for (size_t i = 0; i < batch; ++i)
+        measures.ret = hom_fc.encodeWeightMatrix(B2[i], meta, enc_B2[i], threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -94,8 +97,9 @@ Result Client::Protocol2(Channel** client, const seal::SEALContext& context, con
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    vector<seal::Ciphertext> enc_A1;
-    IO::recv_encrypted_vector(client, context, enc_A1);
+    vector<vector<seal::Ciphertext>> enc_A1(batch);
+    for (size_t i = 0; i < batch; ++i)
+        IO::recv_encrypted_vector(client, context, enc_A1[i]);
 
     measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -103,8 +107,9 @@ Result Client::Protocol2(Channel** client, const seal::SEALContext& context, con
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    vector<seal::Ciphertext> M2;
-    measures.ret = hom_fc.MatVecMul(enc_A1, enc_A2, enc_B2, meta, M2, C2, threads);
+    vector<vector<seal::Ciphertext>> M2(batch);
+    for (size_t i = 0; i < batch; ++i)
+        measures.ret = hom_fc.MatVecMul(enc_A1[i], enc_A2[i], enc_B2[i], meta, M2[i], C2[i], threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -115,7 +120,8 @@ Result Client::Protocol2(Channel** client, const seal::SEALContext& context, con
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    IO::send_encrypted_vector(client, M2);
+    for (size_t i = 0; i < batch; ++i)
+        IO::send_encrypted_vector(client, M2[i]);
 
     measures.send_recv += Utils::time_diff(start);
 
@@ -142,14 +148,10 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
         auto mess = measure::now();
 
         vector<vector<seal::Plaintext>> encoded_A2(ele);
-        vector<seal::Serializable<seal::Ciphertext>> enc_A2;
-        for (size_t i = 0; i < ele; ++i) {
-            vector<seal::Plaintext> tmp_encoded_A2(ele);
-            vector<seal::Serializable<seal::Ciphertext>> tmp_enc_A2;
-            measures.ret = hom_conv.encryptInputVector(A2[start + i], meta, tmp_enc_A2, tmp_encoded_A2, 1);
-            encoded_A2[i].push_back(tmp_encoded_A2[0]);
-            enc_A2.push_back(tmp_enc_A2[0]);
-        }
+        vector<vector<seal::Serializable<seal::Ciphertext>>> enc_A2(ele);
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret = hom_conv.encryptInputVector(A2[start + i], meta, enc_A2[i], encoded_A2[i], 1);
+
         if (measures.ret != Code::OK)
             return measures.ret;
 
@@ -162,12 +164,8 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
         measures.encryption = Utils::time_diff(mess);
         mess               = measure::now();
 
-        vector<seal::Ciphertext> tmp_enc_A1;
-        IO::recv_send(context, client + wid, enc_A2, tmp_enc_A1, 1);
-        vector<vector<seal::Ciphertext>> enc_A1(ele);
-        for (size_t i = 0; i < ele; ++i) {
-            enc_A1[i].push_back(tmp_enc_A1[i]);
-        }
+        vector<vector<seal::Ciphertext>> enc_A1;
+        IO::recv_send(context, client + wid, enc_A2, enc_A1);
 
         measures.send_recv += Utils::time_diff(mess);
         ////////////////////////////////////////////////////////////////////////////
@@ -221,7 +219,7 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
 template <class Channel>
 Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server,
                          const seal::SEALContext& context, const HomFCSS& conv,
-                         const Tensor<uint64_t>& A1, Tensor<uint64_t>& C1, const size_t& threads, const size_t& batch) {
+                         const vector<Tensor<uint64_t>>& A1, vector<Tensor<uint64_t>>& C1, const size_t& threads, const size_t& batch) {
 
     Result measures;
 
@@ -230,8 +228,9 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server,
     ////////////////////////////////////////////////////////////////////////////
     auto start = measure::now();
 
-    vector<seal::Serializable<seal::Ciphertext>> enc_A1;
-    measures.ret = conv.encryptInputVector(A1, meta, enc_A1, threads);
+    vector<vector<seal::Serializable<seal::Ciphertext>>> enc_A1(batch);
+    for (size_t i = 0; i < batch; ++i)
+        measures.ret = conv.encryptInputVector(A1[i], meta, enc_A1[i], threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -239,7 +238,8 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server,
 
     start = measure::now();
 
-    IO::send_encrypted_vector(server, enc_A1);
+    for (size_t i = 0; i < batch; ++i)
+        IO::send_encrypted_vector(server, enc_A1[i]);
 
     measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -247,13 +247,15 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server,
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    vector<seal::Ciphertext> enc_C1;
-    IO::recv_encrypted_vector(server, context, enc_C1);
+    vector<vector<seal::Ciphertext>> enc_C1(batch);
+    for (size_t i = 0; i < batch; ++i)
+        IO::recv_encrypted_vector(server, context, enc_C1[i]);
 
     measures.send_recv += Utils::time_diff(start);
     start = measure::now();
 
-    measures.ret        = conv.decryptToVector(enc_C1, meta, C1, threads);
+    for (size_t i = 0; i < batch; ++i)
+        measures.ret        = conv.decryptToVector(enc_C1[i], meta, C1[i], threads);
     measures.decryption = Utils::time_diff(start);
 
     for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
@@ -278,16 +280,11 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server,
         // Enc(A1), enc(B1), send(A1), recv(A2)
         ////////////////////////////////////////////////////////////////////////////
         auto start = measure::now();
-        vector<seal::Serializable<seal::Ciphertext>> enc_A1;
+        vector<vector<seal::Serializable<seal::Ciphertext>>> enc_A1(ele);
         vector<vector<seal::Plaintext>> encoded_A1(ele);
 
-        for (size_t i = 0; i < ele; ++i) {
-            vector<seal::Serializable<seal::Ciphertext>> tmp_enc_A1;
-            vector<seal::Plaintext> tmp_encoded_A1;
-            measures.ret = conv.encryptInputVector(A1[first + i], meta, tmp_enc_A1, tmp_encoded_A1, 1);
-            enc_A1.push_back(tmp_enc_A1[0]);
-            encoded_A1[i].push_back(tmp_encoded_A1[0]);
-        }
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret = conv.encryptInputVector(A1[first + i], meta, enc_A1[i], encoded_A1[i], 1);
         if (measures.ret != Code::OK)
             return measures.ret;
 
@@ -301,12 +298,8 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server,
 
         start = measure::now();
 
-        vector<seal::Ciphertext> tmp_enc_A2;
         vector<vector<seal::Ciphertext>> enc_A2(ele);
-        IO::send_recv(context, server + wid, enc_A1, tmp_enc_A2, 1);
-        for (size_t i = 0; i < ele; ++i) {
-            enc_A2[i].push_back(tmp_enc_A2[0]);
-        }
+        IO::send_recv(context, server + wid, enc_A1, enc_A2, 1);
 
         measures.send_recv = Utils::time_diff(start);
         ////////////////////////////////////////////////////////////////////////////
@@ -379,7 +372,7 @@ Result Server::perform_proto(HomFCSS::Meta& meta, Channel** server,
 #if PROTO == 1
     auto measures = Server::Protocol1(meta, server, context, hom_conv, vecs, weights, C1, threads, batch);
 #else
-    auto measures = Server::Protocol2(meta, server, context, hom_conv, vecs[0], C1[0], threads);
+    auto measures = Server::Protocol2(meta, server, context, hom_conv, vecs, C1, threads, batch);
 #endif
     for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
@@ -409,7 +402,7 @@ Result Client::perform_proto(HomFCSS::Meta& meta, Channel** client,
 #if PROTO == 1
     auto measures = Client::Protocol1(client, context, hom_conv, meta, vecs, weights, C2, threads, batch);
 #else
-    auto measures = Client::Protocol2(client, context, hom_conv, meta, vecs[0], weights[0], C2[0], threads);
+    auto measures = Client::Protocol2(client, context, hom_conv, meta, vecs, weights, C2, threads, batch);
 #endif
 
     for (size_t i = 0; i < threads; ++i) client[i]->counter = 0;
