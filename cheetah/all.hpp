@@ -310,6 +310,7 @@ double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn, double& data) {
     Result res;
     switch (party_) {
     case emp::ALICE: {
+        std::cerr << meta_bn.ishape.height() << " x " << meta_bn.vec_shape.num_elements() << "\n";
         res = Server::perform_proto(meta, ios_c_, context_, fc_, threads_, meta_bn.vec_shape.num_elements());
         break;
     }

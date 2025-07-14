@@ -49,21 +49,21 @@ int main(int argc, char** argv) {
     //     all.run_he(layers, all.get_fc());
     // }
 
-    // {
-    //     auto layers = Utils::init_layers();
-    //     all.run_he(layers, all.get_conv());
-    // }
-
     {
-        auto layers = Utils::init_layers_bn();
-        int cur = 0;
-        double time = 0;
-        double data = 0;
-        for (auto& layer : layers) {
-            std::cerr << "starting: " << cur++ << "\n";
-            time += all.alt_bn(layer, data);
-        }
-        Utils::log(Utils::Level::INFO, "Total time [s]: ", time);
-        Utils::log(Utils::Level::INFO, "Total data [MB]: ", data);
+        auto layers = Utils::init_layers();
+        all.run_he(layers, all.get_conv());
     }
+
+    // {
+    //     auto layers = Utils::init_layers_bn();
+    //     int cur = 0;
+    //     double time = 0;
+    //     double data = 0;
+    //     for (auto& layer : layers) {
+    //         std::cerr << "starting: " << cur++ << "\n";
+    //         time += all.alt_bn(layer, data);
+    //     }
+    //     Utils::log(Utils::Level::INFO, "Total time [s]: ", time);
+    //     Utils::log(Utils::Level::INFO, "Total data [MB]: ", data);
+    // }
 }
