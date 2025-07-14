@@ -40,7 +40,7 @@ constexpr size_t filter_prec = 0ULL;
 
 constexpr seal::sec_level_type SEC_LEVEL = seal::sec_level_type::tc128;
 
-constexpr uint64_t BIT_LEN   = 32;
+constexpr uint64_t BIT_LEN   = 37;
 constexpr uint64_t POLY_MOD  = 1ULL << 12;
 constexpr uint64_t PLAIN_MOD = 1ULL << BIT_LEN;
 
@@ -130,6 +130,7 @@ seal::SEALContext init_he_context();
 void print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padding);
 
 gemini::HomFCSS::Meta init_meta_fc(const long& image_h, const long& filter_h);
+gemini::HomBNSS::Meta init_meta_bn(const long& image_h, const long& filter_h);
 
 gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const long& iw,
                                          const long& fc, const long& fh, const long& fw,
@@ -138,11 +139,10 @@ gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const l
 
 std::vector<gemini::HomConv2DSS::Meta> init_layers();
 std::vector<gemini::HomFCSS::Meta> init_layers_fc();
+std::vector<gemini::HomBNSS::Meta> init_layers_bn();
 
 template <class Channel>
-std::vector<std::vector<Channel>> init_ios(const char* addr, const int& port,
-                                           const size_t& batch_threads,
-                                           const size_t& threads_per_thread);
+std::vector<Channel> init_ios(const char* addr, const int& port, const size_t& threads);
 
 template <class T>
 gemini::Tensor<uint64_t> convert_fix_point(const gemini::Tensor<T>& in);
@@ -152,7 +152,8 @@ void print_tensor(const gemini::Tensor<T>& t, const long& channel = 0);
 
 double convert(uint64_t v, int nbits);
 gemini::Tensor<double> convert_double(const gemini::Tensor<uint64_t>& in);
-gemini::Tensor<uint64_t> init_image(const gemini::HomConv2DSS::Meta& meta, const double& num);
+template <class Meta>
+gemini::Tensor<uint64_t> init_image(const Meta& meta, const double& num);
 std::vector<gemini::Tensor<uint64_t>> init_filter(const gemini::HomConv2DSS::Meta& meta,
                                                   const double& num);
 
@@ -181,8 +182,8 @@ void make_csv(const std::vector<Result>& results, const size_t& batchSize, const
 
 } // namespace Utils
 
-gemini::Tensor<uint64_t> Utils::init_image(const gemini::HomConv2DSS::Meta& meta,
-                                           const double& num) {
+template <class Meta>
+gemini::Tensor<uint64_t> Utils::init_image(const Meta& meta, const double& num) {
     gemini::Tensor<uint64_t> image(meta.ishape);
 
     for (int c = 0; c < image.channels(); ++c) {
@@ -247,10 +248,67 @@ void Utils::op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B,
     }
 }
 
+std::vector<gemini::HomBNSS::Meta> Utils::init_layers_bn() {
+    std::vector<gemini::HomBNSS::Meta> layers;
+    layers.push_back(Utils::init_meta_bn(64, 12544));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(256, 3136));
+    layers.push_back(Utils::init_meta_bn(256, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(256, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(256, 3136));
+    layers.push_back(Utils::init_meta_bn(128, 3136));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(256, 784));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(512, 196));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(2048, 49));
+    layers.push_back(Utils::init_meta_bn(2048, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(2048, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(2048, 49));
+    return layers;
+}
+
 std::vector<gemini::HomFCSS::Meta> Utils::init_layers_fc() {
     std::vector<gemini::HomFCSS::Meta> layers;
-    layers.push_back(Utils::init_meta_fc(1000, 2048));
-    // layers.push_back(Utils::init_meta_fc(1'000'000, 1));
+    layers.push_back(Utils::init_meta_fc(1, 49));
     return layers;
 }
 
@@ -323,15 +381,11 @@ void Utils::add_result(Result& res, const Result& res2) {
 }
 
 template <class Channel>
-std::vector<std::vector<Channel>> Utils::init_ios(const char* addr, const int& port,
-                                                  const size_t& batch_threads,
-                                                  const size_t& threads_per_thread) {
-    std::vector<std::vector<Channel>> ioss(batch_threads);
-    for (size_t wid = 0; wid < batch_threads; ++wid) {
-        ioss[wid].reserve(threads_per_thread);
-        for (size_t p = 0; p < threads_per_thread; ++p) {
-            ioss[wid].emplace_back(addr, port + wid * threads_per_thread + p, true);
-        }
+std::vector<Channel> Utils::init_ios(const char* addr, const int& port, const size_t& threads) {
+    std::vector<Channel> ioss;
+    ioss.reserve(threads);
+    for (size_t wid = 0; wid < threads; ++wid) {
+        ioss.emplace_back(addr, port + wid, true);
     }
     return ioss;
 }
@@ -347,6 +401,15 @@ void Utils::print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padd
     log(Level::DEBUG, "f_width: ", meta.fshape.width());
     log(Level::DEBUG, "f_height: ", meta.fshape.height());
     log(Level::DEBUG, "n_filters: ", meta.n_filters);
+}
+
+gemini::HomBNSS::Meta Utils::init_meta_bn(const long& rows, const long& cols) {
+    gemini::HomBNSS::Meta meta;
+    meta.ishape          = {rows, cols, 1};
+    meta.vec_shape       = {rows};
+    meta.target_base_mod = PLAIN_MOD;
+    meta.is_shared_input = true;
+    return meta;
 }
 
 gemini::HomFCSS::Meta Utils::init_meta_fc(const long& common, const long& filter_h) {
@@ -516,10 +579,10 @@ void Utils::make_csv(const std::vector<Result>& results, const size_t& batchSize
     }
 
     os << "Total time[s]: " << total << "\n";
-    size_t data
-        = std::accumulate(results.begin(), results.end(), 0,
-                          [](size_t acc, const Result& res) -> size_t { return acc + res.bytes; });
-    os << "Total data[MB]: " << to_MB(data) << "\n";
+    size_t data = std::accumulate(
+        results.begin(), results.end(), 0,
+        [](size_t acc, const Result& res) -> size_t { return acc + Utils::to_MB(res.bytes); });
+    os << "Total data[MB]: " << data << "\n";
 
     if (os.is_open())
         os.close();

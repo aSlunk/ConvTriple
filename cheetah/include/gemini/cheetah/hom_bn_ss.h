@@ -1,5 +1,7 @@
 //  Authors: Wen-jie Lu on 2021/9/15.
 #ifndef GEMINI_CHEETAH_HOM_BN_SS_H_
+#define GEMINI_CHEETAH_HOM_BN_SS_H_
+
 #include <seal/secretkey.h>
 #include <seal/serializable.h>
 
@@ -74,6 +76,10 @@ class HomBNSS {
 
     Code decryptToVector(const std::vector<seal::Ciphertext>& in_vec, const Meta& meta,
                          Tensor<uint64_t>& out_vec, size_t nthreads = 1) const;
+
+    Code encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
+                       std::vector<seal::Serializable<seal::Ciphertext>>& out,
+                       std::vector<seal::Plaintext>& encoded_share, size_t nthreads = 1) const;
 
     Code encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
                        std::vector<seal::Serializable<seal::Ciphertext>>& out,
@@ -158,7 +164,7 @@ class HomBNSS {
     }
 
     Code idealFunctionality(const Tensor<uint64_t>& image, const Tensor<uint64_t>& scales,
-                            const Meta& meta, Tensor<uint64_t>& out);
+                            const Meta& meta, Tensor<uint64_t>& out) const;
 
   protected:
     TensorShape getSplit(const Meta& meta) const;

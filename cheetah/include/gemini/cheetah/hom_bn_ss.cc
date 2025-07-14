@@ -566,6 +566,59 @@ Code HomBNSS::encodeTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
 
 Code HomBNSS::encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
                             std::vector<seal::Serializable<seal::Ciphertext>>& out,
+                            std::vector<seal::Plaintext>& polys, size_t nthreads) const {
+    ENSURE_OR_RETURN(direct_context_ && direct_encryptor_, Code::ERR_CONFIG);
+    ENSURE_OR_RETURN(in_tensor.shape().IsSameSize(meta.ishape), Code::ERR_CONFIG);
+    TensorShape split_shape = getSplitBN(meta.ishape, poly_degree());
+
+    const int dC      = CeilDiv(meta.ishape.channels(), split_shape.channels());
+    const int dH      = CeilDiv(meta.ishape.height(), split_shape.height());
+    const int dW      = CeilDiv(meta.ishape.width(), split_shape.width());
+    const size_t n_pt = dC * dH * dW;
+
+    out.resize(n_pt, direct_encryptor_->encrypt_zero_symmetric());
+
+    polys.resize(n_pt);
+    auto encrypt_prg = [&](long wid, size_t start, size_t end) {
+        std::array<size_t, 3> indices{0};
+        std::vector<uint64_t> tmp(poly_degree());
+        for (size_t cid = start; cid < end; ++cid) {
+            indices[0] = cid / (dH * dW);
+            indices[1] = (cid / dW) % dH;
+            indices[2] = cid % dW;
+
+            std::array<int, 3> offsets{0};
+            for (int d = 0; d < 3; ++d) {
+                offsets[d] = static_cast<int>(indices[d] * split_shape.dim_size(d));
+            }
+
+            SlicedPaddedTensor<Tensor<uint64_t>> tensor_slice(&in_tensor, offsets, split_shape);
+            auto tmp_ptr = tmp.begin();
+            for (int c = 0; c < split_shape.channels(); ++c) {
+                for (int h = 0; h < split_shape.height(); ++h) {
+                    for (int w = 0; w < split_shape.width(); ++w) {
+                        *tmp_ptr++ = tensor_slice(c, h, w);
+                    }
+                }
+            }
+            std::fill(tmp_ptr, tmp.end(), 0);
+            auto code = vec2PolyBFV(tmp.data(), tmp.size(), polys.at(cid), false);
+            if (code != Code::OK) {
+                LOG(FATAL) << "vec2PolyBFV: " << CodeMessage(code) << std::endl;
+            }
+            out.at(cid) = direct_encryptor_->encrypt_symmetric(polys.at(cid));
+        }
+
+        seal::util::seal_memzero(tmp.data(), tmp.size() * sizeof(uint64_t));
+        return Code::OK;
+    };
+
+    ThreadPool tpool(nthreads);
+    return LaunchWorks(tpool, n_pt, encrypt_prg);
+}
+
+Code HomBNSS::encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
+                            std::vector<seal::Serializable<seal::Ciphertext>>& out,
                             size_t nthreads) const {
     ENSURE_OR_RETURN(direct_context_ && direct_encryptor_, Code::ERR_CONFIG);
     ENSURE_OR_RETURN(in_tensor.shape().IsSameSize(meta.ishape), Code::ERR_CONFIG);
@@ -822,7 +875,7 @@ Code HomBNSS::decryptToTensor(const std::vector<seal::Ciphertext>& cts, const Me
 }
 
 Code HomBNSS::idealFunctionality(const Tensor<uint64_t>& image, const Tensor<uint64_t>& scales,
-                                 const Meta& meta, Tensor<uint64_t>& out) {
+                                 const Meta& meta, Tensor<uint64_t>& out) const {
     out.Reshape(meta.ishape);
 
     for (long c = 0; c < image.channels(); ++c) {

@@ -14,6 +14,7 @@
 
 #include <ot/cheetah-ot_pack.h>
 
+#include "protocols/bn_proto.hpp"
 #include "protocols/conv_proto.hpp"
 #include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
@@ -38,11 +39,13 @@ class HE {
     std::unique_ptr<seal::Encryptor> encryptor_;
 
     size_t threads_;
+    size_t batch_threads_;
+    size_t threads_per_thread_;
     size_t batchSize_;
     size_t samples_;
 
+    std::vector<Channel> ios_;
     Channel** ios_c_;
-    std::vector<std::vector<Channel>> ios_vec_;
 
     int party_;
 
@@ -74,6 +77,7 @@ class HE {
 
     const gemini::HomConv2DSS& get_conv() const { return conv_; }
     const gemini::HomFCSS& get_fc() const { return fc_; }
+    const gemini::HomBNSS& get_bn() const { return bn_; }
 
     template <class T>
     void run_he(std::vector<class T::Meta>& layers, const T& conv);
@@ -81,32 +85,20 @@ class HE {
     void run_ot(const size_t& batchSize, bool packed = false);
 
     void test_bn();
-    void alt_bn();
-
-    void test() {
-        std::stringstream ss;
-        for (size_t i = 0; i < 2048; ++i) {
-            seal::Ciphertext ct;
-            encryptor_->encrypt_symmetric(seal::Plaintext(10), ct);
-            ct.save(ss);
-        }
-        std::cerr << "Total: " << Utils::to_MB(ss.str().size()) << "\n";
-    }
+    double alt_bn(const gemini::HomBNSS::Meta& meta, double& data);
 };
 
 template <class Channel>
 HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_t& threads,
                 const size_t& batchSize, size_t& samples, bool setup_ot)
     : threads_(threads), batchSize_(batchSize), samples_(samples), party_(party) {
-    size_t batch_threads      = batchSize > 1 ? batchSize : 1;
-    size_t threads_per_thread = threads / batch_threads;
+    batch_threads_      = batchSize > 1 ? threads : 1;
+    threads_per_thread_ = threads / batch_threads_;
 
-    ios_vec_ = Utils::init_ios<Channel>(addr, port, batch_threads, threads_per_thread);
-    ios_c_   = new Channel*[threads];
+    ios_   = Utils::init_ios<Channel>(addr, port, threads);
+    ios_c_ = new Channel*[threads];
 
-    for (size_t i = 0; i < batch_threads; ++i)
-        for (size_t j = 0; j < threads_per_thread; ++j)
-            ios_c_[i * threads_per_thread + j] = &ios_vec_[i][j];
+    for (size_t i = 0; i < threads; ++i) ios_c_[i] = &ios_[i];
 
     if (setup_ot)
         setup_OT();
@@ -119,8 +111,8 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     exchange_keys_(*pkey, *o_pkey);
 
     conv_.setUp(context_, skey, o_pkey);
-    fc_.setUp(context_, skey, pkey);
-    bn_.setUp(PLAIN_MOD, context_, skey, pkey);
+    fc_.setUp(context_, skey, o_pkey);
+    bn_.setUp(PLAIN_MOD, context_, skey, o_pkey);
 
     encryptor_ = std::make_unique<seal::Encryptor>(context_, skey);
 
@@ -140,12 +132,12 @@ template <class Channel>
 void HE<Channel>::exchange_keys_(const seal::PublicKey& pkey, seal::PublicKey& o_pkey) {
     switch (party_) {
     case emp::ALICE:
-        IO::send_pkey(ios_vec_[0][0], pkey);
-        IO::recv_pkey(ios_vec_[0][0], context_, o_pkey);
+        IO::send_pkey(*(ios_c_[0]), pkey);
+        IO::recv_pkey(*(ios_c_[0]), context_, o_pkey);
         break;
     case emp::BOB:
-        IO::recv_pkey(ios_vec_[0][0], context_, o_pkey);
-        IO::send_pkey(ios_vec_[0][0], pkey);
+        IO::recv_pkey(*(ios_c_[0]), context_, o_pkey);
+        IO::send_pkey(*(ios_c_[0]), pkey);
         break;
     }
 }
@@ -181,22 +173,24 @@ void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
     std::vector<Result> all_results(layers.size()); // averaged samples
 
     for (size_t i = 0; i < layers.size(); ++i) {
-        ios_vec_[0][0].sync();
+        ios_c_[0]->sync();
         Utils::log(Utils::Level::DEBUG, "Current layer: ", i);
         double tmp_total = 0;
 
         for (size_t round = 0; round < samples_; ++round) {
-            gemini::ThreadPool tpool(ios_vec_.size());
-            std::vector<Result> batches_results(ios_vec_.size());
+            std::vector<Result> batches_results(batch_threads_);
             auto batch = [&](long wid, size_t start, size_t end) -> Code {
-                auto& ios = ios_vec_[wid];
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
                     if ((PROTO == 2 && party_ == emp::ALICE)
                         || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) {
-                        result = Server::perform_proto(layers[i], ios, context_, conv, ios.size());
+                        result
+                            = Server::perform_proto(layers[i], ios_c_ + wid * threads_per_thread_,
+                                                    context_, conv, threads_per_thread_);
                     } else {
-                        result = Client::perform_proto(layers[i], ios, context_, conv, ios.size());
+                        result
+                            = Client::perform_proto(layers[i], ios_c_ + wid * threads_per_thread_,
+                                                    context_, conv, threads_per_thread_);
                     }
 
                     if (result.ret != Code::OK)
@@ -206,6 +200,8 @@ void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
                 }
                 return Code::OK;
             };
+
+            gemini::ThreadPool tpool(batch_threads_);
 
             auto start = measure::now();
             auto code  = gemini::LaunchWorks(tpool, batchSize_, batch);
@@ -306,90 +302,27 @@ ret:
 }
 
 template <class Channel>
-void HE<Channel>::alt_bn() {
-    long rows            = 49;
-    long channel         = 2048;
-    auto meta            = Utils::init_meta_fc(1, rows);
-    meta.is_shared_input = false;
+double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn, double& data) {
+    auto meta = Utils::init_meta_fc(1, meta_bn.ishape.height());
 
-    Tensor<uint64_t> scales({channel});
-    Tensor<uint64_t> image({channel, rows});
-    Tensor<uint64_t> res({channel, rows});
+    auto start = measure::now();
 
-    std::atomic<uint64_t> total = 0;
-
-    auto fc_prog = [&](long wid, size_t start, size_t end) -> Code {
-        uint64_t local_tot = 0;
-        for (size_t i = start; i < end; ++i) {
-            Tensor<uint64_t> weight({meta.weight_shape});
-            for (long j = 0; j < image.cols(); ++j) {
-                image(i, j)  = j + 1;
-                weight(j, 0) = image(i, j);
-            }
-            scales(i) = i + 1;
-
-            Tensor scale({1});
-            scale(0) = scales(i);
-
-            std::vector<seal::Serializable<seal::Ciphertext>> enc_scale;
-            fc_.encryptInputVector(scale, meta, enc_scale, 1);
-
-            std::vector<seal::Ciphertext> enc_images(enc_scale.size());
-            for (size_t j = 0; j < enc_scale.size(); ++j) {
-                std::stringstream ss;
-                enc_scale[j].save(ss);
-                local_tot += ss.tellp();
-                enc_images[j].load(context_, ss);
-            }
-
-            std::vector<std::vector<seal::Plaintext>> enc_weight;
-            fc_.encodeWeightMatrix(weight, meta, enc_weight, 1);
-
-            gemini::Tensor<uint64_t> R;
-            std::vector<seal::Ciphertext> enc_out;
-            fc_.MatVecMul(enc_images, std::vector<seal::Plaintext>(), enc_weight, meta, enc_out, R,
-                          1);
-
-            Tensor<uint64_t> out;
-            fc_.decryptToVector(enc_out, meta, out, 1);
-
-            Utils::op_inplace<uint64_t>(
-                out, R, [](uint64_t a, uint64_t b) -> uint64_t { return (a + b) & moduloMask; });
-
-            for (long j = 0; j < out.NumElements(); ++j) {
-                res(i, j) = out(j);
-            }
-        }
-        total.fetch_add(local_tot);
-        return Code::OK;
-    };
-    gemini::ThreadPool tpool(threads_);
-    gemini::LaunchWorks(tpool, channel, fc_prog);
-
-    std::cout << "Total: " << Utils::to_MB(total) << "\n";
-
-    Tensor<uint64_t> ideal({channel, rows});
-    for (long i = 0; i < image.rows(); ++i) {
-        for (long j = 0; j < image.cols(); ++j) {
-            ideal(i, j)
-                = seal::util::multiply_uint_mod(image(i, j), scales(i), fc_.plain_modulus());
-        }
+    Result res;
+    switch (party_) {
+    case emp::ALICE: {
+        res = Server::perform_proto(meta, ios_c_, context_, fc_, threads_, meta_bn.vec_shape.num_elements());
+        break;
+    }
+    case emp::BOB: {
+        res = Client::perform_proto(meta, ios_c_, context_, fc_, threads_, meta_bn.vec_shape.num_elements());
+        break;
+    }
     }
 
-    bool same = ideal.shape() == res.shape();
-    for (long c = 0; c < image.rows(); ++c) {
-        for (long h = 0; h < image.cols(); ++h) {
-            if (!same || res(c, h) != ideal(c, h)) {
-                same = false;
-                goto ret;
-            }
-        }
-    }
-ret:
-    if (same)
-        Utils::log(Utils::Level::PASSED, "BN: PASSED");
-    else
-        Utils::log(Utils::Level::FAILED, "BN: FAILED");
+    double time = Utils::to_sec(Utils::time_diff(start));
+    data += Utils::to_MB(res.bytes);
+
+    return time;
 }
 
 } // namespace HE_OT

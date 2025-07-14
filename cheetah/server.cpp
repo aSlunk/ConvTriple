@@ -36,20 +36,34 @@ int main(int argc, char** argv) {
         threads = std::min(strtoul(argv[4], NULL, 10), (size_t)N_THREADS);
 
     HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, batchSize, samples, false);
-    auto start = measure::now();
-    all.test_bn();
-    std::cerr << Utils::to_sec(Utils::time_diff(start)) << "\n";
+    // auto start = measure::now();
+    // all.test_bn();
+    // std::cerr << Utils::to_sec(Utils::time_diff(start)) << "\n";
 
-    start = measure::now();
-    all.alt_bn();
-    std::cerr << Utils::to_sec(Utils::time_diff(start)) << "\n";
+    // start = measure::now();
+    // all.alt_bn();
+    // std::cerr << Utils::to_sec(Utils::time_diff(start)) << "\n";
 
-    // all.test();
-    // auto layers_fc = Utils::init_layers_fc();
-    // all.run_he(layers_fc, all.get_fc());
+    // {
+    //     auto layers = Utils::init_layers_fc();
+    //     all.run_he(layers, all.get_fc());
+    // }
 
-    // all.run_ot(20'000'000, false);
+    // {
+    //     auto layers = Utils::init_layers();
+    //     all.run_he(layers, all.get_conv());
+    // }
 
-    auto layers = Utils::init_layers();
-    all.run_he(layers, all.get_conv());
+    {
+        auto layers = Utils::init_layers_bn();
+        int cur = 0;
+        double time = 0;
+        double data = 0;
+        for (auto& layer : layers) {
+            std::cerr << "starting: " << cur++ << "\n";
+            time += all.alt_bn(layer, data);
+        }
+        Utils::log(Utils::Level::INFO, "Total time [s]: ", time);
+        Utils::log(Utils::Level::INFO, "Total data [MB]: ", data);
+    }
 }
