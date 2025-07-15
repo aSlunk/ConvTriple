@@ -14,10 +14,10 @@
 
 #include <ot/cheetah-ot_pack.h>
 
-#include "protocols/bn_proto.hpp"
 #include "protocols/conv_proto.hpp"
 #include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
+#include "protocols/bn_proto.hpp"
 
 #include "defs.hpp"
 

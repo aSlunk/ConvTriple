@@ -406,7 +406,8 @@ void Utils::print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padd
 
 gemini::HomBNSS::Meta Utils::init_meta_bn(const long& rows, const long& cols) {
     gemini::HomBNSS::Meta meta;
-    meta.ishape          = {rows, cols, 1};
+    long tmp = sqrt(cols);
+    meta.ishape          = {rows, tmp, tmp};
     meta.vec_shape       = {rows};
     meta.target_base_mod = PLAIN_MOD;
     meta.is_shared_input = true;
