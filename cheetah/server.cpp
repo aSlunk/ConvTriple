@@ -49,10 +49,10 @@ int main(int argc, char** argv) {
     //     all.run_he(layers, all.get_fc());
     // }
 
-    // {
-    //     auto layers = Utils::init_layers();
-    //     all.run_he(layers, all.get_conv());
-    // }
+    {
+        auto layers = Utils::init_layers();
+        all.run_he(layers, all.get_conv());
+    }
 
     {
         auto layers = Utils::init_layers_bn();
