@@ -250,7 +250,12 @@ void Utils::op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B,
 
 std::vector<gemini::HomBNSS::Meta> Utils::init_layers_bn() {
     std::vector<gemini::HomBNSS::Meta> layers;
-    layers.push_back(Utils::init_meta_bn(64, 12544));
+    gemini::HomBNSS::Meta meta;
+    meta.ishape          = {64, 196, 64};
+    meta.vec_shape       = {64};
+    meta.target_base_mod = PLAIN_MOD;
+    meta.is_shared_input = true;
+    layers.push_back(meta);
     layers.push_back(Utils::init_meta_bn(64, 3136));
     layers.push_back(Utils::init_meta_bn(64, 3136));
     layers.push_back(Utils::init_meta_bn(256, 3136));
