@@ -42,6 +42,8 @@ class HomFCSS {
 
     ~HomFCSS() = default;
 
+    inline std::string get_str() const { return "fc"; }
+
     Code setUp(const seal::SEALContext& context, std::optional<seal::SecretKey> sk = std::nullopt,
                std::shared_ptr<seal::PublicKey> pk = nullptr);
 

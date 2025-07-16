@@ -411,7 +411,7 @@ void Utils::print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padd
 
 gemini::HomBNSS::Meta Utils::init_meta_bn(const long& rows, const long& cols) {
     gemini::HomBNSS::Meta meta;
-    long tmp = sqrt(cols);
+    long tmp             = sqrt(cols);
     meta.ishape          = {rows, tmp, tmp};
     meta.vec_shape       = {rows};
     meta.target_base_mod = PLAIN_MOD;
@@ -586,9 +586,8 @@ void Utils::make_csv(const std::vector<Result>& results, const size_t& batchSize
     }
 
     os << "Total time[s]: " << total << "\n";
-    size_t data = std::accumulate(
-        results.begin(), results.end(), 0,
-        [](size_t acc, const Result& res) -> size_t { return acc + Utils::to_MB(res.bytes); });
+    double data = 0;
+    for (auto& res : results) data += Utils::to_MB(res.bytes);
     os << "Total data[MB]: " << data << "\n";
 
     if (os.is_open())

@@ -34,8 +34,9 @@ Result Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
                  const size_t& threads = 1);
 
 template <class Channel>
-Result perform_proto(gemini::HomBNSS::Meta& meta, Channel** server, const seal::SEALContext& context,
-                     const gemini::HomBNSS& hom_conv, const size_t& threads = 1);
+Result perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
+                     const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
+                     const size_t& threads = 1);
 
 #ifdef VERIFY
 template <class T>
@@ -48,18 +49,21 @@ void Verify_Conv(IO::NetIO& io, const gemini::HomBNSS::Meta& meta, const gemini:
 namespace Client {
 
 template <class Channel>
-Result Protocol1(Channel** client, const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
-                 const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A2,
-                 const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2, const size_t& threads = 1);
+Result Protocol1(Channel** client, const seal::SEALContext& context,
+                 const gemini::HomBNSS& hom_conv, const gemini::HomBNSS::Meta& meta,
+                 const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2,
+                 const size_t& threads = 1);
 
 template <class Channel>
-Result Protocol2(Channel** client, const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
-                 const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A2,
-                 const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2, const size_t& threads = 1);
+Result Protocol2(Channel** client, const seal::SEALContext& context,
+                 const gemini::HomBNSS& hom_conv, const gemini::HomBNSS::Meta& meta,
+                 const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2,
+                 const size_t& threads = 1);
 
 template <class Channel>
-Result perform_proto(gemini::HomBNSS::Meta& meta, Channel** client, const seal::SEALContext& context,
-                     const gemini::HomBNSS& hom_conv, const size_t& threads);
+Result perform_proto(gemini::HomBNSS::Meta& meta, Channel** client,
+                     const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
+                     const size_t& threads);
 
 #ifdef VERIFY
 // template <class T>
@@ -369,7 +373,7 @@ template <class T>
 void Server::Verify_Conv(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
                          const gemini::HomBNSS& conv, const Tensor<T>& A1, const Tensor<T>& B1,
                          const Tensor<T>& C1) {
-    Utils::log(Utils::Level::INFO, "VERIFYING CONV");
+    Utils::log(Utils::Level::INFO, "VERIFYING BN");
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.vec_shape);
     Tensor<T> C2(C1.shape());
@@ -393,7 +397,8 @@ void Server::Verify_Conv(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
         for (long h = 0; h < C2.height(); ++h)
             for (long w = 0; w < C2.width(); ++w)
                 if (!same || test(c, h, w) != C2(c, h, w)) {
-                    Utils::log(Utils::Level::FAILED, c, ", ", h, ", ", w, ": ", test(c, h, w), ", ", C2(c, h, w));
+                    Utils::log(Utils::Level::FAILED, c, ", ", h, ", ", w, ": ", test(c, h, w), ", ",
+                               C2(c, h, w));
                     same = false;
                     goto end;
                 }

@@ -61,6 +61,8 @@ class HomConv2DSS {
 
     ~HomConv2DSS() = default;
 
+    inline std::string get_str() const { return "conv"; }
+
     Code setUp(const seal::SEALContext& context, std::optional<seal::SecretKey> sk = std::nullopt,
                std::shared_ptr<seal::PublicKey> pk = nullptr);
 

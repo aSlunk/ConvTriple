@@ -280,10 +280,10 @@ void IO::send_pkey(IO::NetIO& io, const PKey& pkey) {
 
 template <class EncVec>
 Code IO::send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, std::vector<EncVec>& send,
-               vector<vector<seal::Ciphertext>>& recv, const size_t& threads) {
+                   vector<vector<seal::Ciphertext>>& recv, const size_t& threads) {
     EncVec to_send;
     vector<seal::Ciphertext> to_recv;
-    
+
     for (size_t i = 0; i < send.size(); i++) {
         for (size_t j = 0; j < send[i].size(); j++) {
             to_send.push_back(send[i][j]);
@@ -356,10 +356,10 @@ Code IO::send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, EncVec& send,
 
 template <class Vec>
 Code IO::recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const std::vector<Vec>& send,
-               vector<vector<seal::Ciphertext>>& recv, const size_t& threads) {
+                   vector<vector<seal::Ciphertext>>& recv, const size_t& threads) {
     Vec to_send;
     vector<seal::Ciphertext> to_recv;
-    
+
     for (size_t i = 0; i < send.size(); i++) {
         for (size_t j = 0; j < send[i].size(); j++) {
             to_send.push_back(send[i][j]);

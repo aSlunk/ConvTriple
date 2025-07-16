@@ -44,6 +44,8 @@ class HomBNSS {
 
     ~HomBNSS() = default;
 
+    inline std::string get_str() const { return "bn"; }
+
     Code setUp(uint64_t target_base_mod, const std::vector<seal::SEALContext>& contexts,
                std::vector<std::optional<seal::SecretKey>> sks,
                std::vector<std::shared_ptr<seal::PublicKey>> pks);

@@ -14,10 +14,10 @@
 
 #include <ot/cheetah-ot_pack.h>
 
+#include "protocols/bn_proto.hpp"
 #include "protocols/conv_proto.hpp"
 #include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
-#include "protocols/bn_proto.hpp"
 
 #include "defs.hpp"
 
@@ -168,6 +168,8 @@ template <class T>
 void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
     double total      = 0;
     double total_data = 0;
+    std::string proto("AB");
+    proto += PROTO > 1 ? std::to_string(PROTO) : "";
 
     std::vector<Result> results(samples_);          // all samples
     std::vector<Result> all_results(layers.size()); // averaged samples
@@ -220,10 +222,14 @@ void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
 
     switch (party_) {
     case emp::ALICE:
-        Utils::make_csv(all_results, batchSize_, threads_, "server.csv");
+        Utils::make_csv(all_results, batchSize_, threads_,
+                        "party" + std::to_string(party_) + "_" + conv.get_str() + "_" + proto
+                            + ".csv");
         break;
     case emp::BOB:
-        Utils::make_csv(all_results, batchSize_, threads_, "client.csv");
+        Utils::make_csv(all_results, batchSize_, threads_,
+                        "party" + std::to_string(party_) + "_" + conv.get_str() + "_" + proto
+                            + ".csv");
         break;
     }
     std::cout << "Party " << party_ << ": total time [s]: " << total << "\n";
@@ -311,11 +317,13 @@ double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn, double& data) {
     switch (party_) {
     case emp::ALICE: {
         std::cerr << meta_bn.ishape.height() << " x " << meta_bn.vec_shape.num_elements() << "\n";
-        res = Server::perform_proto(meta, ios_c_, context_, fc_, threads_, meta_bn.vec_shape.num_elements());
+        res = Server::perform_proto(meta, ios_c_, context_, fc_, threads_,
+                                    meta_bn.vec_shape.num_elements());
         break;
     }
     case emp::BOB: {
-        res = Client::perform_proto(meta, ios_c_, context_, fc_, threads_, meta_bn.vec_shape.num_elements());
+        res = Client::perform_proto(meta, ios_c_, context_, fc_, threads_,
+                                    meta_bn.vec_shape.num_elements());
         break;
     }
     }
