@@ -30,7 +30,7 @@ class HomFCSS {
 #ifdef HOM_CONV2D_SS_MAX_THREADS
     static constexpr size_t kMaxThreads = HOM_CONV2D_SS_MAX_THREADS;
 #else
-    static constexpr size_t kMaxThreads = 16;
+    static constexpr size_t kMaxThreads = 32;
 #endif
     struct Meta {
         TensorShape input_shape;

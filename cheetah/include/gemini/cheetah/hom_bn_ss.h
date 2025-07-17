@@ -29,7 +29,7 @@ class HomBNSS {
 #ifdef HOM_CONV2D_SS_MAX_THREADS
     static constexpr size_t kMaxThreads = HOM_CONV2D_SS_MAX_THREADS;
 #else
-    static constexpr size_t kMaxThreads = 16;
+    static constexpr size_t kMaxThreads = 32;
 #endif
     static constexpr int64_t kStatBits = 40; // statistical distance
 
@@ -62,8 +62,7 @@ class HomBNSS {
 
     Code encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
                        std::vector<seal::Serializable<seal::Ciphertext>>& out,
-                       std::vector<seal::Plaintext>& enc,
-                       size_t nthreads = 1) const;
+                       std::vector<seal::Plaintext>& enc, size_t nthreads = 1) const;
 
     Code encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
                        std::vector<seal::Serializable<seal::Ciphertext>>& out,

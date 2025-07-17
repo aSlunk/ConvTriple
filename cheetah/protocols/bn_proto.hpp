@@ -38,10 +38,11 @@ Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::
                      gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                      const Tensor<uint64_t>& B, const size_t& threads);
 
+#ifdef VERIFY
 template <class T>
-void Verify_BN(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
-                         const gemini::HomBNSS& conv, const Tensor<T>& A1, const Tensor<T>& B1,
-                         const Tensor<T>& C1);
+void Verify_BN(IO::NetIO& io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& conv,
+               const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
+#endif
 } // namespace Server
 
 namespace Client {
@@ -60,12 +61,13 @@ Result Protocol2_alt(Channel** client, const seal::SEALContext& context,
 
 template <class Channel>
 Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
-                             gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                             const Tensor<uint64_t>& B, const size_t& threads);
+                     gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
+                     const Tensor<uint64_t>& B, const size_t& threads);
 
+#ifdef VERIFY
 template <class T>
-void Verify_BN(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1,
-                 const Tensor<T>& C1);
+void Verify_BN(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
+#endif
 } // namespace Client
 
 template <class Channel>
@@ -98,6 +100,11 @@ Result Client::Protocol2_alt(Channel** client, const seal::SEALContext& context,
     hom_conv.recvEncryptVector(client[0], enc_A1, meta);
 
     measures.send_recv += Utils::time_diff(start);
+
+    if (enc_A1.size() != encoded_B2.size()) {
+        measures.ret = Code::ERR_DIM_MISMATCH;
+        return measures;
+    }
     ////////////////////////////////////////////////////////////////////////////
     // M2' = (A1' + A2) ⊙ B2 - R
     ////////////////////////////////////////////////////////////////////////////
@@ -116,7 +123,6 @@ Result Client::Protocol2_alt(Channel** client, const seal::SEALContext& context,
     start = measure::now();
 
     hom_conv.sendEncryptVector(client[0], M2, meta);
-    // IO::send_encrypted_vector(client, M2, threads);
 
     measures.send_recv += Utils::time_diff(start);
 
@@ -223,7 +229,6 @@ Result Server::Protocol2_alt(const gemini::HomBNSS::Meta& meta, Channel** server
 
     start = measure::now();
 
-    // IO::send_encrypted_vector(server, enc_A1, threads);
     conv.sendEncryptVector(server[0], enc_A1, meta);
 
     measures.send_recv = Utils::time_diff(start);
@@ -268,7 +273,7 @@ Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server
 
     std::vector<seal::Plaintext> encoded_B1;
     measures.ret = conv.encodeScales(B1, meta, encoded_B1, threads);
-        
+
     measures.encryption = Utils::time_diff(start);
 
     start = measure::now();
@@ -329,16 +334,18 @@ void pack(const Tensor<uint64_t>& mat, const Tensor<uint64_t>& scales,
     assert(mat.channels() == scales.NumElements() && "Dimension missmatch");
     flattend_mat.Reshape({mat.NumElements()});
     flattened_scales.Reshape({mat.NumElements()});
+    // flattend_mat = gemini::Tensor<uint64_t>::Wrap(mat.data(), {mat.NumElements()});
 
     const auto& C = mat.channels();
     const auto& H = mat.height();
     const auto& W = mat.width();
 
-    for (long c = 0; c < C; ++c) {
-        for (long h = 0; h < H; ++h) {
-            for (long w = 0; w < W; ++w) {
-                flattend_mat(c * W * H + h * W + w) = mat(c, h, w);
-                flattened_scales(c * W * H + h * W + w) = scales(c);
+    for (long h = 0; h < H; ++h) {
+        for (long w = 0; w < W; ++w) {
+            for (long c = 0; c < C; ++c) {
+                size_t index            = h * W * C + w * C + c;
+                flattend_mat(index)     = mat(c, h, w);
+                flattened_scales(index) = scales(c);
             }
         }
     }
@@ -356,7 +363,7 @@ Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
     gemini::HomBNSS::Meta tmp;
     tmp.is_shared_input = meta.is_shared_input;
     tmp.target_base_mod = meta.target_base_mod;
-    tmp.vec_shape = vec.shape();
+    tmp.vec_shape       = vec.shape();
 
     Tensor<uint64_t> C;
 
@@ -366,9 +373,12 @@ Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
     res = Server::Protocol2_alt(tmp, ios, ctx, bn, vec, C, threads);
 #endif
 
-    if (res.ret != Code::OK) return res;
+    if (res.ret != Code::OK)
+        return res;
     std::cerr << C.shape() << "\n";
+#ifdef VERIFY
     Verify_BN(*(ios[0]), tmp, bn, vec, scales, C);
+#endif
     return res;
 }
 
@@ -384,7 +394,7 @@ Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
     gemini::HomBNSS::Meta tmp;
     tmp.is_shared_input = meta.is_shared_input;
     tmp.target_base_mod = meta.target_base_mod;
-    tmp.vec_shape = vec.shape();
+    tmp.vec_shape       = vec.shape();
 
     Tensor<uint64_t> C;
 
@@ -394,14 +404,17 @@ Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
     res = Client::Protocol2_alt(ios, ctx, bn, tmp, vec, scales, C, threads);
 #endif
 
+#ifdef VERIFY
     Verify_BN(*(ios[0]), vec, scales, C);
+#endif
     return res;
 }
 
+#ifdef VERIFY
 template <class T>
 void Server::Verify_BN(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
-                         const gemini::HomBNSS& conv, const Tensor<T>& A1, const Tensor<T>& B1,
-                         const Tensor<T>& C1) {
+                       const gemini::HomBNSS& conv, const Tensor<T>& A1, const Tensor<T>& B1,
+                       const Tensor<T>& C1) {
     Utils::log(Utils::Level::INFO, "VERIFYING BN");
     std::cerr << A1.shape() << "\n";
     std::cerr << C1.shape() << "\n";
@@ -425,13 +438,12 @@ void Server::Verify_BN(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
 
     Utils::print_tensor(A2);
     Utils::print_tensor(B2);
-    Utils::print_tensor(C2);
+    Utils::print_tensor(C1);
 
     bool same = C2.shape() == test.shape();
     for (long w = 0; w < C2.NumElements(); ++w)
         if (!same || test(w) != C2(w)) {
-            Utils::log(Utils::Level::FAILED, w, ": ", test(w), ", ",
-                        C2(w));
+            Utils::log(Utils::Level::FAILED, w, ": ", test(w), ", ", C2(w));
             same = false;
             goto end;
         }
@@ -443,12 +455,13 @@ end:
 }
 template <class T>
 void Client::Verify_BN(IO::NetIO& io, const Tensor<T>& A2, const Tensor<T>& B2,
-                         const Tensor<T>& C2) {
+                       const Tensor<T>& C2) {
     log(Utils::Level::INFO, "SENDING");
     io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);
     io.send_data(B2.data(), B2.NumElements() * sizeof(T), false);
     io.send_data(C2.data(), C2.NumElements() * sizeof(T), false);
     io.flush();
 }
+#endif
 
 #endif

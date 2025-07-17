@@ -40,7 +40,7 @@ constexpr size_t filter_prec = 0ULL;
 
 constexpr seal::sec_level_type SEC_LEVEL = seal::sec_level_type::tc128;
 
-constexpr uint64_t BIT_LEN   = 37;
+constexpr uint64_t BIT_LEN   = 41;
 constexpr uint64_t POLY_MOD  = 1ULL << 12;
 constexpr uint64_t PLAIN_MOD = 1ULL << BIT_LEN;
 
@@ -308,6 +308,8 @@ std::vector<gemini::HomBNSS::Meta> Utils::init_layers_bn() {
     layers.push_back(Utils::init_meta_bn(512, 49));
     layers.push_back(Utils::init_meta_bn(512, 49));
     layers.push_back(Utils::init_meta_bn(2048, 49));
+    // layers.clear();
+    // layers.push_back(Utils::init_meta_bn(3, 3));
     return layers;
 }
 

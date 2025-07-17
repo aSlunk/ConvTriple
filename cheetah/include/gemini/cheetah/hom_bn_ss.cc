@@ -157,7 +157,11 @@ Code HomBNSS::setUp(uint64_t target_base_mod, const std::vector<seal::SEALContex
         sks_.resize(nCRT);
         encryptors_.resize(nCRT);
         for (size_t i = 0; i < nCRT; ++i) {
-            sks_[i]        = seal::SecretKey(*sks[i]);
+            sks_[i] = seal::SecretKey(*sks[i]);
+            if (!seal::is_metadata_valid_for(*sks[i], *contexts_[i])) {
+                LOG(WARNING) << "HomBNSS: invalid secret key for this SEALContext";
+                return Code::ERR_INVALID_ARG;
+            }
             encryptors_[i] = std::make_shared<seal::Encryptor>(*contexts_[i], *sks_[i]);
         }
     }
@@ -165,6 +169,10 @@ Code HomBNSS::setUp(uint64_t target_base_mod, const std::vector<seal::SEALContex
     if (!pks.empty()) {
         pk_encryptors_.resize(nCRT);
         for (size_t i = 0; i < nCRT; ++i) {
+            if (!seal::is_metadata_valid_for(*pks[i], *contexts_[i])) {
+                LOG(WARNING) << "HomBNSS: invalid public key for this SEALContext";
+                return Code::ERR_INVALID_ARG;
+            }
             pk_encryptors_[i] = std::make_shared<seal::Encryptor>(*contexts_[i], *pks[i]);
         }
     }
@@ -174,8 +182,7 @@ Code HomBNSS::setUp(uint64_t target_base_mod, const std::vector<seal::SEALContex
 
 Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
                             std::vector<seal::Serializable<seal::Ciphertext>>& out,
-                            std::vector<seal::Plaintext>& plain,
-                            size_t nthreads) const {
+                            std::vector<seal::Plaintext>& plain, size_t nthreads) const {
     ENSURE_OR_RETURN(!contexts_.empty() && !encryptors_.empty() && !encoders_.empty(),
                      Code::ERR_CONFIG);
     ENSURE_OR_RETURN(in_vec.dims() == 1 && in_vec.shape().IsSameSize(meta.vec_shape),
@@ -188,7 +195,6 @@ Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
     const size_t n_sub_vecs  = CeilDiv<size_t>(meta.vec_shape.length(), sub_vec_len);
 
     plain.resize(nCRT * n_sub_vecs);
-    std::vector<uint64_t> tmp(poly_degree());
 
     seal::Serializable<seal::Ciphertext> dummy = encryptors_[0]->encrypt_zero_symmetric();
     out.resize(nCRT * n_sub_vecs, dummy);
@@ -244,11 +250,8 @@ Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
     const size_t n_sub_vecs  = CeilDiv<size_t>(meta.vec_shape.length(), sub_vec_len);
 
     seal::Plaintext pt;
-    std::vector<uint64_t> tmp(poly_degree());
 
-    std::cerr << "OKAY\n";
     seal::Serializable<seal::Ciphertext> dummy = encryptors_[0]->encrypt_zero_symmetric();
-    std::cerr << "END\n";
     out.resize(nCRT * n_sub_vecs, dummy);
 
     auto encrypt_prg = [&](long wid, size_t start, size_t end) {
@@ -372,7 +375,9 @@ Code HomBNSS::bn(const std::vector<seal::Ciphertext>& vec_share0,
 
     ThreadPool tpool(nthreads);
     (void)LaunchWorks(tpool, n_ct, bn_prg);
-    return addMask(out_share0, out_share1, meta, tpool);
+    out_share1.Reshape(meta.vec_shape);
+    return Code::OK;
+    // return addMask(out_share0, out_share1, meta, tpool);
 }
 
 Code HomBNSS::addMaskPrimeField(std::vector<seal::Ciphertext>& cts, Tensor<uint64_t>& mask,
@@ -935,7 +940,7 @@ Code HomBNSS::decryptToTensor(const std::vector<seal::Ciphertext>& cts, const Me
 
 Code HomBNSS::idealFunctionality(const Tensor<uint64_t>& image, const Tensor<uint64_t>& scales,
                                  const Meta& meta, Tensor<uint64_t>& out) const {
-    
+
     switch (image.dims()) {
     case 3: {
         out.Reshape(meta.ishape);
@@ -954,8 +959,7 @@ Code HomBNSS::idealFunctionality(const Tensor<uint64_t>& image, const Tensor<uin
         out.Reshape(meta.vec_shape);
 
         for (long w = 0; w < out.NumElements(); ++w) {
-            out(w)
-                = seal::util::multiply_uint_mod(image(w), scales(w), plain_modulus());
+            out(w) = seal::util::multiply_uint_mod(image(w), scales(w), plain_modulus());
         }
     }
     }

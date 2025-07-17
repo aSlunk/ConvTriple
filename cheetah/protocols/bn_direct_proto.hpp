@@ -9,8 +9,8 @@
 #include <io/net_io_channel.hpp>
 #include <io/send.hpp>
 
-#include "protocols/bn_proto.hpp"
 #include "defs.hpp"
+#include "protocols/bn_proto.hpp"
 
 using gemini::Tensor;
 using Utils::Result;
@@ -319,16 +319,13 @@ Result Server::perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
 
     Tensor<uint64_t> C1;
 
-    auto s2 = meta.ishape.height();
-    auto s3 = meta.ishape.width();
-    auto s4 = meta.ishape.channels();
-    size_t n_ct_coeff_packing = ((s2 * s3 + POLY_MOD - 1) / POLY_MOD) * s4;
-    size_t n_ct_bfv_packing = ((s2 * s3 * s4 + POLY_MOD - 1) / POLY_MOD) * 3;
-    if (n_ct_coeff_packing < n_ct_bfv_packing)
-        std::cerr << "this is fine\n";
-    // else
+    // auto s2 = meta.ishape.height();
+    // auto s3 = meta.ishape.width();
+    // auto s4 = meta.ishape.channels();
+    // size_t n_ct_coeff_packing = ((s2 * s3 + POLY_MOD - 1) / POLY_MOD) * s4;
+    // size_t n_ct_bfv_packing = ((s2 * s3 * s4 + POLY_MOD - 1) / POLY_MOD) * 3;
+    // if (n_ct_coeff_packing >= n_ct_bfv_packing)
     //     return Server::perform_proto(server, context, hom_conv, meta, A1, B1, threads);
-        
 
     server[0]->sync();
 
@@ -356,14 +353,12 @@ Result Client::perform_proto(gemini::HomBNSS::Meta& meta, Channel** client,
         B2(i) = i + 1;
     }
 
-    auto s2 = meta.ishape.height();
-    auto s3 = meta.ishape.width();
-    auto s4 = meta.ishape.channels();
-    size_t n_ct_coeff_packing = ((s2 * s3 + POLY_MOD - 1) / POLY_MOD) * s4;
-    size_t n_ct_bfv_packing = ((s2 * s3 * s4 + POLY_MOD - 1) / POLY_MOD) * 3;
-    if (n_ct_coeff_packing < n_ct_bfv_packing)
-        std::cerr << "this is fine\n";
-    // else
+    // auto s2 = meta.ishape.height();
+    // auto s3 = meta.ishape.width();
+    // auto s4 = meta.ishape.channels();
+    // size_t n_ct_coeff_packing = ((s2 * s3 + POLY_MOD - 1) / POLY_MOD) * s4;
+    // size_t n_ct_bfv_packing = ((s2 * s3 * s4 + POLY_MOD - 1) / POLY_MOD) * 3;
+    // if (n_ct_coeff_packing >= n_ct_bfv_packing)
     //     return Client::perform_proto(client, context, hom_conv, meta, A2, B2, threads);
 
     client[0]->sync();
