@@ -14,10 +14,10 @@
 
 #include <ot/cheetah-ot_pack.h>
 
-#include "protocols/bn_proto.hpp"
 #include "protocols/conv_proto.hpp"
 #include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
+#include "protocols/bn_direct_proto.hpp"
 
 #include "defs.hpp"
 
@@ -36,6 +36,9 @@ class HE {
     std::unique_ptr<TripleGenerator<Channel>> triple_gen_;
 
     seal::SEALContext context_ = Utils::init_he_context();
+    std::vector<std::shared_ptr<seal::SEALContext>> bn_contexts_;
+    std::vector<std::shared_ptr<seal::PublicKey>> bn_pks_;
+    std::vector<std::shared_ptr<seal::SecretKey>> bn_sks_;
     std::unique_ptr<seal::Encryptor> encryptor_;
 
     size_t threads_;
@@ -49,7 +52,8 @@ class HE {
 
     int party_;
 
-    void exchange_keys_(const seal::PublicKey& pkey, seal::PublicKey& o_pkey);
+    template <class SerKey>
+    void exchange_keys_(const SerKey& pkey, seal::PublicKey& o_pkey, const seal::SEALContext& ctx);
 
     inline size_t counter_() {
         size_t counter = 0;
@@ -108,11 +112,57 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     auto pkey            = std::make_shared<seal::PublicKey>();
     auto o_pkey          = std::make_shared<seal::PublicKey>();
     keygen.create_public_key(*pkey);
-    exchange_keys_(*pkey, *o_pkey);
+    exchange_keys_(*pkey, *o_pkey, context_);
 
     conv_.setUp(context_, skey, o_pkey);
     fc_.setUp(context_, skey, o_pkey);
-    bn_.setUp(PLAIN_MOD, context_, skey, o_pkey);
+
+    size_t ntarget_bits = std::ceil(std::log2(PLAIN_MOD));
+    size_t crt_bits = 2 * ntarget_bits + 1 + gemini::HomBNSS::kStatBits;
+
+    const size_t nbits_per_crt_plain = [](size_t crt_bits) {
+        constexpr size_t kMaxCRTPrime = 50;
+        for (size_t nCRT = 1;; ++nCRT) {
+            size_t np = gemini::CeilDiv(crt_bits, nCRT);
+            if (np <= kMaxCRTPrime) return np;
+        }
+    }(crt_bits + 1);
+
+    const size_t nCRT = gemini::CeilDiv<size_t>(crt_bits, nbits_per_crt_plain);
+    std::vector<int> crt_primes_bits(nCRT, nbits_per_crt_plain);
+
+    seal::EncryptionParameters parms = context_.first_context_data()->parms();
+    auto plain_crts = seal::CoeffModulus::Create(POLY_MOD, crt_primes_bits);
+
+    bn_contexts_.resize(nCRT);
+    bn_pks_.resize(nCRT);
+    bn_sks_.resize(nCRT);
+    std::vector<std::optional<seal::SecretKey>> opt_sks;
+
+    for (size_t i = 0; i < nCRT; ++i) {
+        parms.set_plain_modulus(plain_crts[i]);
+        bn_contexts_[i] =
+            std::make_shared<seal::SEALContext>(parms, true, seal::sec_level_type::tc128);
+
+        seal::KeyGenerator gen(*bn_contexts_[i]);
+        bn_sks_[i] = std::make_shared<seal::SecretKey>(gen.secret_key());
+        opt_sks.emplace_back(*bn_sks_[i]);
+        auto pkey = gen.create_public_key();
+        bn_pks_[i] = std::make_shared<seal::PublicKey>();
+        exchange_keys_(pkey, *bn_pks_[i], *bn_contexts_[i]);
+    }
+
+    std::vector<seal::SEALContext> contexts;
+    for (size_t i = 0; i < bn_contexts_.size(); ++i)
+        contexts.emplace_back(*bn_contexts_[i]);
+
+    if (party_ == 2) { // ALICE
+        bn_.setUp(PLAIN_MOD, context_, std::nullopt, o_pkey);
+        bn_.setUp(PLAIN_MOD, contexts, {}, bn_pks_);
+    } else { // BOB
+        bn_.setUp(PLAIN_MOD, context_, skey);
+        bn_.setUp(PLAIN_MOD, contexts, opt_sks, {});
+    }
 
     encryptor_ = std::make_unique<seal::Encryptor>(context_, skey);
 
@@ -129,14 +179,15 @@ void HE<Channel>::setup_OT() {
 }
 
 template <class Channel>
-void HE<Channel>::exchange_keys_(const seal::PublicKey& pkey, seal::PublicKey& o_pkey) {
+template <class SerKey>
+void HE<Channel>::exchange_keys_(const SerKey& pkey, seal::PublicKey& o_pkey, const seal::SEALContext& ctx) {
     switch (party_) {
     case emp::ALICE:
         IO::send_pkey(*(ios_c_[0]), pkey);
-        IO::recv_pkey(*(ios_c_[0]), context_, o_pkey);
+        IO::recv_pkey(*(ios_c_[0]), ctx, o_pkey);
         break;
     case emp::BOB:
-        IO::recv_pkey(*(ios_c_[0]), context_, o_pkey);
+        IO::recv_pkey(*(ios_c_[0]), ctx, o_pkey);
         IO::send_pkey(*(ios_c_[0]), pkey);
         break;
     }
@@ -209,7 +260,7 @@ void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
             auto code  = gemini::LaunchWorks(tpool, batchSize_, batch);
             total += Utils::to_sec(Utils::time_diff(start));
             if (code != Code::OK)
-                Utils::log(Utils::Level::ERROR, CodeMessage(code));
+                Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), " ", CodeMessage(code));
 
             results[round] = Utils::average(batches_results, false);
         }

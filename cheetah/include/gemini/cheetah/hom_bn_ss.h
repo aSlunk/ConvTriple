@@ -62,6 +62,11 @@ class HomBNSS {
 
     Code encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
                        std::vector<seal::Serializable<seal::Ciphertext>>& out,
+                       std::vector<seal::Plaintext>& enc,
+                       size_t nthreads = 1) const;
+
+    Code encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
+                       std::vector<seal::Serializable<seal::Ciphertext>>& out,
                        size_t nthreads = 1) const;
 
     Code encodeVector(const Tensor<uint64_t>& in_vec, const Meta& meta,

@@ -23,67 +23,67 @@ static uint64_t add(const gemini::HomBNSS& conv, const uint64_t& a, const uint64
 namespace Server {
 
 template <class Channel>
-Result Protocol2(const gemini::HomBNSS::Meta& meta, Channel** server,
-                 const seal::SEALContext& context, const gemini::HomBNSS& conv,
-                 const Tensor<uint64_t>& A1, Tensor<uint64_t>& C1, const size_t& threads = 1);
+Result Protocol2_alt(const gemini::HomBNSS::Meta& meta, Channel** server,
+                     const seal::SEALContext& context, const gemini::HomBNSS& conv,
+                     const Tensor<uint64_t>& A1, Tensor<uint64_t>& C1, const size_t& threads = 1);
 
 template <class Channel>
-Result Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
-                 const seal::SEALContext& context, const gemini::HomBNSS& conv,
-                 const Tensor<uint64_t>& A1, const Tensor<uint64_t>& B1, Tensor<uint64_t>& C1,
-                 const size_t& threads = 1);
-
-template <class Channel>
-Result perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
-                     const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
+Result Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server,
+                     const seal::SEALContext& context, const gemini::HomBNSS& conv,
+                     const Tensor<uint64_t>& A1, const Tensor<uint64_t>& B1, Tensor<uint64_t>& C1,
                      const size_t& threads = 1);
 
-#ifdef VERIFY
-template <class T>
-void Verify_Conv(IO::NetIO& io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& conv,
-                 const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
-#endif
+template <class Channel>
+Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
+                     gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
+                     const Tensor<uint64_t>& B, const size_t& threads);
 
+template <class T>
+void Verify_BN(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
+                         const gemini::HomBNSS& conv, const Tensor<T>& A1, const Tensor<T>& B1,
+                         const Tensor<T>& C1);
 } // namespace Server
 
 namespace Client {
 
 template <class Channel>
-Result Protocol1(Channel** client, const seal::SEALContext& context,
-                 const gemini::HomBNSS& hom_conv, const gemini::HomBNSS::Meta& meta,
-                 const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2,
-                 const size_t& threads = 1);
+Result Protocol1_alt(Channel** client, const seal::SEALContext& context,
+                     const gemini::HomBNSS& hom_conv, const gemini::HomBNSS::Meta& meta,
+                     const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2,
+                     const size_t& threads = 1);
 
 template <class Channel>
-Result Protocol2(Channel** client, const seal::SEALContext& context,
-                 const gemini::HomBNSS& hom_conv, const gemini::HomBNSS::Meta& meta,
-                 const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2,
-                 const size_t& threads = 1);
+Result Protocol2_alt(Channel** client, const seal::SEALContext& context,
+                     const gemini::HomBNSS& hom_conv, const gemini::HomBNSS::Meta& meta,
+                     const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2,
+                     const size_t& threads = 1);
 
 template <class Channel>
-Result perform_proto(gemini::HomBNSS::Meta& meta, Channel** client,
-                     const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
-                     const size_t& threads);
+Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
+                             gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
+                             const Tensor<uint64_t>& B, const size_t& threads);
 
-#ifdef VERIFY
-// template <class T>
-// void Verify_Conv(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1,
-//                  const Tensor<T>& C1);
-#endif
-
+template <class T>
+void Verify_BN(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1,
+                 const Tensor<T>& C1);
 } // namespace Client
 
 template <class Channel>
-Result Client::Protocol2(Channel** client, const seal::SEALContext& context,
-                         const gemini::HomBNSS& hom_conv, const gemini::HomBNSS::Meta& meta,
-                         const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2,
-                         Tensor<uint64_t>& C2, const size_t& threads) {
+Result Client::Protocol2_alt(Channel** client, const seal::SEALContext& context,
+                             const gemini::HomBNSS& hom_conv, const gemini::HomBNSS::Meta& meta,
+                             const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2,
+                             Tensor<uint64_t>& C2, const size_t& threads) {
     Result measures;
 
     auto start = measure::now();
 
-    std::vector<seal::Plaintext> enc_A2;
-    measures.ret = hom_conv.encodeTensor(A2, meta, enc_A2, threads);
+    std::vector<seal::Plaintext> encoded_A2;
+    measures.ret = hom_conv.encodeVector(A2, meta, encoded_A2, threads);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    std::vector<seal::Plaintext> encoded_B2;
+    measures.ret = hom_conv.encodeScales(B2, meta, encoded_B2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -95,7 +95,7 @@ Result Client::Protocol2(Channel** client, const seal::SEALContext& context,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_A1;
-    IO::recv_encrypted_vector(client, context, enc_A1, threads);
+    hom_conv.recvEncryptVector(client[0], enc_A1, meta);
 
     measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -104,7 +104,7 @@ Result Client::Protocol2(Channel** client, const seal::SEALContext& context,
     start = measure::now();
 
     std::vector<seal::Ciphertext> M2;
-    measures.ret = hom_conv.bn_direct(enc_A1, enc_A2, B2, meta, M2, C2, threads);
+    measures.ret = hom_conv.bn(enc_A1, encoded_A2, encoded_B2, meta, M2, C2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -115,7 +115,8 @@ Result Client::Protocol2(Channel** client, const seal::SEALContext& context,
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    IO::send_encrypted_vector(client, M2, threads);
+    hom_conv.sendEncryptVector(client[0], M2, meta);
+    // IO::send_encrypted_vector(client, M2, threads);
 
     measures.send_recv += Utils::time_diff(start);
 
@@ -124,10 +125,10 @@ Result Client::Protocol2(Channel** client, const seal::SEALContext& context,
 }
 
 template <class Channel>
-Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
-                         const gemini::HomBNSS& hom_conv, const gemini::HomBNSS::Meta& meta,
-                         const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2,
-                         Tensor<uint64_t>& C2, const size_t& threads) {
+Result Client::Protocol1_alt(Channel** client, const seal::SEALContext& context,
+                             const gemini::HomBNSS& hom_conv, const gemini::HomBNSS::Meta& meta,
+                             const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2,
+                             Tensor<uint64_t>& C2, const size_t& threads) {
     Result measures;
 
     ////////////////////////////////////////////////////////////////////////////
@@ -137,7 +138,12 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
 
     std::vector<seal::Plaintext> encoded_A2;
     std::vector<seal::Serializable<seal::Ciphertext>> enc_A2;
-    measures.ret = hom_conv.encryptTensor(A2, meta, enc_A2, encoded_A2, threads);
+    measures.ret = hom_conv.encryptVector(A2, meta, enc_A2, encoded_A2, threads);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    std::vector<seal::Plaintext> encoded_B2;
+    measures.ret = hom_conv.encodeScales(B2, meta, encoded_B2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -157,7 +163,7 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
 
     std::vector<seal::Ciphertext> enc_M2;
     Tensor<uint64_t> R2;
-    measures.ret = hom_conv.bn_direct(enc_A1, encoded_A2, B2, meta, enc_M2, R2, threads);
+    measures.ret = hom_conv.bn(enc_A1, encoded_A2, encoded_B2, meta, enc_M2, R2, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -178,7 +184,7 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    hom_conv.decryptToTensor(enc_M1, meta, C2, threads);
+    hom_conv.decryptToVector(enc_M1, meta, C2, threads);
 
     measures.decryption = Utils::time_diff(start);
 
@@ -196,9 +202,10 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
 }
 
 template <class Channel>
-Result Server::Protocol2(const gemini::HomBNSS::Meta& meta, Channel** server,
-                         const seal::SEALContext& context, const gemini::HomBNSS& conv,
-                         const Tensor<uint64_t>& A1, Tensor<uint64_t>& C1, const size_t& threads) {
+Result Server::Protocol2_alt(const gemini::HomBNSS::Meta& meta, Channel** server,
+                             const seal::SEALContext& context, const gemini::HomBNSS& conv,
+                             const Tensor<uint64_t>& A1, Tensor<uint64_t>& C1,
+                             const size_t& threads) {
 
     Result measures;
 
@@ -208,7 +215,7 @@ Result Server::Protocol2(const gemini::HomBNSS::Meta& meta, Channel** server,
     auto start = measure::now();
 
     std::vector<seal::Serializable<seal::Ciphertext>> enc_A1;
-    measures.ret = conv.encryptTensor(A1, meta, enc_A1, threads);
+    measures.ret = conv.encryptVector(A1, meta, enc_A1, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -216,7 +223,8 @@ Result Server::Protocol2(const gemini::HomBNSS::Meta& meta, Channel** server,
 
     start = measure::now();
 
-    IO::send_encrypted_vector(server, enc_A1, threads);
+    // IO::send_encrypted_vector(server, enc_A1, threads);
+    conv.sendEncryptVector(server[0], enc_A1, meta);
 
     measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -225,25 +233,26 @@ Result Server::Protocol2(const gemini::HomBNSS::Meta& meta, Channel** server,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_C1;
-    IO::recv_encrypted_vector(server, context, enc_C1, threads);
+    conv.recvEncryptVector(server[0], enc_C1, meta);
 
     measures.send_recv += Utils::time_diff(start);
     start = measure::now();
 
-    measures.ret        = conv.decryptToTensor(enc_C1, meta, C1, threads);
+    measures.ret        = conv.decryptToVector(enc_C1, meta, C1, threads);
     measures.decryption = Utils::time_diff(start);
 
-    Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
+    // Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
+    Utils::log(Utils::Level::DEBUG, C1.NumElements());
 
     for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     return measures;
 }
 
 template <class Channel>
-Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
-                         const seal::SEALContext& context, const gemini::HomBNSS& conv,
-                         const Tensor<uint64_t>& A1, const Tensor<uint64_t>& B1,
-                         Tensor<uint64_t>& C1, const size_t& threads) {
+Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server,
+                             const seal::SEALContext& context, const gemini::HomBNSS& conv,
+                             const Tensor<uint64_t>& A1, const Tensor<uint64_t>& B1,
+                             Tensor<uint64_t>& C1, const size_t& threads) {
     Result measures;
     measures.send_recv = 0;
 
@@ -253,10 +262,13 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
     auto start = measure::now();
     std::vector<seal::Serializable<seal::Ciphertext>> enc_A1;
     std::vector<seal::Plaintext> encoded_A1;
-    measures.ret = conv.encryptTensor(A1, meta, enc_A1, encoded_A1, threads);
+    measures.ret = conv.encryptVector(A1, meta, enc_A1, encoded_A1, threads);
     if (measures.ret != Code::OK)
         return measures;
 
+    std::vector<seal::Plaintext> encoded_B1;
+    measures.ret = conv.encodeScales(B1, meta, encoded_B1, threads);
+        
     measures.encryption = Utils::time_diff(start);
 
     start = measure::now();
@@ -272,7 +284,7 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
 
     std::vector<seal::Ciphertext> M1;
     Tensor<uint64_t> R1;
-    measures.ret = conv.bn_direct(enc_A2, encoded_A1, B1, meta, M1, R1, threads);
+    measures.ret = conv.bn(enc_A2, encoded_A1, encoded_B1, meta, M1, R1, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -292,7 +304,7 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    measures.ret = conv.decryptToTensor(enc_M2, meta, C1, threads);
+    measures.ret = conv.decryptToVector(enc_M2, meta, C1, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -304,76 +316,95 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
 
     measures.plain_op = Utils::time_diff(start);
 
-    Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
+    // Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
 
     for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     measures.ret = Code::OK;
     return measures;
 }
 
-template <class Channel>
-Result Server::perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
-                             const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
-                             const size_t& threads) {
-    auto A1 = Utils::init_image(meta, 5);
-    auto B1 = gemini::Tensor(meta.vec_shape);
+namespace {
+void pack(const Tensor<uint64_t>& mat, const Tensor<uint64_t>& scales,
+          Tensor<uint64_t>& flattend_mat, Tensor<uint64_t>& flattened_scales) {
+    assert(mat.channels() == scales.NumElements() && "Dimension missmatch");
+    flattend_mat.Reshape({mat.NumElements()});
+    flattened_scales.Reshape({mat.NumElements()});
 
-    for (long i = 0; i < B1.NumElements(); ++i) {
-        B1(i) = i + 1;
+    const auto& C = mat.channels();
+    const auto& H = mat.height();
+    const auto& W = mat.width();
+
+    for (long c = 0; c < C; ++c) {
+        for (long h = 0; h < H; ++h) {
+            for (long w = 0; w < W; ++w) {
+                flattend_mat(c * W * H + h * W + w) = mat(c, h, w);
+                flattened_scales(c * W * H + h * W + w) = scales(c);
+            }
+        }
     }
+}
+} // namespace
 
-    Tensor<uint64_t> C1;
+template <class Channel>
+Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
+                             gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
+                             const Tensor<uint64_t>& B, const size_t& threads) {
+    Result res;
+    Tensor<uint64_t> vec, scales;
+    pack(A, B, vec, scales);
 
-    server[0]->sync();
+    gemini::HomBNSS::Meta tmp;
+    tmp.is_shared_input = meta.is_shared_input;
+    tmp.target_base_mod = meta.target_base_mod;
+    tmp.vec_shape = vec.shape();
+
+    Tensor<uint64_t> C;
 
 #if PROTO == 1
-    auto measures = Server::Protocol1(meta, server, context, hom_conv, A1, B1, C1, threads);
-#else
-    auto measures = Server::Protocol2(meta, server, context, hom_conv, A1, C1, threads);
+    res = Server::Protocol1_alt(tmp, ios, ctx, bn, vec, scales, C, threads);
+#elif PROTO == 2
+    res = Server::Protocol2_alt(tmp, ios, ctx, bn, vec, C, threads);
 #endif
-    for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
-#ifdef VERIFY
-    Verify_Conv(*(server[0]), meta, hom_conv, A1, B1, C1);
-#endif
-    return measures;
+    if (res.ret != Code::OK) return res;
+    std::cerr << C.shape() << "\n";
+    Verify_BN(*(ios[0]), tmp, bn, vec, scales, C);
+    return res;
 }
 
 template <class Channel>
-Result Client::perform_proto(gemini::HomBNSS::Meta& meta, Channel** client,
-                             const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
-                             const size_t& threads) {
-    Tensor<uint64_t> A2 = Utils::init_image(meta, 5);
-    Tensor<uint64_t> B2 = gemini::Tensor(meta.vec_shape);
+Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
+                             gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
+                             const Tensor<uint64_t>& B, const size_t& threads) {
+    Utils::log(Utils::Level::INFO, "Using alt BN");
+    Result res;
+    Tensor<uint64_t> vec, scales;
+    pack(A, B, vec, scales);
 
-    for (long i = 0; i < B2.NumElements(); ++i) {
-        B2(i) = i + 1;
-    }
+    gemini::HomBNSS::Meta tmp;
+    tmp.is_shared_input = meta.is_shared_input;
+    tmp.target_base_mod = meta.target_base_mod;
+    tmp.vec_shape = vec.shape();
 
-    client[0]->sync();
-
-    Tensor<uint64_t> C2;
+    Tensor<uint64_t> C;
 
 #if PROTO == 1
-    auto measures = Client::Protocol1(client, context, hom_conv, meta, A2, B2, C2, threads);
-#else
-    auto measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, C2, threads);
+    res = Client::Protocol1_alt(ios, ctx, bn, tmp, vec, scales, C, threads);
+#elif PROTO == 2
+    res = Client::Protocol2_alt(ios, ctx, bn, tmp, vec, scales, C, threads);
 #endif
 
-    for (size_t i = 0; i < threads; ++i) client[i]->counter = 0;
-
-#ifdef VERIFY
-    Verify_Conv(*(client[0]), A2, B2, C2);
-#endif
-    return measures;
+    Verify_BN(*(ios[0]), vec, scales, C);
+    return res;
 }
 
-#ifdef VERIFY
 template <class T>
-void Server::Verify_Conv(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
+void Server::Verify_BN(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
                          const gemini::HomBNSS& conv, const Tensor<T>& A1, const Tensor<T>& B1,
                          const Tensor<T>& C1) {
     Utils::log(Utils::Level::INFO, "VERIFYING BN");
+    std::cerr << A1.shape() << "\n";
+    std::cerr << C1.shape() << "\n";
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.vec_shape);
     Tensor<T> C2(C1.shape());
@@ -392,32 +423,32 @@ void Server::Verify_Conv(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
     Tensor<T> test;                              // (A1 + A2) (B1 + B2)
     conv.idealFunctionality(A2, B2, meta, test); // (A1 + A2) (B1 + B2)
 
+    Utils::print_tensor(A2);
+    Utils::print_tensor(B2);
+    Utils::print_tensor(C2);
+
     bool same = C2.shape() == test.shape();
-    for (long c = 0; c < C2.channels(); ++c)
-        for (long h = 0; h < C2.height(); ++h)
-            for (long w = 0; w < C2.width(); ++w)
-                if (!same || test(c, h, w) != C2(c, h, w)) {
-                    Utils::log(Utils::Level::FAILED, c, ", ", h, ", ", w, ": ", test(c, h, w), ", ",
-                               C2(c, h, w));
-                    same = false;
-                    goto end;
-                }
+    for (long w = 0; w < C2.NumElements(); ++w)
+        if (!same || test(w) != C2(w)) {
+            Utils::log(Utils::Level::FAILED, w, ": ", test(w), ", ",
+                        C2(w));
+            same = false;
+            goto end;
+        }
 end:
     if (same)
         Utils::log(Utils::Level::PASSED, "BN: PASSED");
     else
         Utils::log(Utils::Level::FAILED, "BN: FAILED");
 }
-
-// template <class T>
-// void Client::Verify_Conv(IO::NetIO& io, const Tensor<T>& A2, const Tensor<T>& B2,
-//                          const Tensor<T>& C2) {
-//     log(Utils::Level::INFO, "SENDING");
-//     io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);
-//     io.send_data(B2.data(), B2.NumElements() * sizeof(T), false);
-//     io.send_data(C2.data(), C2.NumElements() * sizeof(T), false);
-//     io.flush();
-// }
-#endif
+template <class T>
+void Client::Verify_BN(IO::NetIO& io, const Tensor<T>& A2, const Tensor<T>& B2,
+                         const Tensor<T>& C2) {
+    log(Utils::Level::INFO, "SENDING");
+    io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);
+    io.send_data(B2.data(), B2.NumElements() * sizeof(T), false);
+    io.send_data(C2.data(), C2.NumElements() * sizeof(T), false);
+    io.flush();
+}
 
 #endif

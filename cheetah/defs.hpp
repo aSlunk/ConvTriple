@@ -29,7 +29,7 @@
 #endif
 
 #define EXEC_FAILED -1
-#define PROTO 1 // 1 or 2
+#define PROTO 2 // 1 or 2
 
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;

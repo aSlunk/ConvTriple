@@ -174,6 +174,63 @@ Code HomBNSS::setUp(uint64_t target_base_mod, const std::vector<seal::SEALContex
 
 Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
                             std::vector<seal::Serializable<seal::Ciphertext>>& out,
+                            std::vector<seal::Plaintext>& plain,
+                            size_t nthreads) const {
+    ENSURE_OR_RETURN(!contexts_.empty() && !encryptors_.empty() && !encoders_.empty(),
+                     Code::ERR_CONFIG);
+    ENSURE_OR_RETURN(in_vec.dims() == 1 && in_vec.shape().IsSameSize(meta.vec_shape),
+                     Code::ERR_CONFIG);
+    ENSURE_OR_RETURN(meta.target_base_mod == target_base_mod_, Code::ERR_OUT_BOUND);
+
+    TensorShape split_shape  = getSplit(meta);
+    const size_t nCRT        = split_shape.dim_size(0);
+    const size_t sub_vec_len = split_shape.dim_size(1);
+    const size_t n_sub_vecs  = CeilDiv<size_t>(meta.vec_shape.length(), sub_vec_len);
+
+    plain.resize(nCRT * n_sub_vecs);
+    std::vector<uint64_t> tmp(poly_degree());
+
+    seal::Serializable<seal::Ciphertext> dummy = encryptors_[0]->encrypt_zero_symmetric();
+    out.resize(nCRT * n_sub_vecs, dummy);
+
+    auto encrypt_prg = [&](long wid, size_t start, size_t end) {
+        std::vector<uint64_t> tmp(poly_degree());
+        for (size_t k = start; k < end; ++k) {
+            size_t crt_idx = k / n_sub_vecs;
+
+            auto vec_pos_bgn = (k % n_sub_vecs) * sub_vec_len;
+            auto vec_pos_end = std::min<size_t>(vec_pos_bgn + sub_vec_len, meta.vec_shape.length());
+            auto len         = vec_pos_end - vec_pos_bgn;
+
+            std::copy(in_vec.data() + vec_pos_bgn, in_vec.data() + vec_pos_end, tmp.data());
+            std::fill(tmp.begin() + len, tmp.end(), 0);
+
+            encoders_[crt_idx]->encode(tmp, plain[wid]);
+            out.at(k) = encryptors_[crt_idx]->encrypt_symmetric(plain[wid]);
+        }
+        seal::util::seal_memzero(tmp.data(), sizeof(uint64_t) * tmp.size());
+        return Code::OK;
+    };
+
+    ThreadPool tpool(nthreads);
+    return LaunchWorks(tpool, out.size(), encrypt_prg);
+
+    /// Single thread version
+    //  for (size_t i = 0; i < nCRT; ++i) {
+    //    for (size_t j = 0; j < n_sub_vecs; ++j) {
+    //      auto start = j * sub_vec_len;
+    //      auto end = std::min<size_t>(start + sub_vec_len,
+    //      meta.vec_shape.length()); std::copy(in_vec.data() + start,
+    //      in_vec.data() + end, tmp.data()); std::fill(tmp.begin() + end - start,
+    //      tmp.end(), 0); encoders_[i]->encode(tmp, pt); out.at(i * n_sub_vecs +
+    //      j) = encryptors_[i]->encrypt_symmetric(pt);
+    //    }
+    //  }
+
+    return Code::OK;
+}
+Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
+                            std::vector<seal::Serializable<seal::Ciphertext>>& out,
                             size_t nthreads) const {
     ENSURE_OR_RETURN(!contexts_.empty() && !encryptors_.empty() && !encoders_.empty(),
                      Code::ERR_CONFIG);
@@ -189,7 +246,9 @@ Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
     seal::Plaintext pt;
     std::vector<uint64_t> tmp(poly_degree());
 
-    seal::Serializable<seal::Ciphertext> dummy = encryptors_[0]->encrypt_zero();
+    std::cerr << "OKAY\n";
+    seal::Serializable<seal::Ciphertext> dummy = encryptors_[0]->encrypt_zero_symmetric();
+    std::cerr << "END\n";
     out.resize(nCRT * n_sub_vecs, dummy);
 
     auto encrypt_prg = [&](long wid, size_t start, size_t end) {
@@ -876,15 +935,29 @@ Code HomBNSS::decryptToTensor(const std::vector<seal::Ciphertext>& cts, const Me
 
 Code HomBNSS::idealFunctionality(const Tensor<uint64_t>& image, const Tensor<uint64_t>& scales,
                                  const Meta& meta, Tensor<uint64_t>& out) const {
-    out.Reshape(meta.ishape);
+    
+    switch (image.dims()) {
+    case 3: {
+        out.Reshape(meta.ishape);
 
-    for (long c = 0; c < image.channels(); ++c) {
-        for (long h = 0; h < image.height(); ++h) {
-            for (long w = 0; w < image.width(); ++w) {
-                out(c, h, w)
-                    = seal::util::multiply_uint_mod(image(c, h, w), scales(c), plain_modulus());
+        for (long c = 0; c < image.channels(); ++c) {
+            for (long h = 0; h < image.height(); ++h) {
+                for (long w = 0; w < image.width(); ++w) {
+                    out(c, h, w)
+                        = seal::util::multiply_uint_mod(image(c, h, w), scales(c), plain_modulus());
+                }
             }
         }
+        break;
+    }
+    case 1: {
+        out.Reshape(meta.vec_shape);
+
+        for (long w = 0; w < out.NumElements(); ++w) {
+            out(w)
+                = seal::util::multiply_uint_mod(image(w), scales(w), plain_modulus());
+        }
+    }
     }
 
     return Code::OK;
