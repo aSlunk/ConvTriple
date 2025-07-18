@@ -404,6 +404,10 @@ Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
     res = Client::Protocol2_alt(ios, ctx, bn, tmp, vec, scales, C, threads);
 #endif
 
+    if (res.ret != Code::OK) {
+        return res;
+    }
+
 #ifdef VERIFY
     Verify_BN(*(ios[0]), vec, scales, C);
 #endif
@@ -436,9 +440,9 @@ void Server::Verify_BN(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
     Tensor<T> test;                              // (A1 + A2) (B1 + B2)
     conv.idealFunctionality(A2, B2, meta, test); // (A1 + A2) (B1 + B2)
 
-    Utils::print_tensor(A2);
-    Utils::print_tensor(B2);
-    Utils::print_tensor(C1);
+    // Utils::print_tensor(A2);
+    // Utils::print_tensor(B2);
+    // Utils::print_tensor(C1);
 
     bool same = C2.shape() == test.shape();
     for (long w = 0; w < C2.NumElements(); ++w)

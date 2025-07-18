@@ -40,7 +40,7 @@ constexpr size_t filter_prec = 0ULL;
 
 constexpr seal::sec_level_type SEC_LEVEL = seal::sec_level_type::tc128;
 
-constexpr uint64_t BIT_LEN   = 41;
+constexpr uint64_t BIT_LEN   = 37;
 constexpr uint64_t POLY_MOD  = 1ULL << 12;
 constexpr uint64_t PLAIN_MOD = 1ULL << BIT_LEN;
 
@@ -189,7 +189,7 @@ gemini::Tensor<uint64_t> Utils::init_image(const Meta& meta, const double& num) 
     for (int c = 0; c < image.channels(); ++c) {
         for (int i = 0; i < image.height(); ++i) {
             for (int j = 0; j < image.width(); ++j) {
-                image(c, i, j) = num;
+                image(c, i, j) = num + j;
             }
         }
     }
@@ -307,8 +307,8 @@ std::vector<gemini::HomBNSS::Meta> Utils::init_layers_bn() {
     layers.push_back(Utils::init_meta_bn(2048, 49));
     layers.push_back(Utils::init_meta_bn(512, 49));
     layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.clear();
     layers.push_back(Utils::init_meta_bn(2048, 49));
-    // layers.clear();
     // layers.push_back(Utils::init_meta_bn(3, 3));
     return layers;
 }

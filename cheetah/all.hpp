@@ -90,6 +90,50 @@ class HE {
 
     void test_bn();
     double alt_bn(const gemini::HomBNSS::Meta& meta, double& data);
+
+    void test() {
+        seal::EncryptionParameters parms(seal::scheme_type::bfv);
+        parms.set_poly_modulus_degree(POLY_MOD);
+        parms.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
+        parms.set_plain_modulus(seal::CoeffModulus::Create(4096, {25})[0]);
+
+        auto context = std::make_shared<seal::SEALContext>(parms);
+        auto gen     = seal::KeyGenerator(*context);
+        auto skey    = gen.secret_key();
+
+        seal::Encryptor encryptor(*context, skey);
+        seal::BatchEncoder encoder(*context);
+        seal::Evaluator evaluator(*context);
+
+        std::vector<uint64_t> a(encoder.slot_count(), 0);
+        a[0] = 2;
+        a[1] = 2;
+        std::vector<uint64_t> b(encoder.slot_count(), 0);
+        b[0] = 3;
+        b[1] = 4;
+
+        seal::Plaintext tmp;
+        encoder.encode(a, tmp);
+        auto ser = encryptor.encrypt_symmetric(tmp);
+        seal::Ciphertext ct;
+        std::stringstream ss;
+        ser.save(ss);
+        ct.load(*context, ss);
+
+        seal::Plaintext pt;
+        encoder.encode(b, pt);
+
+        evaluator.multiply_plain_inplace(ct, pt);
+
+        seal::Decryptor decryptor(*context, skey);
+        seal::Plaintext res;
+        decryptor.decrypt(ct, res);
+
+        std::vector<uint64_t> final;
+        encoder.decode(res, final);
+        for (size_t i = 0; i < 4; ++i)
+            std::cout << "FINAL: " << final.size() << " " << final[i] << "\n";
+    }
 };
 
 template <class Channel>
@@ -139,20 +183,23 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     std::vector<int> crt_primes_bits(nCRT, nbits_per_crt_plain);
 
     auto plain_crts = seal::CoeffModulus::Create(POLY_MOD, crt_primes_bits);
+    // auto plain_crts = seal::PlainModulus::Batching(POLY_MOD, crt_primes_bits);
     seal::EncryptionParameters parms(seal::scheme_type::bfv);
     parms.set_poly_modulus_degree(POLY_MOD);
     parms.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
 
     bn_contexts_.resize(nCRT);
+    for (size_t i = 0; i < nCRT; ++i) {
+        parms.set_plain_modulus(plain_crts[i]);
+        // parms.set_plain_modulus(seal::PlainModulus::Batching(POLY_MOD, 20));
+        bn_contexts_[i]
+            = std::make_shared<seal::SEALContext>(parms, true, seal::sec_level_type::tc128);
+    }
+
     bn_pks_.resize(nCRT);
     bn_sks_.resize(nCRT);
     std::vector<std::optional<seal::SecretKey>> opt_sks;
-
     for (size_t i = 0; i < nCRT; ++i) {
-        parms.set_plain_modulus(plain_crts[i]);
-        bn_contexts_[i]
-            = std::make_shared<seal::SEALContext>(parms, true, seal::sec_level_type::tc128);
-
         seal::KeyGenerator gen(*bn_contexts_[i]);
         bn_sks_[i] = std::make_shared<seal::SecretKey>(gen.secret_key());
         opt_sks.emplace_back(*bn_sks_[i]);
