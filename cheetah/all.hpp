@@ -167,49 +167,51 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     if (code != Code::OK)
         Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), ": ", CodeMessage(code));
 
+    using namespace seal;
     size_t ntarget_bits = std::ceil(std::log2(PLAIN_MOD));
-    size_t crt_bits     = 2 * ntarget_bits + 1 + gemini::HomBNSS::kStatBits;
+    size_t crt_bits = 2 * ntarget_bits + 1 + gemini::HomBNSS::kStatBits;
 
     const size_t nbits_per_crt_plain = [](size_t crt_bits) {
         constexpr size_t kMaxCRTPrime = 50;
         for (size_t nCRT = 1;; ++nCRT) {
             size_t np = gemini::CeilDiv(crt_bits, nCRT);
-            if (np <= kMaxCRTPrime)
-                return np;
+            if (np <= kMaxCRTPrime) return np;
         }
     }(crt_bits + 1);
 
     const size_t nCRT = gemini::CeilDiv<size_t>(crt_bits, nbits_per_crt_plain);
     std::vector<int> crt_primes_bits(nCRT, nbits_per_crt_plain);
 
-    auto plain_crts = seal::CoeffModulus::Create(POLY_MOD, crt_primes_bits);
-    // auto plain_crts = seal::PlainModulus::Batching(POLY_MOD, crt_primes_bits);
-    seal::EncryptionParameters parms(seal::scheme_type::bfv);
-    parms.set_poly_modulus_degree(POLY_MOD);
-    parms.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
+    const size_t N = POLY_MOD;
+    auto plain_crts = CoeffModulus::Create(N, crt_primes_bits);
+    EncryptionParameters seal_parms(scheme_type::bfv);
+    // seal_parms.set_n_special_primes(0);
+    // We are not exporting the pk/ct with more than 109-bit.
+    std::vector<int> cipher_moduli_bits{60, 49};
+    seal_parms.set_poly_modulus_degree(N);
+    seal_parms.set_coeff_modulus(CoeffModulus::Create(N, cipher_moduli_bits));
 
     bn_contexts_.resize(nCRT);
     for (size_t i = 0; i < nCRT; ++i) {
-        parms.set_plain_modulus(plain_crts[i]);
-        // parms.set_plain_modulus(seal::PlainModulus::Batching(POLY_MOD, 20));
-        bn_contexts_[i]
-            = std::make_shared<seal::SEALContext>(parms, true, seal::sec_level_type::tc128);
-    }
-
-    bn_pks_.resize(nCRT);
-    bn_sks_.resize(nCRT);
-    std::vector<std::optional<seal::SecretKey>> opt_sks;
-    for (size_t i = 0; i < nCRT; ++i) {
-        seal::KeyGenerator gen(*bn_contexts_[i]);
-        bn_sks_[i] = std::make_shared<seal::SecretKey>(gen.secret_key());
-        opt_sks.emplace_back(*bn_sks_[i]);
-        auto pkey  = gen.create_public_key();
-        bn_pks_[i] = std::make_shared<seal::PublicKey>();
-        exchange_keys_(pkey, *bn_pks_[i], *bn_contexts_[i]);
+        seal_parms.set_plain_modulus(plain_crts[i]);
+        bn_contexts_[i] =
+            std::make_shared<SEALContext>(seal_parms, true, sec_level_type::tc128);
     }
 
     std::vector<seal::SEALContext> contexts;
-    for (size_t i = 0; i < bn_contexts_.size(); ++i) contexts.emplace_back(*bn_contexts_[i]);
+    std::vector<std::optional<SecretKey>> opt_sks;
+    bn_sks_.resize(nCRT);
+    bn_pks_.resize(nCRT);
+    for (size_t i = 0; i < nCRT; ++i) {
+        KeyGenerator keygen(*bn_contexts_[i]);
+        bn_sks_[i] = std::make_shared<SecretKey>(keygen.secret_key());
+        bn_pks_[i] = std::make_shared<PublicKey>();
+        Serializable<PublicKey> s_pk = keygen.create_public_key();
+
+        exchange_keys_(s_pk, *bn_pks_[i], *bn_contexts_[i]);
+        contexts.emplace_back(*bn_contexts_[i]);
+        opt_sks.emplace_back(*bn_sks_[i]);
+    }
 
     if (party_ == 2) { // ALICE
         code = bn_.setUp(PLAIN_MOD, context_, skey, o_pkey);
