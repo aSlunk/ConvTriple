@@ -1,22 +1,25 @@
 //  Authors: Wen-jie Lu on 2021/9/11.
 #include "gemini/cheetah/hom_conv2d_ss.h"
 
-#include <seal/seal.h>
-#include <seal/secretkey.h>
+#include "gemini/cheetah/tensor_encoder.h"
+#include <functional>
 #include <seal/util/polyarithsmallmod.h>
 #include <seal/util/rlwe.h>
 
-#include <functional>
-
-#include "gemini/cheetah/tensor_encoder.h"
+#include "gemini/core/common.h"
 #include "gemini/core/logging.h"
+#include "gemini/core/types.h"
+#include "gemini/core/util/ThreadPool.h"
+
+#include <seal/seal.h>
+#include <seal/secretkey.h>
 
 #define BFV_TRUNCATE_LARGE 1
 #define BFV_TRUNCATE_SMALL 1
 
 namespace gemini {
 
-TensorShape HomConv2DSS::GetConv2DOutShape(const HomConv2DSS::Meta& meta) {
+static TensorShape GetConv2DOutShape(const HomConv2DSS::Meta& meta) {
     auto o = shape_inference::Conv2D(meta.ishape, meta.fshape, meta.padding, meta.stride);
     if (!o) {
         LOG(WARNING) << "GetConv2DOutShape failed";
@@ -28,6 +31,34 @@ TensorShape HomConv2DSS::GetConv2DOutShape(const HomConv2DSS::Meta& meta) {
 
 Code LaunchWorks(ThreadPool& tpool, size_t num_works,
                  std::function<Code(long wid, size_t start, size_t end)> program) {
+    if (num_works == 0)
+        return Code::OK;
+    const long pool_sze = tpool.pool_size();
+    if (pool_sze <= 1L) {
+        return program(0, 0, num_works);
+    } else {
+        Code code;
+        std::vector<std::future<Code>> futures;
+        size_t work_load = (num_works + pool_sze - 1) / pool_sze;
+        for (long wid = 0; wid < pool_sze; ++wid) {
+            size_t start = wid * work_load;
+            size_t end   = std::min(start + work_load, num_works);
+            futures.push_back(tpool.enqueue(program, wid, start, end));
+        }
+
+        code = Code::OK;
+        for (auto&& work : futures) {
+            Code c = work.get();
+            if (code == Code::OK && c != Code::OK) {
+                code = c;
+            }
+        }
+        return code;
+    }
+}
+
+static Code LaunchWorksHE(ThreadPool& tpool, size_t num_works,
+                          std::function<Code(long wid, size_t start, size_t end)> program) {
     if (num_works == 0)
         return Code::OK;
     const long pool_sze = tpool.pool_size();
@@ -98,7 +129,6 @@ void sub_poly_inplace(seal::Ciphertext& ct, const seal::Plaintext& pt,
         src_ptr += n;
     }
 }
-
 }; // namespace internal
 
 void remove_unused_coeffs(seal::Ciphertext& ct, const seal::Evaluator& evaluator,
@@ -309,10 +339,11 @@ static void asymmetric_encrypt_zero(const seal::SEALContext& context,
     // c[j] = public_key[j] * u + e[j]
 #if USE_APPROX_RESHARE
     // NOTE(wen-jie) we skip e[0] here since e[0] is replaced by the secret sharing random.
-    for (size_t j = 1; j < encrypted_size; j++) {
+    for (size_t j = 1; j < encrypted_size; j++)
 #else
-    for (size_t j = 0; j < encrypted_size; j++) {
+    for (size_t j = 0; j < encrypted_size; j++)
 #endif
+    {
         SEAL_NOISE_SAMPLER(prng, parms, u.get());
         for (size_t i = 0; i < coeff_modulus_size; i++) {
             // Addition with e_0, e_1 is in NTT form
@@ -468,15 +499,35 @@ Code HomConv2DSS::setUp(const seal::SEALContext& context, std::optional<seal::Se
         }
 
         pk_ = std::make_shared<seal::PublicKey>(*pk);
-        if (sk)
-            encryptor_->set_public_key(*pk);
-        else
-            encryptor_ = std::make_shared<seal::Encryptor>(*context_, *pk);
     }
 
     tencoder_  = std::make_shared<TensorEncoder>(*context_);
     evaluator_ = std::make_shared<seal::Evaluator>(*context_);
     return Code::OK;
+}
+
+Code HomConv2DSS::encryptImage(const Tensor<uint64_t>& img, const Meta& meta,
+                               std::vector<seal::Serializable<seal::Ciphertext>>& encrypted_img,
+                               std::vector<seal::Plaintext>& polys, size_t nthreads) const {
+    ENSURE_OR_RETURN(context_ && encryptor_ && tencoder_, Code::ERR_CONFIG);
+    ENSURE_OR_RETURN(img.shape().IsSameSize(meta.ishape), Code::ERR_DIM_MISMATCH);
+
+    TensorEncoder::Role encode_role = TensorEncoder::Role::none;
+    CHECK_ERR(tencoder_->EncodeImageShare(encode_role, img, meta.fshape, meta.padding, meta.stride,
+                                          /*to_ntt*/ false, polys),
+              "encryptImage");
+
+    ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
+    seal::Serializable<seal::Ciphertext> dummy = encryptor_->encrypt_zero();
+    encrypted_img.resize(polys.size(), dummy);
+    auto encrypt_program = [&](long wid, size_t start, size_t end) {
+        for (size_t i = start; i < end; ++i) {
+            encrypted_img[i] = encryptor_->encrypt_symmetric(polys[i]);
+        }
+        return Code::OK;
+    };
+
+    return LaunchWorksHE(tpool, polys.size(), encrypt_program);
 }
 
 Code HomConv2DSS::encryptImage(const Tensor<uint64_t>& img, const Meta& meta,
@@ -501,7 +552,7 @@ Code HomConv2DSS::encryptImage(const Tensor<uint64_t>& img, const Meta& meta,
         return Code::OK;
     };
 
-    return LaunchWorks(tpool, polys.size(), encrypt_program);
+    return LaunchWorksHE(tpool, polys.size(), encrypt_program);
 }
 
 Code HomConv2DSS::encodeImage(const Tensor<uint64_t>& img, const Meta& meta,
@@ -537,12 +588,40 @@ Code HomConv2DSS::encodeFilters(const std::vector<Tensor<uint64_t>>& filters, co
     };
 
     ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
-    return LaunchWorks(tpool, M, encode_program);
+    return LaunchWorksHE(tpool, M, encode_program);
+}
+
+Code HomConv2DSS::filtersToNtt(std::vector<std::vector<seal::Plaintext>>& encoded_filters,
+                               size_t nthreads) const {
+
+    ENSURE_OR_RETURN(context_ && evaluator_, Code::ERR_CONFIG);
+
+    const size_t M = encoded_filters.size();
+    const size_t N = encoded_filters.at(0).size();
+
+    auto to_ntt_program = [&](long wid, size_t start, size_t end) {
+        for (size_t i = start; i < end; ++i) {
+            for (size_t j = 0; j < N; ++j) {
+                try {
+                    evaluator_->transform_to_ntt_inplace(
+                        encoded_filters[i][j], context_->first_context_data()->parms_id());
+                } catch (const std::logic_error& e) {
+                    LOG(WARNING) << "SEAL ERROR: " << e.what();
+                    return Code::ERR_INTERNAL;
+                }
+            }
+        }
+        return Code::OK;
+    };
+
+    ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
+    return LaunchWorksHE(tpool, M, to_ntt_program);
 }
 
 size_t HomConv2DSS::conv2DOneFilter(const std::vector<seal::Ciphertext>& image,
                                     const std::vector<seal::Plaintext>& filter, const Meta& meta,
-                                    seal::Ciphertext* out_buff, size_t out_buff_sze) const {
+                                    seal::Ciphertext* out_buff, size_t out_buff_sze,
+                                    bool fill_ntt) const {
     if (!evaluator_) {
         LOG(WARNING) << "conv2DOneFilter: evaluator is absent";
         return size_t(-1);
@@ -573,8 +652,14 @@ size_t HomConv2DSS::conv2DOneFilter(const std::vector<seal::Ciphertext>& image,
 
     for (size_t c = 0; c < accum_cnt; ++c) {
         // filter on the margin might be all-zero
-        if (filter[c].is_zero()) {
+        seal::Plaintext _filter = filter[c];
+        if (_filter.is_zero()) {
             continue;
+        }
+
+        if (fill_ntt) {
+            evaluator_->transform_to_ntt_inplace(_filter,
+                                                 context_->first_context_data()->parms_id());
         }
 
         for (size_t i = 0; i < out_size; ++i) {
@@ -584,10 +669,10 @@ size_t HomConv2DSS::conv2DOneFilter(const std::vector<seal::Ciphertext>& image,
             if (out_buff[o].size() > 0) {
                 // TODO Use FMA. out_buf[o] += tensor[ii] * filter[c];
                 auto cpy_ct{image.at(ii)};
-                evaluator_->multiply_plain_inplace(cpy_ct, filter.at(c));
+                evaluator_->multiply_plain_inplace(cpy_ct, _filter);
                 evaluator_->add_inplace(out_buff[o], cpy_ct);
             } else {
-                evaluator_->multiply_plain(image.at(ii), filter.at(c), out_buff[o]);
+                evaluator_->multiply_plain(image.at(ii), _filter, out_buff[o]);
             }
         }
     }
@@ -599,7 +684,9 @@ Code HomConv2DSS::conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
                            const std::vector<seal::Plaintext>& img_share1,
                            const std::vector<std::vector<seal::Plaintext>>& filters,
                            const Meta& meta, std::vector<seal::Ciphertext>& out_share0,
-                           Tensor<uint64_t>& out_share1, size_t nthreads) const {
+                           Tensor<uint64_t>& out_share1, size_t nthreads, bool in_ntt, bool fil_ntt,
+                           bool out_ntt) const {
+
     if (filters.size() != meta.n_filters) {
         LOG(WARNING) << "conv2DSS: #filters " << filters.size() << " != " << meta.n_filters << "\n";
         return Code::ERR_DIM_MISMATCH;
@@ -622,6 +709,12 @@ Code HomConv2DSS::conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
         return Code::ERR_CONFIG;
     }
 
+    ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
+
+    const size_t N = poly_degree();
+    ConvCoeffIndexCalculator indexer(N, meta.ishape, meta.fshape, meta.padding, meta.stride);
+    const size_t n_one_channel = indexer.slice_size(1) * indexer.slice_size(2);
+
     auto tl_pool = seal::MemoryManager::GetPool(seal::mm_prof_opt::mm_force_thread_local);
 
     std::vector<seal::Ciphertext> image;
@@ -637,22 +730,35 @@ Code HomConv2DSS::conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
         return Code::OK;
     };
 
-    ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
     if (meta.is_shared_input) {
         image.resize(img_share0.size(), seal::Ciphertext(tl_pool));
-        CHECK_ERR(LaunchWorks(tpool, image.size(), add_program), "add");
+        CHECK_ERR(LaunchWorksHE(tpool, image.size(), add_program), "add");
+    } else {
+        image = img_share0;
     }
 
-    const size_t N = poly_degree();
-    ConvCoeffIndexCalculator indexer(N, meta.ishape, meta.fshape, meta.padding, meta.stride);
-    const size_t n_one_channel = indexer.slice_size(1) * indexer.slice_size(2);
-    const size_t n_out_ct      = meta.n_filters * n_one_channel;
+    auto to_ntt_program = [&](long wid, size_t start, size_t end) {
+        for (size_t i = start; i < end; ++i) {
+            try {
+                evaluator_->transform_to_ntt_inplace(image[i]);
+            } catch (const std::logic_error& e) {
+                LOG(WARNING) << "SEAL ERROR: " << e.what();
+                return Code::ERR_INTERNAL;
+            }
+        }
+        return Code::OK;
+    };
+    if (in_ntt) {
+        CHECK_ERR(LaunchWorksHE(tpool, image.size(), to_ntt_program), "to_ntt");
+    }
+
+    const size_t n_out_ct = meta.n_filters * n_one_channel;
     out_share0.resize(n_out_ct);
     auto conv_program = [&](long wid, size_t start, size_t end) {
         for (size_t m = start; m < end; ++m) {
             seal::Ciphertext* ct_start = &out_share0.at(m * n_one_channel);
-            size_t used = conv2DOneFilter(meta.is_shared_input ? image : img_share0, filters[m],
-                                          meta, ct_start, n_one_channel);
+            size_t used
+                = conv2DOneFilter(image, filters[m], meta, ct_start, n_one_channel, fil_ntt);
             if (used == (size_t)-1 || used != n_one_channel) {
                 return Code::ERR_INTERNAL;
             }
@@ -661,7 +767,23 @@ Code HomConv2DSS::conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
         return Code::OK;
     };
 
-    CHECK_ERR(LaunchWorks(tpool, meta.n_filters, conv_program), "conv2D");
+    CHECK_ERR(LaunchWorksHE(tpool, meta.n_filters, conv_program), "conv2D");
+
+    auto from_ntt_program = [&](long wid, size_t start, size_t end) {
+        for (size_t i = start; i < end; ++i) {
+            try {
+                evaluator_->transform_from_ntt_inplace(out_share0[i]);
+            } catch (const std::logic_error& e) {
+                LOG(WARNING) << "SEAL ERROR: " << e.what();
+                return Code::ERR_INTERNAL;
+            }
+        }
+        return Code::OK;
+    };
+
+    if (out_ntt) {
+        CHECK_ERR(LaunchWorksHE(tpool, out_share0.size(), from_ntt_program), "from_ntt");
+    }
 
     addRandomMask(out_share0, out_share1, meta, nthreads);
 
@@ -673,68 +795,7 @@ Code HomConv2DSS::conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
             return Code::OK;
         };
 
-        CHECK_ERR(LaunchWorks(tpool, out_share0.size(), truncate_program), "conv2D");
-    }
-
-    // Post-processing for compressing out_ct volume.
-    removeUnusedCoeffs(out_share0, meta);
-    return Code::OK;
-}
-
-Code HomConv2DSS::conv2DSS(const std::vector<seal::Ciphertext>& img_share0,
-                           const std::vector<std::vector<seal::Plaintext>>& filters,
-                           const Meta& meta, const Tensor<uint64_t>& R,
-                           std::vector<seal::Ciphertext>& out_share0, size_t nthreads) const {
-    if (filters.size() != meta.n_filters) {
-        LOG(WARNING) << "conv2DSS: #filters " << filters.size() << " != " << meta.n_filters << "\n";
-        return Code::ERR_DIM_MISMATCH;
-    }
-
-    ENSURE_OR_RETURN(filters.size() == meta.n_filters, Code::ERR_DIM_MISMATCH);
-
-    TensorShape out_shape = GetConv2DOutShape(meta);
-    if (out_shape.num_elements() == 0) {
-        LOG(WARNING) << "conv2DSS: empty out_shape";
-        return Code::ERR_CONFIG;
-    }
-
-    auto tl_pool = seal::MemoryManager::GetPool(seal::mm_prof_opt::mm_force_thread_local);
-
-    ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
-
-    const size_t N = poly_degree();
-    ConvCoeffIndexCalculator indexer(N, meta.ishape, meta.fshape, meta.padding, meta.stride);
-    const size_t n_one_channel = indexer.slice_size(1) * indexer.slice_size(2);
-    const size_t n_out_ct      = meta.n_filters * n_one_channel;
-    out_share0.resize(n_out_ct);
-    auto conv_program = [&](long wid, size_t start, size_t end) {
-        for (size_t m = start; m < end; ++m) {
-            seal::Ciphertext* ct_start = &out_share0.at(m * n_one_channel);
-            size_t used = conv2DOneFilter(img_share0, filters[m], meta, ct_start, n_one_channel);
-            if (used == (size_t)-1 || used != n_one_channel) {
-                return Code::ERR_INTERNAL;
-            }
-        };
-
-        return Code::OK;
-    };
-
-    CHECK_ERR(LaunchWorks(tpool, meta.n_filters, conv_program), "conv2D");
-
-    std::vector<seal::Plaintext> R_enc;
-    tencoder_->EncodeTensor(R, meta.ishape, meta.fshape, meta.padding, meta.stride, meta.n_filters,
-                            false, R_enc);
-
-    if (scheme() == seal::scheme_type::bfv) {
-        auto truncate_program = [&](long wid, size_t start, size_t end) {
-            for (size_t cid = start; cid < end; ++cid) {
-                evaluator_->sub_plain_inplace(out_share0[cid], R_enc[cid]);
-                truncate_for_decryption(out_share0[cid], *evaluator_, *context_);
-            }
-            return Code::OK;
-        };
-
-        CHECK_ERR(LaunchWorks(tpool, out_share0.size(), truncate_program), "conv2D");
+        CHECK_ERR(LaunchWorksHE(tpool, out_share0.size(), truncate_program), "conv2D");
     }
 
     // Post-processing for compressing out_ct volume.
@@ -778,7 +839,7 @@ Code HomConv2DSS::addRandomMask(std::vector<seal::Ciphertext>& enc_tensor,
 
     mask_tensor.Reshape(GetConv2DOutShape(meta));
     auto mask_program = [&](long wid, size_t start, size_t end) {
-        RLWEPt mask;
+        seal::Plaintext mask;
         TensorShape slice_shape;
         std::vector<size_t> targets;
         std::vector<U64> coeffs(poly_degree());
@@ -817,7 +878,7 @@ Code HomConv2DSS::addRandomMask(std::vector<seal::Ciphertext>& enc_tensor,
     };
 
     ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
-    return LaunchWorks(tpool, meta.n_filters, mask_program);
+    return LaunchWorksHE(tpool, meta.n_filters, mask_program);
 }
 
 // In our Cheetah paper, we export the needed coefficients using the Extract
@@ -912,7 +973,7 @@ Code HomConv2DSS::decryptToTensor(const std::vector<seal::Ciphertext>& enc_tenso
     const bool need_ntt_form_ct = scheme() == seal::scheme_type::ckks;
     seal::Decryptor decryptor(*context_, *sk_);
     auto decrypt_program = [&](long wid, size_t start, size_t end) {
-        RLWEPt pt;
+        seal::Plaintext pt;
         TensorShape slice_shape;
         std::vector<size_t> indices;
         std::vector<U64> coeffs(N);
@@ -930,7 +991,7 @@ Code HomConv2DSS::decryptToTensor(const std::vector<seal::Ciphertext>& enc_tenso
                     if (need_ntt_form_ct == enc_tensor[cid].is_ntt_form()) {
                         decryptor.decrypt(enc_tensor[cid], pt);
                     } else {
-                        RLWECt cpy{enc_tensor[cid]};
+                        seal::Ciphertext cpy{enc_tensor[cid]};
                         if (need_ntt_form_ct) {
                             evaluator_->transform_to_ntt_inplace(cpy);
                         } else {
@@ -961,7 +1022,7 @@ Code HomConv2DSS::decryptToTensor(const std::vector<seal::Ciphertext>& enc_tenso
     };
 
     ThreadPool tpool(nthreads);
-    return LaunchWorks(tpool, meta.n_filters, decrypt_program);
+    return LaunchWorksHE(tpool, meta.n_filters, decrypt_program);
 }
 
 Code HomConv2DSS::postProcessInplace(seal::Plaintext& pt, std::vector<size_t>& targets,
@@ -1025,218 +1086,7 @@ Code HomConv2DSS::idealFunctionality(const Tensor<uint64_t>& in_tensor,
         }
         out_tensor.tensor().slice(offset, extent) = one_channel.tensor();
     }
-
     return Code::OK;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Added functions
-////////////////////////////////////////////////////////////////////////////////
-
-Code HomConv2DSS::add_plain_inplace(std::vector<seal::Ciphertext>& ciphers,
-                                    const std::vector<seal::Plaintext>& plain,
-                                    const size_t& nthreads) const {
-    ENSURE_OR_RETURN(plain.size() == ciphers.size(), Code::ERR_DIM_MISMATCH);
-
-    // for (size_t i = 0; i < ciphers.size(); ++i) evaluator_->add_plain_inplace(ciphers[i],
-    // plain[i]);
-
-    auto tl_pool     = seal::MemoryManager::GetPool(seal::mm_prof_opt::mm_force_thread_local);
-    auto add_program = [&](long wid, size_t start, size_t end) {
-        for (size_t i = start; i < end; ++i) {
-            try {
-                evaluator_->add_plain_inplace(ciphers[i], plain[i]);
-            } catch (std::logic_error& e) {
-                LOG(WARNING) << "SEAL ERROR: " << e.what();
-                return Code::ERR_INTERNAL;
-            }
-        }
-        return Code::OK;
-    };
-
-    ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
-    return LaunchWorks(tpool, ciphers.size(), add_program);
-}
-
-Code HomConv2DSS::add_inplace(std::vector<seal::Ciphertext>& ciphers,
-                              const std::vector<seal::Ciphertext>& plain,
-                              const size_t& nthreads) const {
-    ENSURE_OR_RETURN(plain.size() == ciphers.size(), Code::ERR_DIM_MISMATCH);
-
-    // for (size_t i = 0; i < ciphers.size(); ++i) evaluator_->add_plain_inplace(ciphers[i],
-    // plain[i]);
-
-    auto tl_pool     = seal::MemoryManager::GetPool(seal::mm_prof_opt::mm_force_thread_local);
-    auto add_program = [&](long wid, size_t start, size_t end) {
-        for (size_t i = start; i < end; ++i) {
-            try {
-                evaluator_->add_inplace(ciphers[i], plain[i]);
-            } catch (std::logic_error& e) {
-                LOG(WARNING) << "SEAL ERROR: " << e.what();
-                return Code::ERR_INTERNAL;
-            }
-        }
-        return Code::OK;
-    };
-
-    ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
-    LaunchWorks(tpool, ciphers.size(), add_program);
-    return Code::OK;
-}
-
-size_t HomConv2DSS::conv2DOneFilter(const std::vector<seal::Plaintext>& image,
-                                    const std::vector<seal::Ciphertext>& filter, const Meta& meta,
-                                    seal::Ciphertext* out_buff, size_t out_buff_sze) const {
-    if (!evaluator_) {
-        LOG(WARNING) << "conv2DOneFilter: evaluator is absent";
-        return size_t(-1);
-    }
-
-    const size_t out_size = image.size() / filter.size();
-    if (out_size < 1) {
-        return size_t(-1);
-    }
-
-    if (out_size > out_buff_sze || !out_buff) {
-        LOG(WARNING) << "conv2DOneFilter: require a larger out_buff";
-        return size_t(-1);
-    }
-
-    const size_t accum_cnt = filter.size();
-    for (size_t i = 0; i < out_size; ++i) {
-        out_buff[i].release();
-    }
-
-    for (size_t c = 0; c < accum_cnt; ++c) {
-        // filter on the margin might be all-zero
-
-        for (size_t i = 0; i < out_size; ++i) {
-            size_t ii = c * out_size + i;
-            size_t o  = ii % out_size;
-
-            if (out_buff[o].size() > 0) {
-                // TODO Use FMA. out_buf[o] += tensor[ii] * filter[c];
-                auto cpy_ct{filter.at(c)};
-                evaluator_->multiply_plain_inplace(cpy_ct, image.at(ii));
-                evaluator_->add_inplace(out_buff[o], cpy_ct);
-            } else {
-                evaluator_->multiply_plain(filter.at(c), image.at(ii), out_buff[o]);
-            }
-        }
-    }
-
-    return out_size;
-}
-
-Code HomConv2DSS::encryptFilters(const std::vector<Tensor<uint64_t>>& filters, const Meta& meta,
-                                 std::vector<std::vector<seal::Ciphertext>>& encrypted_filters,
-                                 size_t nthreads) const {
-    ENSURE_OR_RETURN(context_ && encryptor_ && tencoder_, Code::ERR_CONFIG);
-
-    std::vector<std::vector<seal::Plaintext>> polys(filters.size());
-
-    for (size_t i = 0; i < filters.size(); ++i) {
-        CHECK_ERR(tencoder_->EncodeFilter(filters[i], meta.ishape, meta.padding, meta.stride,
-                                          /*to_ntt*/ false, polys[i]),
-                  "encodeFilter");
-    }
-
-    ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
-    seal::Ciphertext dummy;
-    encryptor_->encrypt_zero(dummy);
-    encrypted_filters.resize(polys.size(), std::vector<seal::Ciphertext>(polys[0].size(), dummy));
-    auto encrypt_program = [&](long wid, size_t start, size_t end) {
-        for (size_t i = start; i < end; ++i) {
-            for (size_t j = 0; j < polys[i].size(); ++j)
-                encryptor_->encrypt_symmetric(polys[i][j], encrypted_filters[i][j]);
-        }
-        return Code::OK;
-    };
-
-    return LaunchWorks(tpool, polys.size(), encrypt_program);
-}
-
-Code HomConv2DSS::conv2DSS(const std::vector<seal::Plaintext>& img_share0,
-                           const std::vector<std::vector<seal::Ciphertext>>& filters,
-                           const Meta& meta, std::vector<seal::Ciphertext>& out_share0,
-                           size_t nthreads) const {
-
-    if (filters.size() != meta.n_filters) {
-        LOG(WARNING) << "conv2DSS: #filters " << filters.size() << " != " << meta.n_filters << "\n";
-        return Code::ERR_DIM_MISMATCH;
-    }
-
-    ENSURE_OR_RETURN(filters.size() == meta.n_filters, Code::ERR_DIM_MISMATCH);
-
-    TensorShape out_shape = GetConv2DOutShape(meta);
-    if (out_shape.num_elements() == 0) {
-        LOG(WARNING) << "conv2DSS: empty out_shape";
-        return Code::ERR_CONFIG;
-    }
-
-    auto tl_pool = seal::MemoryManager::GetPool(seal::mm_prof_opt::mm_force_thread_local);
-
-    ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
-
-    const size_t N = poly_degree();
-    ConvCoeffIndexCalculator indexer(N, meta.ishape, meta.fshape, meta.padding, meta.stride);
-    const size_t n_one_channel = indexer.slice_size(1) * indexer.slice_size(2);
-    const size_t n_out_ct      = meta.n_filters * n_one_channel;
-    out_share0.resize(n_out_ct);
-    auto conv_program = [&](long wid, size_t start, size_t end) {
-        for (size_t m = start; m < end; ++m) {
-            seal::Ciphertext* ct_start = &out_share0.at(m * n_one_channel);
-            size_t used = conv2DOneFilter(img_share0, filters[m], meta, ct_start, n_one_channel);
-            if (used == (size_t)-1 || used != n_one_channel) {
-                return Code::ERR_INTERNAL;
-            }
-        };
-
-        return Code::OK;
-    };
-
-    conv_program(0, 0, meta.n_filters);
-    // CHECK_ERR(LaunchWorks(tpool, meta.n_filters, conv_program), "conv2D");
-
-    if (scheme() == seal::scheme_type::bfv) {
-        auto truncate_program = [&](long wid, size_t start, size_t end) {
-            for (size_t cid = start; cid < end; ++cid) {
-                truncate_for_decryption(out_share0[cid], *evaluator_, *context_);
-            }
-            return Code::OK;
-        };
-
-        CHECK_ERR(LaunchWorks(tpool, out_share0.size(), truncate_program), "conv2D");
-    }
-
-    // Post-processing for compressing out_ct volume.
-    removeUnusedCoeffs(out_share0, meta);
-    return Code::OK;
-}
-
-Code HomConv2DSS::encryptImage(const Tensor<uint64_t>& img, const Meta& meta,
-                               std::vector<seal::Serializable<seal::Ciphertext>>& encrypted_img,
-                               std::vector<seal::Plaintext>& polys, size_t nthreads) const {
-    ENSURE_OR_RETURN(context_ && encryptor_ && tencoder_, Code::ERR_CONFIG);
-    ENSURE_OR_RETURN(img.shape().IsSameSize(meta.ishape), Code::ERR_DIM_MISMATCH);
-
-    TensorEncoder::Role encode_role = TensorEncoder::Role::none;
-    CHECK_ERR(tencoder_->EncodeImageShare(encode_role, img, meta.fshape, meta.padding, meta.stride,
-                                          /*to_ntt*/ false, polys),
-              "encryptImage");
-
-    ThreadPool tpool(std::min(std::max(1UL, nthreads), kMaxThreads));
-    seal::Serializable<seal::Ciphertext> dummy = encryptor_->encrypt_zero();
-    encrypted_img.resize(polys.size(), dummy);
-    auto encrypt_program = [&](long wid, size_t start, size_t end) {
-        for (size_t i = start; i < end; ++i) {
-            encrypted_img[i] = encryptor_->encrypt_symmetric(polys[i]);
-            // encryptor_->encrypt_symmetric(polys[i], encrypted_img[i]);
-        }
-        return Code::OK;
-    };
-
-    return LaunchWorks(tpool, polys.size(), encrypt_program);
 }
 
 } // namespace gemini

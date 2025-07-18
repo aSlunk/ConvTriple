@@ -492,11 +492,11 @@ Code HomFCSS::addRandomMask(std::vector<seal::Ciphertext>& cts, Tensor<uint64_t>
         targets[i] = i * split_shape.cols();
     }
 
+    mask_vector.Reshape(GetOutShape(meta));
     auto mask_prg = [&](long wid, size_t start, size_t end) {
         RLWECt zero;
         RLWEPt mask;
         std::vector<U64> coeffs(targets.size());
-        mask_vector.Reshape(GetOutShape(meta));
         auto prng = context_->first_context_data()->parms().random_generator()->create();
         for (size_t r_blk = start; r_blk < end; ++r_blk) {
             auto& this_ct = cts.at(r_blk);
@@ -607,10 +607,14 @@ Code HomFCSS::idealFunctionality(const Tensor<uint64_t>& input_matrix,
                                  const Tensor<uint64_t>& weight_matrix, const Meta& meta,
                                  Tensor<uint64_t>& out) const {
     out.Reshape(GetOutShape(meta));
+    auto mod = plain_modulus();
     for (int row = 0; row < weight_matrix.rows(); row++) {
         for (int idx = 0; idx < weight_matrix.cols(); idx++) {
-            uint64_t partial = input_matrix(idx) * weight_matrix(row, idx);
-            out(row)         = out(row) + partial;
+            uint64_t partial
+                = seal::util::multiply_uint_mod(input_matrix(idx), weight_matrix(row, idx), mod);
+            // uint64_t partial = input_matrix(idx) * weight_matrix(row, idx);
+            out(row) = out(row) + partial;
+            out(row) = seal::util::barrett_reduce_64(out(row), mod);
         }
     }
 

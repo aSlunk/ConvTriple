@@ -5,7 +5,9 @@
 #include <cassert>
 #include <chrono>
 #include <cstdint>
+#include <fstream>
 #include <functional>
+#include <ostream>
 #include <thread>
 
 #include <gemini/cheetah/hom_conv2d_ss.h>
@@ -14,13 +16,20 @@
 
 #include <seal/seal.h>
 
+#ifdef COLOR
 #define NC "\033[0m"
 #define RED "\033[31m"
 #define GREEN "\033[32m"
 #define PURPLE "\033[35m"
+#else
+#define NC ""
+#define RED ""
+#define GREEN ""
+#define PURPLE ""
+#endif
 
 #define EXEC_FAILED -1
-#define PROTO 1 // 1 or 2
+#define PROTO 2 // 1 or 2
 
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;
@@ -29,8 +38,11 @@ const int N_THREADS = std::max(1u, std::thread::hardware_concurrency());
 
 constexpr size_t filter_prec = 0ULL;
 
-constexpr int64_t POLY_MOD  = 4096;
-constexpr int64_t PLAIN_MOD = 1ULL << 50;
+constexpr seal::sec_level_type SEC_LEVEL = seal::sec_level_type::tc128;
+
+constexpr uint64_t BIT_LEN   = 41;
+constexpr uint64_t POLY_MOD  = 1ULL << 12;
+constexpr uint64_t PLAIN_MOD = 1ULL << BIT_LEN;
 
 constexpr uint64_t MOD         = PLAIN_MOD;
 constexpr uint64_t moduloMask  = MOD - 1;
@@ -63,12 +75,44 @@ void log(const Level& l, const Args&... args) {
         stream = &std::cout;
         *stream << RED;
         break;
+    default:
+        stream = &std::cerr;
     }
 
-    (*stream << ... << args) << NC << std::endl;
+    (*stream << ... << args) << (l != Level::INFO ? NC : "") << std::endl;
 
     if (l == Level::ERROR)
         exit(EXEC_FAILED);
+}
+
+template <class T>
+inline double to_sec(const T& num) {
+    if constexpr (std::is_same<Unit, std::chrono::microseconds>::value) {
+        return num / 1'000'000.0;
+    }
+
+    log(Level::ERROR, "Unknown <Unit>");
+    return 0.0;
+}
+
+template <class T>
+inline double to_msec(const T& num) {
+    if constexpr (std::is_same<Unit, std::chrono::microseconds>::value) {
+        return num / 1'000.0;
+    }
+
+    log(Level::ERROR, "Unknown <Unit>");
+    return 0.0;
+}
+
+template <class T>
+inline double to_MB(const T& bytes) {
+    return bytes / 1'000'000.0;
+}
+
+template <class Time>
+inline size_t time_diff(const Time& start) {
+    return std::chrono::duration_cast<Unit>(measure::now() - start).count();
 }
 
 struct Result {
@@ -85,7 +129,8 @@ struct Result {
 seal::SEALContext init_he_context();
 void print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padding);
 
-gemini::HomFCSS::Meta init_meta_fc(const long& image_h, const long& filter_h, const long& filter_w);
+gemini::HomFCSS::Meta init_meta_fc(const long& image_h, const long& filter_h);
+gemini::HomBNSS::Meta init_meta_bn(const long& image_h, const long& filter_h);
 
 gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const long& iw,
                                          const long& fc, const long& fh, const long& fw,
@@ -93,21 +138,22 @@ gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const l
                                          const size_t& padding);
 
 std::vector<gemini::HomConv2DSS::Meta> init_layers();
+std::vector<gemini::HomFCSS::Meta> init_layers_fc();
+std::vector<gemini::HomBNSS::Meta> init_layers_bn();
 
 template <class Channel>
-std::vector<std::vector<Channel>> init_ios(const char* addr, const int& port,
-                                           const size_t& batch_threads,
-                                           const size_t& threads_per_thread);
+std::vector<Channel> init_ios(const char* addr, const int& port, const size_t& threads);
 
 template <class T>
 gemini::Tensor<uint64_t> convert_fix_point(const gemini::Tensor<T>& in);
 
 template <class T>
-void print_tensor(const gemini::Tensor<T>& t);
+void print_tensor(const gemini::Tensor<T>& t, const long& channel = 0);
 
 double convert(uint64_t v, int nbits);
 gemini::Tensor<double> convert_double(const gemini::Tensor<uint64_t>& in);
-gemini::Tensor<uint64_t> init_image(const gemini::HomConv2DSS::Meta& meta, const double& num);
+template <class Meta>
+gemini::Tensor<uint64_t> init_image(const Meta& meta, const double& num);
 std::vector<gemini::Tensor<uint64_t>> init_filter(const gemini::HomConv2DSS::Meta& meta,
                                                   const double& num);
 
@@ -128,13 +174,16 @@ void add_result(Result& res, const Result& res2);
 
 Result average(const std::vector<Result>& res, bool average_bytes);
 
-double print_results(const Result& res, const int& layer, const size_t& batchSize,
+double print_results(const Result& res, const size_t& layer, const size_t& batchSize,
                      const size_t& threads, std::ostream& out = std::cout);
+
+void make_csv(const std::vector<Result>& results, const size_t& batchSize, const size_t& threads,
+              const std::string& path = "");
 
 } // namespace Utils
 
-gemini::Tensor<uint64_t> Utils::init_image(const gemini::HomConv2DSS::Meta& meta,
-                                           const double& num) {
+template <class Meta>
+gemini::Tensor<uint64_t> Utils::init_image(const Meta& meta, const double& num) {
     gemini::Tensor<uint64_t> image(meta.ishape);
 
     for (int c = 0; c < image.channels(); ++c) {
@@ -177,8 +226,8 @@ void Utils::op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B,
     switch (A.dims()) {
     case 3:
         for (int i = 0; i < A.channels(); ++i) {
-            for (int j = 0; j < A.width(); ++j) {
-                for (int k = 0; k < A.height(); ++k) {
+            for (int j = 0; j < A.height(); ++j) {
+                for (int k = 0; k < A.width(); ++k) {
                     A(i, j, k) = op(A(i, j, k), B(i, j, k));
                 }
             }
@@ -197,6 +246,78 @@ void Utils::op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B,
         }
         break;
     }
+}
+
+std::vector<gemini::HomBNSS::Meta> Utils::init_layers_bn() {
+    std::vector<gemini::HomBNSS::Meta> layers;
+    gemini::HomBNSS::Meta meta;
+    meta.ishape          = {64, 196, 64};
+    meta.vec_shape       = {64};
+    meta.target_base_mod = PLAIN_MOD;
+    meta.is_shared_input = true;
+    layers.push_back(meta);
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(256, 3136));
+    layers.push_back(Utils::init_meta_bn(256, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(256, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(256, 3136));
+    layers.push_back(Utils::init_meta_bn(128, 3136));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(256, 784));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(512, 196));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(2048, 49));
+    layers.push_back(Utils::init_meta_bn(2048, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(2048, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(2048, 49));
+    // layers.clear();
+    // layers.push_back(Utils::init_meta_bn(3, 3));
+    return layers;
+}
+
+std::vector<gemini::HomFCSS::Meta> Utils::init_layers_fc() {
+    std::vector<gemini::HomFCSS::Meta> layers;
+    // layers.push_back(Utils::init_meta_fc(1, 12544));
+    layers.push_back(Utils::init_meta_fc(1, 49));
+    return layers;
 }
 
 std::vector<gemini::HomConv2DSS::Meta> Utils::init_layers() {
@@ -268,15 +389,11 @@ void Utils::add_result(Result& res, const Result& res2) {
 }
 
 template <class Channel>
-std::vector<std::vector<Channel>> Utils::init_ios(const char* addr, const int& port,
-                                                  const size_t& batch_threads,
-                                                  const size_t& threads_per_thread) {
-    std::vector<std::vector<Channel>> ioss(batch_threads);
-    for (size_t wid = 0; wid < batch_threads; ++wid) {
-        ioss[wid].reserve(threads_per_thread);
-        for (size_t p = 0; p < threads_per_thread; ++p) {
-            ioss[wid].emplace_back(addr, port + wid * threads_per_thread + p, true);
-        }
+std::vector<Channel> Utils::init_ios(const char* addr, const int& port, const size_t& threads) {
+    std::vector<Channel> ioss;
+    ioss.reserve(threads);
+    for (size_t wid = 0; wid < threads; ++wid) {
+        ioss.emplace_back(addr, port + wid, true);
     }
     return ioss;
 }
@@ -294,12 +411,21 @@ void Utils::print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padd
     log(Level::DEBUG, "n_filters: ", meta.n_filters);
 }
 
-gemini::HomFCSS::Meta Utils::init_meta_fc(const long& image_h, const long& filter_h,
-                                          const long& filter_w) {
+gemini::HomBNSS::Meta Utils::init_meta_bn(const long& rows, const long& cols) {
+    gemini::HomBNSS::Meta meta;
+    long tmp             = sqrt(cols);
+    meta.ishape          = {rows, tmp, tmp};
+    meta.vec_shape       = {rows};
+    meta.target_base_mod = PLAIN_MOD;
+    meta.is_shared_input = true;
+    return meta;
+}
+
+gemini::HomFCSS::Meta Utils::init_meta_fc(const long& common, const long& filter_h) {
     gemini::HomFCSS::Meta meta;
 
-    meta.input_shape     = {image_h};
-    meta.weight_shape    = {filter_h, filter_w};
+    meta.input_shape     = {common};
+    meta.weight_shape    = {filter_h, common};
     meta.is_shared_input = true;
 
     return meta;
@@ -337,21 +463,23 @@ gemini::Tensor<uint64_t> Utils::convert_fix_point(const gemini::Tensor<T>& in) {
 seal::SEALContext Utils::init_he_context() {
     seal::EncryptionParameters params(seal::scheme_type::bfv);
     params.set_poly_modulus_degree(POLY_MOD);
-    params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD));
+    params.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
+    // params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD));
+    // params.set_coeff_modulus(seal::CoeffModulus::BFVDefault(POLY_MOD, SEC_LEVEL));
     params.set_plain_modulus(PLAIN_MOD);
 
-    seal::SEALContext context(params);
+    seal::SEALContext context(params, true, SEC_LEVEL);
 
     return context;
 }
 
 template <class T>
-void Utils::print_tensor(const gemini::Tensor<T>& t) {
+void Utils::print_tensor(const gemini::Tensor<T>& t, const long& channel) {
     switch (t.dims()) {
     case 3:
         for (long i = 0; i < t.height(); ++i) {
             for (long j = 0; j < t.width(); ++j) {
-                std::cerr << static_cast<T>(t(0, i, j)) << " ";
+                std::cerr << static_cast<T>(t(channel, i, j)) << " ";
             }
             std::cerr << "\n";
         }
@@ -385,21 +513,21 @@ gemini::Tensor<double> Utils::convert_double(const gemini::Tensor<uint64_t>& in)
     return out;
 }
 
-double Utils::print_results(const Result& res, const int& layer, const size_t& batchSize,
+double Utils::print_results(const Result& res, const size_t& layer, const size_t& batchSize,
                             const size_t& threads, std::ostream& out) {
     if (!layer)
         out << "Encryption [ms],Cipher Calculations [s],Serialization [s],Decryption [ms],Plain "
                "Calculations [ms], "
                "Sending and Receiving [ms],Total [s],Bytes Send [MB],batchSize,threads\n";
 
-    double total = res.encryption / 1'000.0 + res.cipher_op / 1'000.0 + res.send_recv / 1'000.0
-                   + res.decryption / 1'000.0 + res.plain_op / 1'000.0 + res.serial / 1'000.0;
+    double total = to_msec(res.encryption) + to_msec(res.cipher_op) + to_msec(res.send_recv)
+                   + to_msec(res.decryption) + to_msec(res.plain_op) + to_msec(res.serial);
     total /= 1'000.0;
 
-    out << res.encryption / 1'000.0 << ", " << res.cipher_op / 1'000'000.0 << ", "
-        << res.serial / 1'000'000.0 << ", " << res.decryption / 1'000. << ", "
-        << res.plain_op / 1'000.0 << ", " << res.send_recv / 1'000.0 << ", " << total << ", "
-        << res.bytes / 1'000'000.0 << ", " << batchSize << ", " << threads << "\n";
+    out << to_msec(res.encryption) << ", " << to_sec(res.cipher_op) << ", " << to_sec(res.serial)
+        << ", " << to_msec(res.decryption) << ", " << to_msec(res.plain_op) << ", "
+        << to_msec(res.send_recv) << ", " << total << ", " << to_MB(res.bytes) << ", " << batchSize
+        << ", " << threads << "\n";
 
     return total;
 }
@@ -443,6 +571,29 @@ Utils::Result Utils::average(const std::vector<Result>& res, bool average_bytes)
         avg.bytes /= len;
 
     return avg;
+}
+
+void Utils::make_csv(const std::vector<Result>& results, const size_t& batchSize,
+                     const size_t& threads, const std::string& path) {
+    std::ofstream os;
+
+    if (!path.empty()) {
+        log(Level::INFO, "writing results to: ", path);
+        os.open(path, std::ios::out | std::ios::trunc);
+    }
+
+    double total = 0;
+    for (size_t i = 0; i < results.size(); ++i) {
+        total += print_results(results[i], i, batchSize, threads, path.empty() ? std::cout : os);
+    }
+
+    os << "Total time[s]: " << total << "\n";
+    double data = 0;
+    for (auto& res : results) data += Utils::to_MB(res.bytes);
+    os << "Total data[MB]: " << data << "\n";
+
+    if (os.is_open())
+        os.close();
 }
 
 #endif // DEFS_HPP

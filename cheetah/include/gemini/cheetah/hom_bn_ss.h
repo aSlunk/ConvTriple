@@ -1,5 +1,7 @@
 //  Authors: Wen-jie Lu on 2021/9/15.
 #ifndef GEMINI_CHEETAH_HOM_BN_SS_H_
+#define GEMINI_CHEETAH_HOM_BN_SS_H_
+
 #include <seal/secretkey.h>
 #include <seal/serializable.h>
 
@@ -27,7 +29,7 @@ class HomBNSS {
 #ifdef HOM_CONV2D_SS_MAX_THREADS
     static constexpr size_t kMaxThreads = HOM_CONV2D_SS_MAX_THREADS;
 #else
-    static constexpr size_t kMaxThreads = 16;
+    static constexpr size_t kMaxThreads = 32;
 #endif
     static constexpr int64_t kStatBits = 40; // statistical distance
 
@@ -42,6 +44,8 @@ class HomBNSS {
 
     ~HomBNSS() = default;
 
+    inline std::string get_str() const { return "bn"; }
+
     Code setUp(uint64_t target_base_mod, const std::vector<seal::SEALContext>& contexts,
                std::vector<std::optional<seal::SecretKey>> sks,
                std::vector<std::shared_ptr<seal::PublicKey>> pks);
@@ -55,6 +59,10 @@ class HomBNSS {
     inline size_t poly_degree() const { return poly_degree_; }
 
     uint64_t plain_modulus() const;
+
+    Code encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
+                       std::vector<seal::Serializable<seal::Ciphertext>>& out,
+                       std::vector<seal::Plaintext>& enc, size_t nthreads = 1) const;
 
     Code encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
                        std::vector<seal::Serializable<seal::Ciphertext>>& out,
@@ -74,6 +82,10 @@ class HomBNSS {
 
     Code decryptToVector(const std::vector<seal::Ciphertext>& in_vec, const Meta& meta,
                          Tensor<uint64_t>& out_vec, size_t nthreads = 1) const;
+
+    Code encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
+                       std::vector<seal::Serializable<seal::Ciphertext>>& out,
+                       std::vector<seal::Plaintext>& encoded_share, size_t nthreads = 1) const;
 
     Code encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
                        std::vector<seal::Serializable<seal::Ciphertext>>& out,
@@ -156,6 +168,9 @@ class HomBNSS {
 
         return Code::OK;
     }
+
+    Code idealFunctionality(const Tensor<uint64_t>& image, const Tensor<uint64_t>& scales,
+                            const Meta& meta, Tensor<uint64_t>& out) const;
 
   protected:
     TensorShape getSplit(const Meta& meta) const;

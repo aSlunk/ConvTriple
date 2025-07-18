@@ -11,14 +11,12 @@
 
 #include "defs.hpp"
 
-#ifndef VERIFY
-#define VERIFY 1
-#endif
-
-using namespace gemini;
+using gemini::HomFCSS;
+using gemini::Tensor;
+using std::vector;
 using Utils::Result;
 
-uint64_t add(const HomFCSS& conv, const uint64_t& a, const uint64_t& b) {
+static uint64_t add(const HomFCSS& conv, const uint64_t& a, const uint64_t& b) {
     uint64_t sum;
     seal::util::add_uint(&a, 1, b, &sum);
     return seal::util::barrett_reduce_64(sum, conv.plain_modulus());
@@ -27,20 +25,21 @@ uint64_t add(const HomFCSS& conv, const uint64_t& a, const uint64_t& b) {
 namespace Server {
 
 template <class Channel>
-Result Protocol2(const HomFCSS::Meta& meta, Channel& server, const seal::SEALContext& context,
-                 const HomFCSS& conv, const Tensor<uint64_t>& A1, Tensor<uint64_t>& C1,
-                 const size_t& threads = 1);
+Result Protocol2(const HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
+                 const HomFCSS& conv, const vector<Tensor<uint64_t>>& A1,
+                 vector<Tensor<uint64_t>>& C1, const size_t& threads = 1, const size_t& batch = 1);
 
 template <class Channel>
-Result Protocol1(const HomFCSS::Meta& meta, Channel& server, const seal::SEALContext& context,
-                 const HomFCSS& conv, const Tensor<uint64_t>& A1, const Tensor<uint64_t>& B1,
-                 Tensor<uint64_t>& C1, const size_t& threads = 1);
+Result Protocol1(const HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
+                 const HomFCSS& conv, const vector<Tensor<uint64_t>>& A1,
+                 const vector<Tensor<uint64_t>>& B1, vector<Tensor<uint64_t>>& C1,
+                 const size_t& threads = 1, const size_t& batch = 1);
 
 template <class Channel>
-Result perform_proto(HomFCSS::Meta& meta, Channel& server, const seal::SEALContext& context,
-                     const HomFCSS& hom_conv, const size_t& threads = 1);
+Result perform_proto(HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
+                     const HomFCSS& hom_conv, const size_t& threads = 1, const size_t& batch = 1);
 
-#if VERIFY == 1
+#ifdef VERIFY
 template <class T>
 void Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv, const Tensor<T>& A1,
                  const Tensor<T>& B1, const Tensor<T>& C1);
@@ -51,20 +50,22 @@ void Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv, 
 namespace Client {
 
 template <class Channel>
-Result Protocol1(Channel& client, const seal::SEALContext& context, const HomFCSS& hom_conv,
-                 const HomFCSS::Meta& meta, const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2,
-                 Tensor<uint64_t>& C2, const size_t& threads = 1);
+Result Protocol1(Channel** client, const seal::SEALContext& context, const HomFCSS& hom_conv,
+                 const HomFCSS::Meta& meta, const vector<Tensor<uint64_t>>& A2,
+                 const vector<Tensor<uint64_t>>& B2, vector<Tensor<uint64_t>>& C2,
+                 const size_t& threads = 1, const size_t& batch = 1);
 
 template <class Channel>
-Result Protocol2(Channel& client, const seal::SEALContext& context, const HomFCSS& hom_conv,
-                 const HomFCSS::Meta& meta, const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2,
-                 Tensor<uint64_t>& C2, const size_t& threads = 1);
+Result Protocol2(Channel** client, const seal::SEALContext& context, const HomFCSS& hom_conv,
+                 const HomFCSS::Meta& meta, const vector<Tensor<uint64_t>>& A2,
+                 const vector<Tensor<uint64_t>>& B2, vector<Tensor<uint64_t>>& C2,
+                 const size_t& threads = 1, const size_t& batch = 1);
 
 template <class Channel>
-Result perform_proto(HomFCSS::Meta& meta, Channel& client, const seal::SEALContext& context,
-                     const HomFCSS& hom_conv, const size_t& threads);
+Result perform_proto(HomFCSS::Meta& meta, Channel** client, const seal::SEALContext& context,
+                     const HomFCSS& hom_conv, const size_t& threads, const size_t& batch = 1);
 
-#if VERIFY == 1
+#ifdef VERIFY
 template <class T>
 void Verify_Conv(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
 #endif
@@ -72,323 +73,414 @@ void Verify_Conv(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1, const 
 } // namespace Client
 
 template <class Channel>
-Result Client::Protocol2(Channel& client, const seal::SEALContext& context, const HomFCSS& hom_fc,
-                         const HomFCSS::Meta& meta, const Tensor<uint64_t>& A2,
-                         const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2, const size_t& threads) {
-    Result measures;
+Result Client::Protocol2(Channel** client, const seal::SEALContext& context, const HomFCSS& hom_fc,
+                         const HomFCSS::Meta& meta, const vector<Tensor<uint64_t>>& A2,
+                         const vector<Tensor<uint64_t>>& B2, vector<Tensor<uint64_t>>& C2,
+                         const size_t& threads, const size_t& batch) {
+    size_t in_para            = batch > 1 ? threads : 1;
+    size_t threads_per_thread = threads / in_para;
 
-    auto start = measure::now();
+    auto prog = [&](long wid, size_t first, size_t end) {
+        if (first >= end)
+            return Code::OK;
 
-    std::vector<seal::Plaintext> enc_A2;
-    measures.ret = hom_fc.encodeInputVector(A2, meta, enc_A2, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+        size_t ele = end - first;
+        Result measures;
 
-    std::vector<std::vector<seal::Plaintext>> enc_B2;
-    measures.ret = hom_fc.encodeWeightMatrix(B2, meta, enc_B2, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+        auto start = measure::now();
 
-    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+        vector<vector<seal::Plaintext>> enc_A2(ele);
+        for (size_t i = 0; i < ele; ++i) {
+            measures.ret
+                = hom_fc.encodeInputVector(A2[first + i], meta, enc_A2[i], threads_per_thread);
+        }
+        if (measures.ret != Code::OK)
+            return measures.ret;
 
-    ////////////////////////////////////////////////////////////////////////////
-    // recv A' + deserialize
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
+        vector<vector<vector<seal::Plaintext>>> enc_B2(ele);
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret
+                = hom_fc.encodeWeightMatrix(B2[first + i], meta, enc_B2[i], threads_per_thread);
+        if (measures.ret != Code::OK)
+            return measures.ret;
 
-    std::vector<seal::Ciphertext> enc_A1;
-    IO::recv_encrypted_vector(client, context, enc_A1);
+        measures.encryption = Utils::time_diff(start);
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    ////////////////////////////////////////////////////////////////////////////
-    // M2' = (A1' + A2) ⊙ B2 - R
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
+        ////////////////////////////////////////////////////////////////////////////
+        // recv A' + deserialize
+        ////////////////////////////////////////////////////////////////////////////
+        start = measure::now();
 
-    std::vector<seal::Ciphertext> M2;
-    measures.ret = hom_fc.MatVecMul(enc_A1, enc_A2, enc_B2, meta, M2, C2, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+        vector<vector<seal::Ciphertext>> enc_A1(ele);
+        for (size_t i = 0; i < ele; ++i)
+            IO::recv_encrypted_vector(client + wid, context, enc_A1[i], threads_per_thread);
 
-    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+        measures.send_recv += Utils::time_diff(start);
+        ////////////////////////////////////////////////////////////////////////////
+        // M2' = (A1' + A2) ⊙ B2 - R
+        ////////////////////////////////////////////////////////////////////////////
+        start = measure::now();
 
-    ////////////////////////////////////////////////////////////////////////////
-    // serialize + send M2'
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
+        vector<vector<seal::Ciphertext>> M2(ele);
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret = hom_fc.MatVecMul(enc_A1[i], enc_A2[i], enc_B2[i], meta, M2[i],
+                                            C2[first + i], threads_per_thread);
+        if (measures.ret != Code::OK)
+            return measures.ret;
 
-    IO::send_encrypted_vector(client, M2);
+        measures.cipher_op = Utils::time_diff(start);
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
+        ////////////////////////////////////////////////////////////////////////////
+        // serialize + send M2'
+        ////////////////////////////////////////////////////////////////////////////
+        start = measure::now();
 
-    for (auto& ele : client) measures.bytes += ele.counter;
-    return measures;
+        for (size_t i = 0; i < ele; ++i)
+            IO::send_encrypted_vector(client + wid, M2[i], threads_per_thread);
+
+        measures.send_recv += Utils::time_diff(start);
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(in_para);
+    gemini::LaunchWorks(tpool, batch, prog);
+
+    Result final;
+    for (size_t i = 0; i < threads; ++i) final.bytes += client[i]->counter;
+    return final;
 }
 
 template <class Channel>
-Result Client::Protocol1(Channel& client, const seal::SEALContext& context, const HomFCSS& hom_conv,
-                         const HomFCSS::Meta& meta, const Tensor<uint64_t>& A2,
-                         const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2, const size_t& threads) {
-    Result measures;
+Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
+                         const HomFCSS& hom_conv, const HomFCSS::Meta& meta,
+                         const vector<Tensor<uint64_t>>& A2, const vector<Tensor<uint64_t>>& B2,
+                         vector<Tensor<uint64_t>>& C2, const size_t& threads, const size_t& batch) {
+    size_t in_para            = batch > 1 ? threads : 1;
+    size_t threads_per_thread = threads / in_para;
+    gemini::ThreadPool tpool(in_para);
+    Result fin_measures;
+    auto prog = [&](long wid, size_t start, size_t end) {
+        if (start >= end)
+            return Code::OK;
+        size_t ele = end - start;
+        Result measures;
 
-    ////////////////////////////////////////////////////////////////////////////
-    // Receive A1' and enc/send A2'
-    ////////////////////////////////////////////////////////////////////////////
-    auto start = measure::now();
+        ////////////////////////////////////////////////////////////////////////////
+        // Receive A1' and enc/send A2'
+        ////////////////////////////////////////////////////////////////////////////
+        auto mess = measure::now();
 
-    std::vector<seal::Plaintext> encoded_A2;
-    std::vector<seal::Serializable<seal::Ciphertext>> enc_A2;
-    measures.ret = hom_conv.encryptInputVector(A2, meta, enc_A2, encoded_A2, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+        vector<vector<seal::Plaintext>> encoded_A2(ele);
+        vector<vector<seal::Serializable<seal::Ciphertext>>> enc_A2(ele);
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret = hom_conv.encryptInputVector(A2[start + i], meta, enc_A2[i],
+                                                       encoded_A2[i], threads_per_thread);
 
-    std::vector<std::vector<seal::Plaintext>> enc_B2;
-    measures.ret = hom_conv.encodeWeightMatrix(B2, meta, enc_B2, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+        if (measures.ret != Code::OK)
+            return measures.ret;
 
-    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    start               = measure::now();
+        vector<vector<vector<seal::Plaintext>>> enc_B2(ele);
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret
+                = hom_conv.encodeWeightMatrix(B2[start + i], meta, enc_B2[i], threads_per_thread);
+        if (measures.ret != Code::OK)
+            return measures.ret;
 
-    std::vector<seal::Ciphertext> enc_A1;
-    measures.ret = IO::recv_send(context, client, enc_A2, enc_A1);
-    if (measures.ret != Code::OK)
-        return measures;
+        measures.encryption = Utils::time_diff(mess);
+        mess                = measure::now();
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    ////////////////////////////////////////////////////////////////////////////
-    // M2' = (A1' + A2) ⊙ B2 - R2
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
+        vector<vector<seal::Ciphertext>> enc_A1;
+        IO::recv_send(context, client + wid, enc_A2, enc_A1, threads_per_thread);
 
-    std::vector<seal::Ciphertext> enc_M2;
-    Tensor<uint64_t> R2;
-    measures.ret = hom_conv.MatVecMul(enc_A1, encoded_A2, enc_B2, meta, enc_M2, R2, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+        measures.send_recv += Utils::time_diff(mess);
+        ////////////////////////////////////////////////////////////////////////////
+        // M2' = (A1' + A2) ⊙ B2 - R2
+        ////////////////////////////////////////////////////////////////////////////
+        mess = measure::now();
 
-    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    ////////////////////////////////////////////////////////////////////////////
-    // send M2' + recv M1'
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
+        vector<vector<seal::Ciphertext>> enc_M2(ele);
+        vector<Tensor<uint64_t>> R2(ele);
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret = hom_conv.MatVecMul(enc_A1[i], encoded_A2[i], enc_B2[i], meta, enc_M2[i],
+                                              R2[i], threads_per_thread);
+        if (measures.ret != Code::OK)
+            return measures.ret;
 
-    std::vector<seal::Ciphertext> enc_M1;
-    measures.ret = IO::recv_send(context, client, enc_M2, enc_M1);
-    if (measures.ret != Code::OK)
-        return measures;
+        measures.cipher_op = Utils::time_diff(mess);
+        ////////////////////////////////////////////////////////////////////////////
+        // send M2' + recv M1'
+        ////////////////////////////////////////////////////////////////////////////
+        mess = measure::now();
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    ////////////////////////////////////////////////////////////////////////////
-    // dec(M1') + R2
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
+        vector<vector<seal::Ciphertext>> enc_M1(ele);
+        measures.ret = IO::recv_send(context, client + wid, enc_M2, enc_M1, threads_per_thread);
 
-    hom_conv.decryptToVector(enc_M1, meta, C2, threads);
+        measures.send_recv += Utils::time_diff(mess);
+        ////////////////////////////////////////////////////////////////////////////
+        // dec(M1') + R2
+        ////////////////////////////////////////////////////////////////////////////
+        mess = measure::now();
 
-    measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+        for (size_t i = 0; i < ele; ++i)
+            hom_conv.decryptToVector(enc_M1[i], meta, C2[start + i], threads_per_thread);
 
-    start = measure::now();
+        measures.decryption = Utils::time_diff(mess);
 
-    Utils::op_inplace<uint64_t>(
-        C2, R2, [&hom_conv](uint64_t a, uint64_t b) -> uint64_t { return add(hom_conv, a, b); });
+        mess = measure::now();
 
-    measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+        for (size_t i = 0; i < ele; ++i)
+            Utils::op_inplace<uint64_t>(
+                C2[start + i], R2[i],
+                [&hom_conv](uint64_t a, uint64_t b) -> uint64_t { return add(hom_conv, a, b); });
 
-    for (auto& ele : client) measures.bytes += ele.counter;
-    measures.ret = Code::OK;
+        measures.plain_op = Utils::time_diff(mess);
+        return Code::OK;
+    };
 
-    return measures;
+    fin_measures.ret = gemini::LaunchWorks(tpool, batch, prog);
+    for (size_t i = 0; i < threads; ++i) fin_measures.bytes += client[i]->counter;
+
+    return fin_measures;
 }
 
 template <class Channel>
-Result Server::Protocol2(const HomFCSS::Meta& meta, Channel& server,
+Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server,
                          const seal::SEALContext& context, const HomFCSS& conv,
-                         const Tensor<uint64_t>& A1, Tensor<uint64_t>& C1, const size_t& threads) {
+                         const vector<Tensor<uint64_t>>& A1, vector<Tensor<uint64_t>>& C1,
+                         const size_t& threads, const size_t& batch) {
+    size_t in_para            = batch > 1 ? threads : 1;
+    size_t threads_per_thread = threads / in_para;
 
-    Result measures;
+    auto prog = [&](long wid, size_t first, size_t end) {
+        if (first >= end)
+            return Code::OK;
+        size_t ele = end - first;
+        Result measures;
 
-    ////////////////////////////////////////////////////////////////////////////
-    // send Enc(A1)
-    ////////////////////////////////////////////////////////////////////////////
-    auto start = measure::now();
+        ////////////////////////////////////////////////////////////////////////////
+        // send Enc(A1)
+        ////////////////////////////////////////////////////////////////////////////
+        auto start = measure::now();
 
-    std::vector<seal::Serializable<seal::Ciphertext>> enc_A1;
-    measures.ret = conv.encryptInputVector(A1, meta, enc_A1, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+        vector<vector<seal::Serializable<seal::Ciphertext>>> enc_A1(ele);
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret
+                = conv.encryptInputVector(A1[first + i], meta, enc_A1[i], threads_per_thread);
+        if (measures.ret != Code::OK)
+            return measures.ret;
 
-    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+        measures.encryption = Utils::time_diff(start);
 
-    start = measure::now();
+        start = measure::now();
 
-    IO::send_encrypted_vector(server, enc_A1);
+        for (size_t i = 0; i < ele; ++i)
+            IO::send_encrypted_vector(server + wid, enc_A1[i], threads_per_thread);
 
-    measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    ////////////////////////////////////////////////////////////////////////////
-    // recv C1 = dec(M2)
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
+        measures.send_recv = Utils::time_diff(start);
+        ////////////////////////////////////////////////////////////////////////////
+        // recv C1 = dec(M2)
+        ////////////////////////////////////////////////////////////////////////////
+        start = measure::now();
 
-    std::vector<seal::Ciphertext> enc_C1;
-    IO::recv_encrypted_vector(server, context, enc_C1);
+        vector<vector<seal::Ciphertext>> enc_C1(ele);
+        for (size_t i = 0; i < ele; ++i)
+            IO::recv_encrypted_vector(server + wid, context, enc_C1[i], threads_per_thread);
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    start = measure::now();
+        measures.send_recv += Utils::time_diff(start);
+        start = measure::now();
 
-    measures.ret        = conv.decryptToVector(enc_C1, meta, C1, threads);
-    measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret = conv.decryptToVector(enc_C1[i], meta, C1[first + i], threads_per_thread);
+        measures.decryption = Utils::time_diff(start);
+        return Code::OK;
+    };
 
-    for (auto& ele : server) measures.bytes += ele.counter;
-    return measures;
+    gemini::ThreadPool tpool(in_para);
+    gemini::LaunchWorks(tpool, batch, prog);
+
+    Result final;
+    for (size_t i = 0; i < threads; ++i) final.bytes += server[i]->counter;
+    return final;
 }
 
 template <class Channel>
-Result Server::Protocol1(const HomFCSS::Meta& meta, Channel& server,
+Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server,
                          const seal::SEALContext& context, const HomFCSS& conv,
-                         const Tensor<uint64_t>& A1, const Tensor<uint64_t>& B1,
-                         Tensor<uint64_t>& C1, const size_t& threads) {
-    Result measures;
-    measures.send_recv = 0;
+                         const vector<Tensor<uint64_t>>& A1, const vector<Tensor<uint64_t>>& B1,
+                         vector<Tensor<uint64_t>>& C1, const size_t& threads, const size_t& batch) {
+    size_t in_para            = batch > 1 ? threads : 1;
+    size_t threads_per_thread = threads / in_para;
+    gemini::ThreadPool tpool(in_para);
+    auto prog = [&](long wid, size_t first, size_t end) {
+        if (first >= end)
+            return Code::OK;
 
-    ////////////////////////////////////////////////////////////////////////////
-    // Enc(A1), enc(B1), send(A1), recv(A2)
-    ////////////////////////////////////////////////////////////////////////////
-    auto start = measure::now();
-    std::vector<seal::Serializable<seal::Ciphertext>> enc_A1;
-    std::vector<seal::Plaintext> encoded_A1;
-    measures.ret = conv.encryptInputVector(A1, meta, enc_A1, encoded_A1, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+        Result measures;
+        measures.send_recv = 0;
+        size_t ele         = end - first;
 
-    std::vector<std::vector<seal::Plaintext>> enc_B1;
-    measures.ret = conv.encodeWeightMatrix(B1, meta, enc_B1, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+        ////////////////////////////////////////////////////////////////////////////
+        // Enc(A1), enc(B1), send(A1), recv(A2)
+        ////////////////////////////////////////////////////////////////////////////
+        auto start = measure::now();
+        vector<vector<seal::Serializable<seal::Ciphertext>>> enc_A1(ele);
+        vector<vector<seal::Plaintext>> encoded_A1(ele);
 
-    measures.encryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret = conv.encryptInputVector(A1[first + i], meta, enc_A1[i], encoded_A1[i],
+                                                   threads_per_thread);
+        if (measures.ret != Code::OK)
+            return measures.ret;
 
-    start = measure::now();
+        vector<vector<vector<seal::Plaintext>>> enc_B1(ele);
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret
+                = conv.encodeWeightMatrix(B1[first + i], meta, enc_B1[i], threads_per_thread);
+        if (measures.ret != Code::OK)
+            return measures.ret;
 
-    std::vector<seal::Ciphertext> enc_A2;
-    IO::send_recv(context, server, enc_A1, enc_A2);
+        measures.encryption = Utils::time_diff(start);
 
-    measures.send_recv = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    ////////////////////////////////////////////////////////////////////////////
-    // M1 = (A1 + A2') ⊙ B1 - R1
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
+        start = measure::now();
 
-    std::vector<seal::Ciphertext> M1;
-    Tensor<uint64_t> R1;
-    measures.ret = conv.MatVecMul(enc_A2, encoded_A1, enc_B1, meta, M1, R1, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+        vector<vector<seal::Ciphertext>> enc_A2(ele);
+        IO::send_recv(context, server + wid, enc_A1, enc_A2, threads_per_thread);
 
-    measures.cipher_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+        measures.send_recv = Utils::time_diff(start);
+        ////////////////////////////////////////////////////////////////////////////
+        // M1 = (A1 + A2') ⊙ B1 - R1
+        ////////////////////////////////////////////////////////////////////////////
+        start = measure::now();
 
-    ////////////////////////////////////////////////////////////////////////////
-    // Send(M1), Recv(M2), Dec(M2)
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
+        vector<vector<seal::Ciphertext>> M1(ele);
+        vector<Tensor<uint64_t>> R1(ele);
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret = conv.MatVecMul(enc_A2[i], encoded_A1[i], enc_B1[i], meta, M1[i], R1[i],
+                                          threads_per_thread);
+        if (measures.ret != Code::OK)
+            return measures.ret;
 
-    std::vector<seal::Ciphertext> enc_M2;
-    IO::send_recv(context, server, M1, enc_M2);
+        measures.cipher_op = Utils::time_diff(start);
 
-    measures.send_recv += std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    ////////////////////////////////////////////////////////////////////////////
-    // Dec(M2) + R1
-    ////////////////////////////////////////////////////////////////////////////
-    start = measure::now();
+        ////////////////////////////////////////////////////////////////////////////
+        // Send(M1), Recv(M2), Dec(M2)
+        ////////////////////////////////////////////////////////////////////////////
+        start = measure::now();
 
-    measures.ret = conv.decryptToVector(enc_M2, meta, C1, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+        vector<vector<seal::Ciphertext>> enc_M2(ele);
+        IO::send_recv(context, server + wid, M1, enc_M2, threads_per_thread);
 
-    measures.decryption = std::chrono::duration_cast<Unit>(measure::now() - start).count();
-    start               = measure::now();
+        measures.send_recv += Utils::time_diff(start);
+        ////////////////////////////////////////////////////////////////////////////
+        // Dec(M2) + R1
+        ////////////////////////////////////////////////////////////////////////////
+        start = measure::now();
 
-    Utils::op_inplace<uint64_t>(C1, R1,
-                                [&conv](uint64_t a, uint64_t b) { return add(conv, a, b); });
+        for (size_t i = 0; i < ele; ++i)
+            measures.ret = conv.decryptToVector(enc_M2[i], meta, C1[first + i], threads_per_thread);
+        if (measures.ret != Code::OK)
+            return measures.ret;
 
-    measures.plain_op = std::chrono::duration_cast<Unit>(measure::now() - start).count();
+        measures.decryption = Utils::time_diff(start);
+        start               = measure::now();
 
-    for (auto& ele : server) measures.bytes += ele.counter;
-    measures.ret = Code::OK;
-    return measures;
+        for (size_t i = 0; i < ele; ++i)
+            Utils::op_inplace<uint64_t>(
+                C1[first + i], R1[i], [&conv](uint64_t a, uint64_t b) { return add(conv, a, b); });
+
+        measures.plain_op = Utils::time_diff(start);
+        return Code::OK;
+    };
+
+    Result final;
+    final.ret = gemini::LaunchWorks(tpool, batch, prog);
+
+    for (size_t i = 0; i < threads; ++i) final.bytes += server[i]->counter;
+    return final;
 }
 
 template <class Channel>
-Result Server::perform_proto(HomFCSS::Meta& meta, Channel& server, const seal::SEALContext& context,
-                             const HomFCSS& hom_conv, const size_t& threads) {
-    Tensor<uint64_t> vec(meta.input_shape);
-    for (long i = 0; i < vec.length(); i++) vec(i) = i;
-    Tensor<uint64_t> weight(meta.weight_shape);
-    for (long i = 0; i < weight.rows(); i++)
-        for (long j = 0; j < weight.cols(); j++) weight(i, j) = i * j;
+Result Server::perform_proto(HomFCSS::Meta& meta, Channel** server,
+                             const seal::SEALContext& context, const HomFCSS& hom_conv,
+                             const size_t& threads, const size_t& batch) {
+    vector<Tensor<uint64_t>> vecs(batch, Tensor<uint64_t>(meta.input_shape));
+    for (auto& vec : vecs)
+        for (long i = 0; i < vec.length(); i++) vec(i) = 2;
+    vector<Tensor<uint64_t>> weights(batch, Tensor<uint64_t>(meta.weight_shape));
+    for (auto& weight : weights)
+        for (long i = 0; i < weight.rows(); i++)
+            for (long j = 0; j < weight.cols(); j++) weight(i, j) = 2;
 
-    Tensor<uint64_t> C1;
+    vector<Tensor<uint64_t>> C1(batch);
 
-    server[0].sync();
+    server[0]->sync();
 
 #if PROTO == 1
-    auto measures = Server::Protocol1(meta, server, context, hom_conv, vec, weight, C1, threads);
+    auto measures
+        = Server::Protocol1(meta, server, context, hom_conv, vecs, weights, C1, threads, batch);
 #else
-    auto measures = Server::Protocol2(meta, server, context, hom_conv, vec, weight, threads);
+    auto measures = Server::Protocol2(meta, server, context, hom_conv, vecs, C1, threads, batch);
 #endif
-    for (auto& ele : server) ele.counter = 0;
+    for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
-#if VERIFY == 1
-    Verify_Conv(server[0], meta, hom_conv, vec, weight, C1);
+#ifdef VERIFY
+    server[0]->sync();
+    Verify_Conv(*(server[0]), meta, hom_conv, vecs[0], weights[0], C1[0]);
 #endif
     return measures;
 }
 
 template <class Channel>
-Result Client::perform_proto(HomFCSS::Meta& meta, Channel& client, const seal::SEALContext& context,
-                             const HomFCSS& hom_conv, const size_t& threads) {
-    Tensor<uint64_t> vec(meta.input_shape);
-    for (long i = 0; i < vec.length(); i++) vec(i) = i;
-    Tensor<uint64_t> weight(meta.weight_shape);
-    for (long i = 0; i < weight.rows(); i++)
-        for (long j = 0; j < weight.cols(); j++) weight(i, j) = i * j;
+Result Client::perform_proto(HomFCSS::Meta& meta, Channel** client,
+                             const seal::SEALContext& context, const HomFCSS& hom_conv,
+                             const size_t& threads, const size_t& batch) {
+    vector<Tensor<uint64_t>> vecs(batch, Tensor<uint64_t>(meta.input_shape));
+    for (auto& vec : vecs)
+        for (long i = 0; i < vec.length(); i++) vec(i) = 2;
+    vector<Tensor<uint64_t>> weights(batch, Tensor<uint64_t>(meta.weight_shape));
+    for (auto& weight : weights)
+        for (long i = 0; i < weight.rows(); i++)
+            for (long j = 0; j < weight.cols(); j++) weight(i, j) = 2;
 
-    client[0].sync();
+    client[0]->sync();
 
-    Tensor<uint64_t> C2;
+    std::vector<Tensor<uint64_t>> C2(batch);
 
 #if PROTO == 1
-    auto measures = Client::Protocol1(client, context, hom_conv, meta, vec, weight, C2, threads);
+    auto measures
+        = Client::Protocol1(client, context, hom_conv, meta, vecs, weights, C2, threads, batch);
 #else
-    auto measures = Client::Protocol2(client, context, hom_conv, meta, vec, weight, C2, threads);
+    auto measures
+        = Client::Protocol2(client, context, hom_conv, meta, vecs, weights, C2, threads, batch);
 #endif
 
-    for (auto& ele : client) ele.counter = 0;
+    for (size_t i = 0; i < threads; ++i) client[i]->counter = 0;
 
-#if VERIFY == 1
-    Verify_Conv(client[0], vec, weight, C2);
+#ifdef VERIFY
+    client[0]->sync();
+    Verify_Conv(*(client[0]), vecs[0], weights[0], C2[0]);
 #endif
     return measures;
 }
 
-#if VERIFY == 1
+#ifdef VERIFY
 template <class T>
 void Server::Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv,
                          const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1) {
-    Utils::log(Utils::Level::INFO, "VERIFYING");
+    Utils::log(Utils::Level::INFO, "VERIFYING FC");
     Tensor<T> A2(A1.shape());
-    Tensor<T> B2(B1.shape());
+    Tensor<T> B2(meta.weight_shape);
     Tensor<T> C2(C1.shape());
 
     io.recv_data(A2.data(), A2.NumElements() * sizeof(T));
     io.recv_data(B2.data(), B2.NumElements() * sizeof(T));
     io.recv_data(C2.data(), C2.NumElements() * sizeof(T));
 
-    Utils::op_inplace<T>(C2, C1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // C
-    Utils::op_inplace<T>(A2, A1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // A1 + A2
+    Utils::op_inplace<T>(C2, C1, [&conv](T a, T b) -> T { return add(conv, a, b); }); // C
+    Utils::op_inplace<T>(A2, A1, [&conv](T a, T b) -> T { return add(conv, a, b); }); // A1 + A2
 
 #if PROTO == 1
-    Utils::op_inplace<T>(B2, B1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; });
+    Utils::op_inplace<T>(B2, B1, [&conv](T a, T b) -> T { return add(conv, a, b); });
 #endif
 
     Tensor<T> test;                              // (A1 + A2) (B1 + B2)
@@ -398,25 +490,25 @@ void Server::Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS
 
     for (long i = 0; i < C2.length(); ++i) {
         if (!same || test(i) != C2(i)) {
+            Utils::log(Utils::Level::FAILED, i, ", ", test(i), ", ", C2(i));
             same = false;
             break;
         }
     }
 
     if (same)
-        Utils::log(Utils::Level::PASSED, "PASSED");
+        Utils::log(Utils::Level::PASSED, "FC: PASSED");
     else
-        Utils::log(Utils::Level::FAILED, "FAILED");
-    Utils::log(Utils::Level::INFO, "FINISHED VERIFYING");
+        Utils::log(Utils::Level::FAILED, "FC: FAILED");
 }
 
 template <class T>
 void Client::Verify_Conv(IO::NetIO& io, const Tensor<T>& A2, const Tensor<T>& B2,
                          const Tensor<T>& C2) {
     log(Utils::Level::INFO, "SENDING");
-    io.send_data(A2.data(), A2.NumElements() * sizeof(T));
-    io.send_data(B2.data(), B2.NumElements() * sizeof(T));
-    io.send_data(C2.data(), C2.NumElements() * sizeof(T));
+    io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);
+    io.send_data(B2.data(), B2.NumElements() * sizeof(T), false);
+    io.send_data(C2.data(), C2.NumElements() * sizeof(T), false);
     io.flush();
 }
 #endif

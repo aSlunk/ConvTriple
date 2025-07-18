@@ -2,14 +2,9 @@
 #include <iostream>
 #include <vector>
 
-#include <io/net_io_channel.hpp>
+#include "all.hpp"
 
-#include "defs.hpp"
-#include "protocols/conv_proto.hpp"
-#include "protocols/fc_proto.hpp"
-
-using namespace gemini;
-using Utils::Result;
+#define PARTY 2
 
 int main(int argc, char** argv) {
     if (argc != 5 && argc != 6) {
@@ -21,85 +16,36 @@ int main(int argc, char** argv) {
         Utils::log(Utils::Level::ERROR, "Unknown <PROTO>: ", PROTO);
     }
 
-    long port     = strtol(argv[1], NULL, 10);
-    char* addr    = argv[2];
-    int samples   = strtol(argv[3], NULL, 10);
-    int batchSize = strtol(argv[4], NULL, 10);
-    int threads;
+    size_t port      = strtoul(argv[1], NULL, 10);
+    char* addr       = argv[2];
+    size_t samples   = strtoul(argv[3], NULL, 10);
+    size_t batchSize = strtoul(argv[4], NULL, 10);
+    size_t threads;
     if (argc == 5)
         threads = N_THREADS;
     else
-        threads = std::min(atoi(argv[5]), N_THREADS);
+        threads = std::min(strtoul(argv[5], NULL, 10), (size_t)N_THREADS);
 
-    auto context = Utils::init_he_context();
+    HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, batchSize, samples, false);
+    // {
+    //     auto layers = Utils::init_layers_fc();
+    //     all.run_he(layers, all.get_fc());
+    // }
 
-    seal::KeyGenerator keygen(context);
-    seal::SecretKey skey = keygen.secret_key();
-    auto pkey            = std::make_shared<seal::PublicKey>();
-    keygen.create_public_key(*pkey);
-
-    size_t batch_threads      = batchSize > 1 ? batchSize : 1;
-    size_t threads_per_thread = threads / batch_threads;
-    auto ioss = Utils::init_ios<IO::NetIO>(addr, port, batch_threads, threads_per_thread);
-
-    IO::send_pkey(ioss[0][0], *pkey);
-    IO::recv_pkey(ioss[0][0], context, *pkey);
-
-    HomConv2DSS hom_conv;
-    HomFCSS fc;
-    hom_conv.setUp(context, skey, pkey);
-    fc.setUp(context, skey, pkey);
-
-    auto m = Utils::init_meta_fc(10, 5, 10);
-    Client::perform_proto(m, ioss[0], context, fc, threads_per_thread);
-
-    double totalTime = 0;
-    double totalData = 0;
-
-    std::vector<Result> results(samples);
-    double total = 0;
-
-    auto layers = Utils::init_layers();
-    for (size_t i = 0; i < layers.size(); ++i) {
-        for (int round = 0; round < samples; ++round) {
-            ThreadPool tpool(batch_threads);
-            std::vector<Result> batches_results(batch_threads);
-            auto batch = [&](long wid, size_t start, size_t end) -> Code {
-                auto& ios = ioss[wid];
-                for (size_t cur = start; cur < end; ++cur) {
-                    Result result;
-                    if (PROTO == 2 || cur % 2 == 0) {
-                        result = (Client::perform_proto(layers[i], ios, context, hom_conv,
-                                                        threads_per_thread));
-                    } else {
-                        result = (Server::perform_proto(layers[i], ios, context, hom_conv,
-                                                        threads_per_thread));
-                    }
-
-                    if (result.ret != Code::OK)
-                        return result.ret;
-
-                    Utils::add_result(batches_results[wid], result);
-                }
-                return Code::OK;
-            };
-
-            auto start = measure::now();
-            auto code  = gemini::LaunchWorks(tpool, batchSize, batch);
-            total += std::chrono::duration_cast<Unit>(measure::now() - start).count() / 1'000'000.0;
-            if (code != Code::OK)
-                Utils::log(Utils::Level::ERROR, CodeMessage(code));
-
-            results[round] = Utils::average(batches_results, false);
-        }
-        auto measures = Utils::average(results, true);
-        totalTime += Utils::print_results(measures, i, batchSize, threads);
-        totalData += measures.bytes / 1'000'000.0;
+    {
+        auto layers = Utils::init_layers();
+        all.run_he(layers, all.get_conv());
     }
 
-    totalData /= 1000.0;
-
-    std::cout << "Party 2: total time [s]: " << totalTime << "\n";
-    std::cout << "Party 2: total data [GB]: " << totalData << "\n";
-    std::cout << "TOTAL: " << total << "\n";
+    {
+        auto layers = Utils::init_layers_bn();
+        all.run_he(layers, all.get_bn());
+        // double time = 0;
+        // double data = 0;
+        // for (auto& layer : layers) {
+        //     time += all.alt_bn(layer, data);
+        // }
+        // Utils::log(Utils::Level::INFO, "Total time [s]: ", time);
+        // Utils::log(Utils::Level::INFO, "Total data [MB]: ", data);
+    }
 }

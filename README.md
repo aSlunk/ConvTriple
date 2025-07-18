@@ -2,6 +2,11 @@ Based on [OpenCheetah](https://github.com/Alibaba-Gemini-Lab/OpenCheetah/tree/ma
 
 # Protocols
 
+- Currently supported:
+    - boolean triples via OT
+    - Matrix $\times$ Vector triples via HE
+    - Convolution triples via HE
+
 ## Protocol 1
 
 > [!NOTE]

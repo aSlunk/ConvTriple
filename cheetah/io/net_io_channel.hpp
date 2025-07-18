@@ -41,11 +41,11 @@ using std::string;
 #include <sys/types.h>
 #include <unistd.h>
 
-constexpr size_t NETWORK_BUFFER_SIZE = 1024 * 16;
-
 enum class LastCall { None, Send, Recv };
 
 namespace IO {
+
+constexpr size_t NETWORK_BUFFER_SIZE = 1024 * 16;
 
 class NetIO : public IOChannel<NetIO> {
   public:

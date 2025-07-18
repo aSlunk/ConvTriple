@@ -20,8 +20,24 @@ using Unit = std::chrono::milliseconds;
 using CLK  = std::chrono::high_resolution_clock;
 
 template <class EncVec>
+Code send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, std::vector<EncVec>& send,
+               vector<vector<seal::Ciphertext>>& recv, const size_t& threads = 1);
+
+template <class EncVec>
+Code send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, EncVec& send,
+               vector<seal::Ciphertext>& recv, const size_t& threads = 1);
+
+template <class EncVec>
 Code send_recv(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, EncVec& send,
                vector<seal::Ciphertext>& recv);
+
+template <class Vec>
+Code recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const vector<Vec>& send,
+               vector<vector<seal::Ciphertext>>& recv, const size_t& threads = 1);
+
+template <class Vec>
+Code recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const Vec& send,
+               vector<seal::Ciphertext>& recv, const size_t& threads = 1);
 
 template <class Vec>
 Code recv_send(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, const Vec& send,
@@ -32,6 +48,9 @@ void send_ciphertext(IO::NetIO& io, const CtType& ct);
 
 template <class EncVecCtType>
 void send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec);
+
+template <class EncVecCtType>
+void send_encrypted_vector(IO::NetIO** ios, const EncVecCtType& ct_vec, const size_t& threads = 1);
 
 template <class EncVecCtType>
 void send_encrypted_vector(vector<IO::NetIO>& io, const EncVecCtType& ct_vec);
@@ -47,6 +66,10 @@ void recv_encrypted_filters(IO::NetIO& io, const seal::SEALContext& context,
 
 void recv_encrypted_vector(vector<IO::NetIO>& io, const seal::SEALContext& context,
                            vector<seal::Ciphertext>& ct_vec, bool is_truncated = false);
+
+void recv_encrypted_vector(IO::NetIO** io, const seal::SEALContext& context,
+                           vector<seal::Ciphertext>& ct_vec, const size_t& threads = 1,
+                           bool is_truncated = false);
 
 void recv_encrypted_vector(IO::NetIO& io, const seal::SEALContext& context,
                            vector<seal::Ciphertext>& ct_vec, bool is_truncated = false);
@@ -94,14 +117,11 @@ void IO::send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec) {
 
 void IO::send_encrypted_vector(IO::NetIO& io, std::stringstream& ct, const uint32_t& ncts) {
     io.send_data(&ncts, sizeof(uint32_t));
-    io.flush();
     uint64_t ct_size = ct.tellp();
     string ct_ser    = ct.str();
     io.send_data(&ct_size, sizeof(uint64_t));
-    io.flush();
     io.send_data(ct_ser.c_str(), ct_ser.size());
     io.flush();
-    ct.clear();
 }
 
 template <class EncVecCtType>
@@ -175,32 +195,54 @@ void IO::recv_ciphertext(IO::NetIO& io, const seal::SEALContext& context, seal::
 }
 
 template <class EncVecCtType>
-void IO::send_encrypted_vector(vector<IO::NetIO>& ios, const EncVecCtType& ct_vec) {
+void IO::send_encrypted_vector(IO::NetIO** ios, const EncVecCtType& ct_vec, const size_t& threads) {
     uint32_t ncts = ct_vec.size();
-    ios[0].send_data(&ncts, sizeof(uint32_t));
+    ios[0]->send_data(&ncts, sizeof(uint32_t));
 
     auto program = [&](long wid, size_t start, size_t end) -> Code {
-        auto& io = ios[wid];
+        auto& io = *(ios[wid]);
         for (size_t i = start; i < end; ++i) {
             send_ciphertext(io, ct_vec.at(i));
             io.flush();
         }
-        io.flush();
         return Code::OK;
     };
 
-    gemini::ThreadPool tpool(ios.size());
+    gemini::ThreadPool tpool(threads);
     gemini::LaunchWorks(tpool, ncts, program);
+}
+
+template <class EncVecCtType>
+void IO::send_encrypted_vector(vector<IO::NetIO>& ios, const EncVecCtType& ct_vec) {
+    NetIO** ios_c = new NetIO*[ios.size()];
+    for (size_t i = 0; i < ios.size(); ++i) {
+        ios_c[i] = &ios[i];
+    }
+
+    send_encrypted_vector(ios_c, ct_vec, ios.size());
+
+    delete[] ios_c;
 }
 
 void IO::recv_encrypted_vector(vector<IO::NetIO>& ios, const seal::SEALContext& context,
                                vector<seal::Ciphertext>& ct_vec, bool is_truncated) {
+    NetIO** ios_c = new NetIO*[ios.size()];
+    for (size_t i = 0; i < ios.size(); ++i) {
+        ios_c[i] = &ios[i];
+    }
+    recv_encrypted_vector(ios_c, context, ct_vec, ios.size(), is_truncated);
+    delete[] ios_c;
+}
+
+void IO::recv_encrypted_vector(IO::NetIO** ios, const seal::SEALContext& context,
+                               vector<seal::Ciphertext>& ct_vec, const size_t& threads,
+                               bool is_truncated) {
     uint32_t ncts{0};
-    ios[0].recv_data(&ncts, sizeof(uint32_t));
+    ios[0]->recv_data(&ncts, sizeof(uint32_t));
     ct_vec.resize(ncts);
 
     auto program = [&](long wid, size_t start, size_t end) -> Code {
-        auto& io = ios[wid];
+        auto& io = *(ios[wid]);
         for (size_t i = start; i < end; ++i) {
             recv_ciphertext(io, context, ct_vec.at(i), is_truncated);
         }
@@ -208,7 +250,7 @@ void IO::recv_encrypted_vector(vector<IO::NetIO>& ios, const seal::SEALContext& 
     };
 
     if (ncts > 0) {
-        gemini::ThreadPool tpool(ios.size());
+        gemini::ThreadPool tpool(threads);
         gemini::LaunchWorks(tpool, ncts, program);
     }
 }
@@ -237,21 +279,61 @@ void IO::send_pkey(IO::NetIO& io, const PKey& pkey) {
 }
 
 template <class EncVec>
+Code IO::send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, std::vector<EncVec>& send,
+                   vector<vector<seal::Ciphertext>>& recv, const size_t& threads) {
+    EncVec to_send;
+    vector<seal::Ciphertext> to_recv;
+
+    for (size_t i = 0; i < send.size(); i++) {
+        for (size_t j = 0; j < send[i].size(); j++) {
+            to_send.push_back(send[i][j]);
+        }
+    }
+
+    send_recv(ctx, ios, to_send, to_recv, threads);
+
+    recv.resize(send.size());
+    for (size_t i = 0; i < send.size(); ++i) {
+        recv[i].reserve(send[i].size());
+        for (size_t j = 0; j < send[i].size(); ++j) {
+            recv[i].push_back(to_recv[i * send[i].size() + j]);
+        }
+    }
+
+    return Code::OK;
+}
+
+template <class EncVec>
 Code IO::send_recv(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, EncVec& send,
                    vector<seal::Ciphertext>& recv) {
-    vector<vector<seal::Ciphertext>> result(ios.size(), vector<seal::Ciphertext>(0));
+    NetIO** ios_c = new NetIO*[ios.size()];
+    for (size_t i = 0; i < ios.size(); ++i) {
+        ios_c[i] = &ios[i];
+    }
+    Code code = send_recv(ctx, ios_c, send, recv, ios.size());
+
+    delete[] ios_c;
+    return code;
+}
+
+template <class EncVec>
+Code IO::send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, EncVec& send,
+                   vector<seal::Ciphertext>& recv, const size_t& threads) {
+    vector<vector<seal::Ciphertext>> result(threads, vector<seal::Ciphertext>(0));
 
     auto program = [&](long wid, size_t start, size_t end) -> Code {
         if (start >= end)
             return Code::OK;
 
-        auto& server = ios[wid];
+        auto& server = *(ios[wid]);
         std::stringstream is;
         for (size_t cur = start; cur < end; ++cur) {
             send.at(cur).save(is);
         }
 
         IO::send_encrypted_vector(server, is, end - start);
+        is.clear();
+
         uint32_t ncts = IO::recv_encrypted_vector(server, is);
         result[wid].resize(ncts);
         for (auto& res : result[wid]) res.load(ctx, is);
@@ -259,7 +341,7 @@ Code IO::send_recv(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, EncVec&
         return Code::OK;
     };
 
-    gemini::ThreadPool tpool(ios.size());
+    gemini::ThreadPool tpool(threads);
     CHECK_ERR(gemini::LaunchWorks(tpool, send.size(), program), "send_recv");
 
     for (auto& vec : result) {
@@ -273,15 +355,52 @@ Code IO::send_recv(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, EncVec&
 }
 
 template <class Vec>
+Code IO::recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const std::vector<Vec>& send,
+                   vector<vector<seal::Ciphertext>>& recv, const size_t& threads) {
+    Vec to_send;
+    vector<seal::Ciphertext> to_recv;
+
+    for (size_t i = 0; i < send.size(); i++) {
+        for (size_t j = 0; j < send[i].size(); j++) {
+            to_send.push_back(send[i][j]);
+        }
+    }
+
+    recv_send(ctx, ios, to_send, to_recv, threads);
+
+    recv.resize(send.size());
+    for (size_t i = 0; i < send.size(); ++i) {
+        recv[i].reserve(send[i].size());
+        for (size_t j = 0; j < send[i].size(); ++j) {
+            recv[i].push_back(to_recv[i * send[i].size() + j]);
+        }
+    }
+
+    return Code::OK;
+}
+
+template <class Vec>
 Code IO::recv_send(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, const Vec& send,
                    vector<seal::Ciphertext>& recv) {
-    vector<vector<seal::Ciphertext>> result(ios.size(), vector<seal::Ciphertext>(0));
+    NetIO** ios_c = new NetIO*[ios.size()];
+    for (size_t i = 0; i < ios.size(); ++i) {
+        ios_c[i] = &ios[i];
+    }
+    Code code = recv_send(ctx, ios_c, send, recv, ios.size());
+    delete[] ios_c;
+    return code;
+}
+
+template <class Vec>
+Code IO::recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const Vec& send,
+                   vector<seal::Ciphertext>& recv, const size_t& threads) {
+    vector<vector<seal::Ciphertext>> result(threads, vector<seal::Ciphertext>(0));
 
     auto program = [&](long wid, size_t start, size_t end) -> Code {
         if (start >= end)
             return Code::OK;
 
-        auto& client = ios[wid];
+        auto& client = *(ios[wid]);
         std::stringstream is;
         for (size_t cur = start; cur < end; ++cur) {
             send.at(cur).save(is);
@@ -291,6 +410,7 @@ Code IO::recv_send(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, const V
         uint32_t ncts = IO::recv_encrypted_vector(client, os);
 
         IO::send_encrypted_vector(client, is, end - start);
+        is.clear();
         result[wid].resize(ncts);
 
         for (auto& res : result[wid]) {
@@ -300,7 +420,7 @@ Code IO::recv_send(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, const V
         return Code::OK;
     };
 
-    gemini::ThreadPool tpool(ios.size());
+    gemini::ThreadPool tpool(threads);
     CHECK_ERR(gemini::LaunchWorks(tpool, send.size(), program), "recv_send");
 
     for (auto& vec : result) {
