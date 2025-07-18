@@ -255,7 +255,7 @@ std::vector<gemini::HomBNSS::Meta> Utils::init_layers_bn() {
     meta.vec_shape       = {64};
     meta.target_base_mod = PLAIN_MOD;
     meta.is_shared_input = true;
-    // layers.push_back(meta);
+    layers.push_back(meta);
     layers.push_back(Utils::init_meta_bn(64, 3136));
     layers.push_back(Utils::init_meta_bn(64, 3136));
     layers.push_back(Utils::init_meta_bn(256, 3136));
