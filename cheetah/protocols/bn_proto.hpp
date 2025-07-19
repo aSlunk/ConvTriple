@@ -373,9 +373,10 @@ Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
     res = Server::Protocol2_alt(tmp, ios, ctx, bn, vec, C, threads);
 #endif
 
+    for (size_t i = 0; i < threads; ++i) ios[i]->counter = 0;
+
     if (res.ret != Code::OK)
         return res;
-    std::cerr << C.shape() << "\n";
 #ifdef VERIFY
     Verify_BN(*(ios[0]), tmp, bn, vec, scales, C);
 #endif
@@ -408,6 +409,8 @@ Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
         return res;
     }
 
+    for (size_t i = 0; i < threads; ++i) ios[i]->counter = 0;
+
 #ifdef VERIFY
     Verify_BN(*(ios[0]), vec, scales, C);
 #endif
@@ -420,8 +423,6 @@ void Server::Verify_BN(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
                        const gemini::HomBNSS& conv, const Tensor<T>& A1, const Tensor<T>& B1,
                        const Tensor<T>& C1) {
     Utils::log(Utils::Level::INFO, "VERIFYING BN");
-    std::cerr << A1.shape() << "\n";
-    std::cerr << C1.shape() << "\n";
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.vec_shape);
     Tensor<T> C2(C1.shape());
