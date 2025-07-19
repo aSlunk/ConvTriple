@@ -24,7 +24,11 @@ target_include_directories(gemini PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(include)
 target_link_libraries(gemini PUBLIC SEAL::seal Eigen3::Eigen Threads::Threads)
 
-target_compile_definitions(gemini PUBLIC USE_APPROX_RESHARE=0)
+if (USE_APPROX_RESHARE)
+  target_compile_definitions(gemini PUBLIC USE_APPROX_RESHARE=1)
+else ()
+  target_compile_definitions(gemini PUBLIC USE_APPROX_RESHARE=0)
+endif ()
 
 add_library(OT INTERFACE)
 target_include_directories(OT INTERFACE ot)
