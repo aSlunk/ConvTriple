@@ -1,22 +1,6 @@
 include(CMakeFindDependencyMacro)
 include(FetchContent)
 
-set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps;${CMAKE_PREFIX_PATH}")
-
-add_compile_options(-fPIC)
-add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)
-
-## Dependencies
-find_package(Threads REQUIRED)
-find_package(Eigen3 3.3.3 REQUIRED)
-find_package(emp-tool REQUIRED)
-find_package(emp-ot REQUIRED)
-find_package(OpenSSL REQUIRED)
-find_package(SEAL REQUIRED)
-include_directories(${EIGEN3_INCLUDE_DIR}
-                    ${EMP-OT_INCLUDE_DIRS}
-                    ${EMP-TOOL_INCLUDE_DIRS})
-
 ## cheetah-core
 add_library(gemini SHARED)
 target_include_directories(gemini PUBLIC include)

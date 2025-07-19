@@ -8,7 +8,22 @@ option(USE_APPROX_RESHARE "Enable APPROX RESHARE" OFF)
 option(TRIP_VERIFY "Enable verification" ON)
 option(TRIP_COLOR "Enable colored output" ON)
 
-include(FetchContent)
+add_compile_options(-fPIC)
+add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)
+
+## Dependencies
+set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps;${CMAKE_PREFIX_PATH}")
+
+find_package(Threads REQUIRED)
+find_package(Eigen3 3.3.3 REQUIRED)
+find_package(emp-tool REQUIRED)
+find_package(emp-ot REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(SEAL REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIR}
+                    ${EMP-OT_INCLUDE_DIRS}
+                    ${EMP-TOOL_INCLUDE_DIRS})
+
 
 set(ALL_SOURCE_FILES "")
 
