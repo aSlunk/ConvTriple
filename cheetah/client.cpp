@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     // }
 
     {
-        auto layers = Utils::init_layers_bn();
+        auto layers = Utils::init_layers_bn_cheetah();
         all.run_he(layers, all.get_bn());
         // double time = 0;
         // double data = 0;

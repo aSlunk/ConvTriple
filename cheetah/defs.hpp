@@ -140,6 +140,7 @@ gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const l
 std::vector<gemini::HomConv2DSS::Meta> init_layers();
 std::vector<gemini::HomFCSS::Meta> init_layers_fc();
 std::vector<gemini::HomBNSS::Meta> init_layers_bn();
+std::vector<gemini::HomBNSS::Meta> init_layers_bn_cheetah();
 
 template <class Channel>
 std::vector<Channel> init_ios(const char* addr, const int& port, const size_t& threads);
@@ -246,6 +247,60 @@ void Utils::op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B,
         }
         break;
     }
+}
+
+std::vector<gemini::HomBNSS::Meta> Utils::init_layers_bn_cheetah() {
+    std::vector<gemini::HomBNSS::Meta> layers;
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(256, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(256, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(64, 3136));
+    layers.push_back(Utils::init_meta_bn(256, 3136));
+    layers.push_back(Utils::init_meta_bn(128, 3136));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(128, 784));
+    layers.push_back(Utils::init_meta_bn(512, 784));
+    layers.push_back(Utils::init_meta_bn(256, 784));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(256, 196));
+    layers.push_back(Utils::init_meta_bn(1024, 196));
+    layers.push_back(Utils::init_meta_bn(512, 196));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(2048, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(2048, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(512, 49));
+    layers.push_back(Utils::init_meta_bn(2048, 49));
+    return layers;
 }
 
 std::vector<gemini::HomBNSS::Meta> Utils::init_layers_bn() {
