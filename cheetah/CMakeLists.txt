@@ -12,6 +12,7 @@ find_package(Eigen3 3.3.3 REQUIRED)
 find_package(emp-tool REQUIRED)
 find_package(emp-ot REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(SEAL REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR}
                     ${EMP-OT_INCLUDE_DIRS}
                     ${EMP-TOOL_INCLUDE_DIRS})

@@ -82,6 +82,7 @@ class HE {
     const gemini::HomConv2DSS& get_conv() const { return conv_; }
     const gemini::HomFCSS& get_fc() const { return fc_; }
     const gemini::HomBNSS& get_bn() const { return bn_; }
+    Channel** get_ios() const { return ios_c_; }
 
     template <class T>
     void run_he(std::vector<class T::Meta>& layers, const T& conv);
@@ -91,45 +92,6 @@ class HE {
     void test_bn();
     double alt_bn(const gemini::HomBNSS::Meta& meta, double& data);
 
-    void test() {
-        gemini::HomBNSS::Meta meta;
-        meta.is_shared_input = true;
-        meta.target_base_mod = PLAIN_MOD;
-        meta.vec_shape = {2};
-
-        gemini::Tensor<uint64_t> a(meta.vec_shape);
-        a(0) = 2;
-        a(1) = 2;
-        gemini::Tensor<uint64_t> b(meta.vec_shape);
-        b(0) = 3;
-        b(1) = 4;
-
-        std::vector<seal::Plaintext> plain;
-        bn_.encodeScales(b, meta, plain);
-        
-        std::vector<seal::Serializable<seal::Ciphertext>> tmp;
-        std::vector<seal::Plaintext> share;
-        bn_.encryptVector(a, meta, tmp, share, 1);
-        std::vector<seal::Ciphertext> ct(tmp.size());
-
-        for(size_t i = 0; i < tmp.size(); ++i) {
-            std::stringstream ss;
-            tmp[i].save(ss);
-            ct[i].load(*bn_contexts_[i], ss);
-        }
-
-        gemini::Tensor<uint64_t> C;
-        std::vector<seal::Ciphertext> out;
-        bn_.bn(ct, share, plain, meta, out, C);
-
-        gemini::Tensor<uint64_t> final;
-        bn_.decryptToVector(out, meta, final);
-
-        Utils::op_inplace<uint64_t>(final, C, [] (uint64_t a, uint64_t b) {return (a+b) % PLAIN_MOD;});
-
-        for (long i = 0; i < final.length(); ++i)
-            std::cout << "FINAL: " << final.length() << " " << final(i) << "\n";
-    }
 };
 
 template <class Channel>
@@ -181,7 +143,7 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     const size_t N = POLY_MOD;
     auto plain_crts = CoeffModulus::Create(N, crt_primes_bits);
     EncryptionParameters seal_parms(scheme_type::bfv);
-    // seal_parms.set_n_special_primes(0);
+    seal_parms.set_n_special_primes(0);
     // We are not exporting the pk/ct with more than 109-bit.
     std::vector<int> cipher_moduli_bits{60, 49};
     seal_parms.set_poly_modulus_degree(N);

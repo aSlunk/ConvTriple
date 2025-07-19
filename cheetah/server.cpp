@@ -62,8 +62,7 @@ int main(int argc, char** argv) {
     //     auto layers = Utils::init_layers();
     //     all.run_he(layers, all.get_conv());
     // }
-
-    all.test();
+    
     {
         auto layers = Utils::init_layers_bn();
         all.run_he(layers, all.get_bn());
