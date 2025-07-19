@@ -92,47 +92,43 @@ class HE {
     double alt_bn(const gemini::HomBNSS::Meta& meta, double& data);
 
     void test() {
-        seal::EncryptionParameters parms(seal::scheme_type::bfv);
-        parms.set_poly_modulus_degree(POLY_MOD);
-        parms.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
-        parms.set_plain_modulus(seal::CoeffModulus::Create(4096, {25})[0]);
+        gemini::HomBNSS::Meta meta;
+        meta.is_shared_input = true;
+        meta.target_base_mod = PLAIN_MOD;
+        meta.vec_shape = {2};
 
-        auto context = std::make_shared<seal::SEALContext>(parms);
-        auto gen     = seal::KeyGenerator(*context);
-        auto skey    = gen.secret_key();
+        gemini::Tensor<uint64_t> a(meta.vec_shape);
+        a(0) = 2;
+        a(1) = 2;
+        gemini::Tensor<uint64_t> b(meta.vec_shape);
+        b(0) = 3;
+        b(1) = 4;
 
-        seal::Encryptor encryptor(*context, skey);
-        seal::BatchEncoder encoder(*context);
-        seal::Evaluator evaluator(*context);
+        std::vector<seal::Plaintext> plain;
+        bn_.encodeScales(b, meta, plain);
+        
+        std::vector<seal::Serializable<seal::Ciphertext>> tmp;
+        std::vector<seal::Plaintext> share;
+        bn_.encryptVector(a, meta, tmp, share, 1);
+        std::vector<seal::Ciphertext> ct(tmp.size());
 
-        std::vector<uint64_t> a(encoder.slot_count(), 0);
-        a[0] = 2;
-        a[1] = 2;
-        std::vector<uint64_t> b(encoder.slot_count(), 0);
-        b[0] = 3;
-        b[1] = 4;
+        for(size_t i = 0; i < tmp.size(); ++i) {
+            std::stringstream ss;
+            tmp[i].save(ss);
+            ct[i].load(*bn_contexts_[i], ss);
+        }
 
-        seal::Plaintext tmp;
-        encoder.encode(a, tmp);
-        auto ser = encryptor.encrypt_symmetric(tmp);
-        seal::Ciphertext ct;
-        std::stringstream ss;
-        ser.save(ss);
-        ct.load(*context, ss);
+        gemini::Tensor<uint64_t> C;
+        std::vector<seal::Ciphertext> out;
+        bn_.bn(ct, share, plain, meta, out, C);
 
-        seal::Plaintext pt;
-        encoder.encode(b, pt);
+        gemini::Tensor<uint64_t> final;
+        bn_.decryptToVector(out, meta, final);
 
-        evaluator.multiply_plain_inplace(ct, pt);
+        Utils::op_inplace<uint64_t>(final, C, [] (uint64_t a, uint64_t b) {return (a+b) % PLAIN_MOD;});
 
-        seal::Decryptor decryptor(*context, skey);
-        seal::Plaintext res;
-        decryptor.decrypt(ct, res);
-
-        std::vector<uint64_t> final;
-        encoder.decode(res, final);
-        for (size_t i = 0; i < 4; ++i)
-            std::cout << "FINAL: " << final.size() << " " << final[i] << "\n";
+        for (long i = 0; i < final.length(); ++i)
+            std::cout << "FINAL: " << final.length() << " " << final(i) << "\n";
     }
 };
 
