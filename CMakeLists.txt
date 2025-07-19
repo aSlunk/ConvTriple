@@ -4,6 +4,7 @@ project(IDP)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED 20)
 
+option(USE_APPROX_RESHARE "Enable APPROX RESHARE" OFF)
 option(TRIP_VERIFY "Enable verification" ON)
 option(TRIP_COLOR "Enable colored output" ON)
 
