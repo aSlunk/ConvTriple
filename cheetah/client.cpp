@@ -40,12 +40,5 @@ int main(int argc, char** argv) {
     {
         auto layers = Utils::init_layers_bn_cheetah();
         all.run_he(layers, all.get_bn());
-        // double time = 0;
-        // double data = 0;
-        // for (auto& layer : layers) {
-        //     time += all.alt_bn(layer, data);
-        // }
-        // Utils::log(Utils::Level::INFO, "Total time [s]: ", time);
-        // Utils::log(Utils::Level::INFO, "Total data [MB]: ", data);
     }
 }

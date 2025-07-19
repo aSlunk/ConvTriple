@@ -157,9 +157,9 @@ Result Client::Protocol1_alt(Channel** client, const seal::SEALContext& context,
     start               = measure::now();
 
     std::vector<seal::Ciphertext> enc_A1;
-    measures.ret = IO::recv_send(context, client, enc_A2, enc_A1, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+    // measures.ret = IO::recv_send(context, client, enc_A2, enc_A1, threads);
+    hom_conv.recvEncryptVector(client[0], enc_A1, meta);
+    hom_conv.sendEncryptVector(client[0], enc_A2, meta);
 
     measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -180,9 +180,9 @@ Result Client::Protocol1_alt(Channel** client, const seal::SEALContext& context,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M1;
-    measures.ret = IO::recv_send(context, client, enc_M2, enc_M1, threads);
-    if (measures.ret != Code::OK)
-        return measures;
+    // measures.ret = IO::recv_send(context, client, enc_M2, enc_M1, threads);
+    hom_conv.recvEncryptVector(client[0], enc_M1, meta);
+    hom_conv.sendEncryptVector(client[0], enc_M2, meta);
 
     measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -279,7 +279,9 @@ Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_A2;
-    IO::send_recv(context, server, enc_A1, enc_A2, threads);
+    // IO::send_recv(context, server, enc_A1, enc_A2, threads);
+    conv.sendEncryptVector(server[0], enc_A1, meta);
+    conv.recvEncryptVector(server[0], enc_A2, meta);
 
     measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -301,7 +303,9 @@ Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M2;
-    IO::send_recv(context, server, M1, enc_M2, threads);
+    // IO::send_recv(context, server, M1, enc_M2, threads);
+    conv.sendEncryptVector(server[0], M1, meta);
+    conv.recvEncryptVector(server[0], enc_M2, meta);
 
     measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
