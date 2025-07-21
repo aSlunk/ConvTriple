@@ -614,6 +614,11 @@ Code HomBNSS::encodeTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
             for (int c = 0; c < split_shape.channels(); ++c) {
                 for (int h = 0; h < split_shape.height(); ++h) {
                     for (int w = 0; w < split_shape.width(); ++w) {
+                        if (offsets[0] + c >= meta.ishape.channels()
+                            || offsets[1] + h >= meta.ishape.height()
+                            || offsets[2] + w >= meta.ishape.width()) {
+                            continue;
+                        }
                         *tmp_ptr++ = tensor_slice(c, h, w);
                     }
                 }
@@ -665,6 +670,11 @@ Code HomBNSS::encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
             for (int c = 0; c < split_shape.channels(); ++c) {
                 for (int h = 0; h < split_shape.height(); ++h) {
                     for (int w = 0; w < split_shape.width(); ++w) {
+                        if (offsets[0] + c >= meta.ishape.channels()
+                            || offsets[1] + h >= meta.ishape.height()
+                            || offsets[2] + w >= meta.ishape.width()) {
+                            continue;
+                        }
                         *tmp_ptr++ = tensor_slice(c, h, w);
                     }
                 }
@@ -718,6 +728,11 @@ Code HomBNSS::encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
             for (int c = 0; c < split_shape.channels(); ++c) {
                 for (int h = 0; h < split_shape.height(); ++h) {
                     for (int w = 0; w < split_shape.width(); ++w) {
+                        if (offsets[0] + c >= meta.ishape.channels()
+                            || offsets[1] + h >= meta.ishape.height()
+                            || offsets[2] + w >= meta.ishape.width()) {
+                            continue;
+                        }
                         *tmp_ptr++ = tensor_slice(c, h, w);
                     }
                 }

@@ -18,13 +18,7 @@ namespace ResNet50 {
 vector<gemini::HomBNSS::Meta> ResNet50::init_layers_bn_alt() {
     vector<gemini::HomBNSS::Meta> layers;
     layers.reserve(53);
-    gemini::HomBNSS::Meta meta;
-    meta.ishape          = {64, 196, 64};
-    meta.vec_shape       = {64};
-    meta.target_base_mod = PLAIN_MOD;
-    meta.is_shared_input = true;
-    layers.push_back(meta);
-    // layers.push_back(Utils::init_meta_bn(64, 12544));
+    layers.push_back(Utils::init_meta_bn(65, 12544));
     layers.push_back(Utils::init_meta_bn(64, 3136));
     layers.push_back(Utils::init_meta_bn(64, 3136));
     layers.push_back(Utils::init_meta_bn(256, 3136));
