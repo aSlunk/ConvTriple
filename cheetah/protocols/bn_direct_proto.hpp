@@ -36,7 +36,7 @@ Result perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
 #ifdef VERIFY
 template <class T>
 void Verify_BN_DIRECT(IO::NetIO& io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& conv,
-                 const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
+                      const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
 #endif
 
 } // namespace Server
@@ -382,8 +382,8 @@ Result Client::perform_proto(gemini::HomBNSS::Meta& meta, Channel** client,
 #ifdef VERIFY
 template <class T>
 void Server::Verify_BN_DIRECT(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
-                         const gemini::HomBNSS& conv, const Tensor<T>& A1, const Tensor<T>& B1,
-                         const Tensor<T>& C1) {
+                              const gemini::HomBNSS& conv, const Tensor<T>& A1, const Tensor<T>& B1,
+                              const Tensor<T>& C1) {
     Utils::log(Utils::Level::INFO, "VERIFYING BN");
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.vec_shape);

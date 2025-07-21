@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "all.hpp"
+#include "networks/resnet50.hpp"
 
 #define PARTY 2
 
@@ -33,12 +34,12 @@ int main(int argc, char** argv) {
     }
 
     {
-        auto layers = Utils::init_layers_conv_cheetah();
+        auto layers = ResNet50::init_layers_conv_cheetah();
         all.run_he(layers, all.get_conv());
     }
 
     {
-        auto layers = Utils::init_layers_bn_cheetah();
+        auto layers = ResNet50::init_layers_bn_cheetah();
         all.run_he(layers, all.get_bn());
     }
 }

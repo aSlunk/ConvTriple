@@ -42,7 +42,7 @@ Result perform_proto(HomFCSS::Meta& meta, Channel** server, const seal::SEALCont
 #ifdef VERIFY
 template <class T>
 void Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv, const Tensor<T>& A1,
-                 const Tensor<T>& B1, const Tensor<T>& C1);
+               const Tensor<T>& B1, const Tensor<T>& C1);
 #endif
 
 } // namespace Server
@@ -466,7 +466,7 @@ Result Client::perform_proto(HomFCSS::Meta& meta, Channel** client,
 #ifdef VERIFY
 template <class T>
 void Server::Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv,
-                         const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1) {
+                       const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1) {
     Utils::log(Utils::Level::INFO, "VERIFYING FC");
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.weight_shape);
@@ -504,7 +504,7 @@ void Server::Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& 
 
 template <class T>
 void Client::Verify_FC(IO::NetIO& io, const Tensor<T>& A2, const Tensor<T>& B2,
-                         const Tensor<T>& C2) {
+                       const Tensor<T>& C2) {
     log(Utils::Level::INFO, "SENDING");
     io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);
     io.send_data(B2.data(), B2.NumElements() * sizeof(T), false);

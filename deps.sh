@@ -7,11 +7,10 @@ TMP="$WORK_DIR/tmp"
 
 mkdir deps
 
-# git clone https://gitlab.com/libeigen/eigen.git $TMP/eigen
-# cd $TMP/eigen
-# cmake . -B build -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_BUILD_TYPE=Release
-# cmake --install build
-# cd ..
+git clone https://gitlab.com/libeigen/eigen.git $TMP/eigen
+cd $TMP/eigen
+cmake . -B build -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_BUILD_TYPE=Release
+cmake --install build
 
 ###############################################################################
 # emp-ot

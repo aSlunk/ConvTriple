@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "all.hpp"
+#include "networks/resnet50.hpp"
 
 #define PARTY 1
 
@@ -45,26 +46,18 @@ int main(int argc, char** argv) {
     }
 
     HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, batchSize, samples, false);
-    // auto start = measure::now();
-    // all.test_bn();
-    // std::cerr << Utils::to_sec(Utils::time_diff(start)) << "\n";
-
-    // start = measure::now();
-    // all.alt_bn();
-    // std::cerr << Utils::to_sec(Utils::time_diff(start)) << "\n";
-
     {
         auto layers = Utils::init_layers_fc();
         all.run_he(layers, all.get_fc());
     }
 
     {
-        auto layers = Utils::init_layers_conv_cheetah();
+        auto layers = ResNet50::init_layers_conv_cheetah();
         all.run_he(layers, all.get_conv());
     }
 
     {
-        auto layers = Utils::init_layers_bn_cheetah();
+        auto layers = ResNet50::init_layers_bn_cheetah();
         all.run_he(layers, all.get_bn());
     }
 }
