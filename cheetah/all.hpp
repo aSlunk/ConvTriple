@@ -90,7 +90,7 @@ class HE {
     void run_ot(const size_t& batchSize, bool packed = false);
 
     void test_bn();
-    double alt_bn(const gemini::HomBNSS::Meta& meta, double& data);
+    double alt_bn(const gemini::HomBNSS::Meta& meta);
 };
 
 template <class Channel>
@@ -229,10 +229,12 @@ void HE<Channel>::run_ot(const size_t& batchSize, bool packed) {
             break;
         }
     }
+    std::string unit;
+    auto data = Utils::to_MB(counter_(), unit);
     Utils::log(Utils::Level::INFO, "P", party_,
                ": OT TIME[s]: ", Utils::to_sec(Utils::time_diff(start)) / samples_);
-    Utils::log(Utils::Level::INFO, "P", party_,
-               ": OT data[MB]: ", (Utils::to_MB(counter_())) / samples_);
+    Utils::log(Utils::Level::INFO, "P", party_, ": OT data[", unit,
+               "]: ", (Utils::to_MB(data) / samples_));
 
     reset_counter_();
 }
@@ -292,7 +294,7 @@ void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
         total += tmp_total / samples_;
 
         all_results[i] = Utils::average(results, true);
-        total_data += Utils::to_MB(all_results[i].bytes);
+        total_data += all_results[i].bytes;
     }
 
     switch (party_) {
@@ -307,8 +309,11 @@ void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
                             + ".csv");
         break;
     }
+
+    std::string unit;
+    total_data = Utils::to_MB(total_data, unit);
     std::cout << "Party " << party_ << ": total time [s]: " << total << "\n";
-    std::cout << "Party " << party_ << ": total data [MB]: " << total_data << "\n";
+    std::cout << "Party " << party_ << ": total data [" << unit << "]: " << total_data << "\n";
 
     reset_counter_();
 }
@@ -344,7 +349,8 @@ void HE<Channel>::test_bn() {
         total += ss.tellp();
         enc_images[i].load(context_, ss);
     }
-    std::cerr << "Total: " << Utils::to_MB(total) << "\n";
+    std::string unit;
+    std::cerr << "Total: " << Utils::to_MB(total, unit) << unit << "\n";
 
     gemini::Tensor<uint64_t> R;
     std::vector<seal::Ciphertext> out;
@@ -383,7 +389,7 @@ ret:
 }
 
 template <class Channel>
-double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn, double& data) {
+double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn) {
     auto meta = Utils::init_meta_fc(1, meta_bn.ishape.height());
 
     auto start = measure::now();
@@ -404,7 +410,6 @@ double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn, double& data) {
     }
 
     double time = Utils::to_sec(Utils::time_diff(start));
-    data += Utils::to_MB(res.bytes);
 
     return time;
 }

@@ -106,8 +106,10 @@ inline double to_msec(const T& num) {
 }
 
 template <class T>
-inline double to_MB(const T& bytes) {
-    return bytes / 1'000'000.0;
+inline double to_MB(const T& bytes, std::string& unit) {
+    // return bytes / 1'000'000.0;
+    unit = "MiB";
+    return bytes / static_cast<double>(1 << 20);
 }
 
 template <class Time>
@@ -137,7 +139,8 @@ gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const l
                                          const size_t& n_filter, const size_t& stride,
                                          const size_t& padding);
 
-std::vector<gemini::HomConv2DSS::Meta> init_layers();
+std::vector<gemini::HomConv2DSS::Meta> init_layers_conv();
+std::vector<gemini::HomConv2DSS::Meta> init_layers_conv_cheetah();
 std::vector<gemini::HomFCSS::Meta> init_layers_fc();
 std::vector<gemini::HomBNSS::Meta> init_layers_bn();
 std::vector<gemini::HomBNSS::Meta> init_layers_bn_cheetah();
@@ -372,7 +375,65 @@ std::vector<gemini::HomFCSS::Meta> Utils::init_layers_fc() {
     return layers;
 }
 
-std::vector<gemini::HomConv2DSS::Meta> Utils::init_layers() {
+std::vector<gemini::HomConv2DSS::Meta> Utils::init_layers_conv_cheetah() {
+    std::vector<gemini::HomConv2DSS::Meta> layers;
+    layers.push_back(Utils::init_meta_conv(3, 230, 230, 3, 7, 7, 64, 2, 0));
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 1, 1, 256, 1, 0));
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 1, 1, 64, 1, 0));
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 3, 3, 64, 1, 1));
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 1, 1, 256, 1, 0));
+    layers.push_back(Utils::init_meta_conv(256, 56, 56, 256, 1, 1, 64, 1, 0));
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 3, 3, 64, 1, 1));
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 1, 1, 256, 1, 0));
+    layers.push_back(Utils::init_meta_conv(256, 56, 56, 256, 1, 1, 64, 1, 0));
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 3, 3, 64, 1, 1));
+    layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 1, 1, 256, 1, 0));
+    layers.push_back(Utils::init_meta_conv(256, 56, 56, 256, 1, 1, 512, 2, 0));
+    layers.push_back(Utils::init_meta_conv(256, 56, 56, 256, 1, 1, 128, 1, 0));
+    layers.push_back(Utils::init_meta_conv(128, 58, 58, 128, 3, 3, 128, 2, 0));
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 1, 1, 512, 1, 0));
+    layers.push_back(Utils::init_meta_conv(512, 28, 28, 512, 1, 1, 128, 1, 0));
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 3, 3, 128, 1, 1));
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 1, 1, 512, 1, 0));
+    layers.push_back(Utils::init_meta_conv(512, 28, 28, 512, 1, 1, 128, 1, 0));
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 3, 3, 128, 1, 1));
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 1, 1, 512, 1, 0));
+    layers.push_back(Utils::init_meta_conv(512, 28, 28, 512, 1, 1, 128, 1, 0));
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 3, 3, 128, 1, 1));
+    layers.push_back(Utils::init_meta_conv(128, 28, 28, 128, 1, 1, 512, 1, 0));
+    layers.push_back(Utils::init_meta_conv(512, 28, 28, 512, 1, 1, 1024, 2, 0));
+    layers.push_back(Utils::init_meta_conv(512, 28, 28, 512, 1, 1, 256, 1, 0));
+    layers.push_back(Utils::init_meta_conv(256, 30, 30, 256, 3, 3, 256, 2, 0));
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 256, 1, 0));
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 3, 3, 256, 1, 1));
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 256, 1, 0));
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 3, 3, 256, 1, 1));
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 256, 1, 0));
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 3, 3, 256, 1, 1));
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 256, 1, 0));
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 3, 3, 256, 1, 1));
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 256, 1, 0));
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 3, 3, 256, 1, 1));
+    layers.push_back(Utils::init_meta_conv(256, 14, 14, 256, 1, 1, 1024, 1, 0));
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 2048, 2, 0));
+    layers.push_back(Utils::init_meta_conv(1024, 14, 14, 1024, 1, 1, 512, 1, 0));
+    layers.push_back(Utils::init_meta_conv(512, 16, 16, 512, 3, 3, 512, 2, 0));
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));
+    layers.push_back(Utils::init_meta_conv(2048, 7, 7, 2048, 1, 1, 512, 1, 0));
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 3, 3, 512, 1, 1));
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));
+    layers.push_back(Utils::init_meta_conv(2048, 7, 7, 2048, 1, 1, 512, 1, 0));
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 3, 3, 512, 1, 1));
+    layers.push_back(Utils::init_meta_conv(512, 7, 7, 512, 1, 1, 2048, 1, 0));
+    return layers;
+}
+
+std::vector<gemini::HomConv2DSS::Meta> Utils::init_layers_conv() {
     std::vector<gemini::HomConv2DSS::Meta> layers;
     layers.push_back(Utils::init_meta_conv(3, 224, 224, 3, 7, 7, 64, 2, 3));
     layers.push_back(Utils::init_meta_conv(64, 56, 56, 64, 1, 1, 64, 1, 0));       // L1
@@ -565,10 +626,13 @@ gemini::Tensor<double> Utils::convert_double(const gemini::Tensor<uint64_t>& in)
 
 double Utils::print_results(const Result& res, const size_t& layer, const size_t& batchSize,
                             const size_t& threads, std::ostream& out) {
+    std::string unit;
+    auto data = to_MB(res.bytes, unit);
     if (!layer)
         out << "Encryption [ms],Cipher Calculations [s],Serialization [s],Decryption [ms],Plain "
                "Calculations [ms], "
-               "Sending and Receiving [ms],Total [s],Bytes Send [MB],batchSize,threads\n";
+               "Sending and Receiving [ms],Total [s],Bytes Send ["
+            << unit << "],batchSize,threads\n";
 
     double total = to_msec(res.encryption) + to_msec(res.cipher_op) + to_msec(res.send_recv)
                    + to_msec(res.decryption) + to_msec(res.plain_op) + to_msec(res.serial);
@@ -576,8 +640,8 @@ double Utils::print_results(const Result& res, const size_t& layer, const size_t
 
     out << to_msec(res.encryption) << ", " << to_sec(res.cipher_op) << ", " << to_sec(res.serial)
         << ", " << to_msec(res.decryption) << ", " << to_msec(res.plain_op) << ", "
-        << to_msec(res.send_recv) << ", " << total << ", " << to_MB(res.bytes) << ", " << batchSize
-        << ", " << threads << "\n";
+        << to_msec(res.send_recv) << ", " << total << ", " << data << ", " << batchSize << ", "
+        << threads << "\n";
 
     return total;
 }
@@ -639,8 +703,9 @@ void Utils::make_csv(const std::vector<Result>& results, const size_t& batchSize
 
     os << "Total time[s]: " << total << "\n";
     double data = 0;
-    for (auto& res : results) data += Utils::to_MB(res.bytes);
-    os << "Total data[MB]: " << data << "\n";
+    std::string unit;
+    for (auto& res : results) data += Utils::to_MB(res.bytes, unit);
+    os << "Total data[" << unit << "]: " << data << "\n";
 
     if (os.is_open())
         os.close();

@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     }
 
     {
-        auto layers = Utils::init_layers();
+        auto layers = Utils::init_layers_conv_cheetah();
         all.run_he(layers, all.get_conv());
     }
 
