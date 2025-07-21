@@ -53,16 +53,16 @@ int main(int argc, char** argv) {
     // all.alt_bn();
     // std::cerr << Utils::to_sec(Utils::time_diff(start)) << "\n";
 
-    // {
-    //     auto layers = Utils::init_layers_fc();
-    //     all.run_he(layers, all.get_fc());
-    // }
+    {
+        auto layers = Utils::init_layers_fc();
+        all.run_he(layers, all.get_fc());
+    }
 
     {
         auto layers = Utils::init_layers();
         all.run_he(layers, all.get_conv());
     }
-    
+
     {
         auto layers = Utils::init_layers_bn_cheetah();
         all.run_he(layers, all.get_bn());

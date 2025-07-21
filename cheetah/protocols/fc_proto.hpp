@@ -41,7 +41,7 @@ Result perform_proto(HomFCSS::Meta& meta, Channel** server, const seal::SEALCont
 
 #ifdef VERIFY
 template <class T>
-void Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv, const Tensor<T>& A1,
+void Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv, const Tensor<T>& A1,
                  const Tensor<T>& B1, const Tensor<T>& C1);
 #endif
 
@@ -67,7 +67,7 @@ Result perform_proto(HomFCSS::Meta& meta, Channel** client, const seal::SEALCont
 
 #ifdef VERIFY
 template <class T>
-void Verify_Conv(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
+void Verify_FC(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
 #endif
 
 } // namespace Client
@@ -425,7 +425,7 @@ Result Server::perform_proto(HomFCSS::Meta& meta, Channel** server,
 
 #ifdef VERIFY
     server[0]->sync();
-    Verify_Conv(*(server[0]), meta, hom_conv, vecs[0], weights[0], C1[0]);
+    Verify_FC(*(server[0]), meta, hom_conv, vecs[0], weights[0], C1[0]);
 #endif
     return measures;
 }
@@ -458,14 +458,14 @@ Result Client::perform_proto(HomFCSS::Meta& meta, Channel** client,
 
 #ifdef VERIFY
     client[0]->sync();
-    Verify_Conv(*(client[0]), vecs[0], weights[0], C2[0]);
+    Verify_FC(*(client[0]), vecs[0], weights[0], C2[0]);
 #endif
     return measures;
 }
 
 #ifdef VERIFY
 template <class T>
-void Server::Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv,
+void Server::Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& conv,
                          const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1) {
     Utils::log(Utils::Level::INFO, "VERIFYING FC");
     Tensor<T> A2(A1.shape());
@@ -503,7 +503,7 @@ void Server::Verify_Conv(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS
 }
 
 template <class T>
-void Client::Verify_Conv(IO::NetIO& io, const Tensor<T>& A2, const Tensor<T>& B2,
+void Client::Verify_FC(IO::NetIO& io, const Tensor<T>& A2, const Tensor<T>& B2,
                          const Tensor<T>& C2) {
     log(Utils::Level::INFO, "SENDING");
     io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);

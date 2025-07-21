@@ -1,5 +1,6 @@
 #!/bin/bash
 
+THREADS=8
 BUILD_TYPE=Release
 BUILD_DIR=build
 
@@ -15,4 +16,4 @@ if [[ -n $1 ]]; then
 fi
 
 
-cmake --build build
+cmake --build build --parallel $THREADS

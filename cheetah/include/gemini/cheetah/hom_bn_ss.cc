@@ -200,8 +200,8 @@ Code HomBNSS::setUp(uint64_t target_base_mod, const std::vector<seal::SEALContex
 }
 
 Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
-                    std::vector<seal::Serializable<seal::Ciphertext>>& out,
-                    std::vector<seal::Plaintext>& enc, size_t nthreads) const {
+                            std::vector<seal::Serializable<seal::Ciphertext>>& out,
+                            std::vector<seal::Plaintext>& enc, size_t nthreads) const {
     ENSURE_OR_RETURN(!contexts_.empty() && !encryptors_.empty() && !encoders_.empty(),
                      Code::ERR_CONFIG);
     ENSURE_OR_RETURN(in_vec.dims() == 1 && in_vec.shape().IsSameSize(meta.vec_shape),
@@ -633,8 +633,8 @@ Code HomBNSS::encodeTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
 }
 
 Code HomBNSS::encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
-                       std::vector<seal::Serializable<seal::Ciphertext>>& out,
-                       std::vector<seal::Plaintext>& encoded_share, size_t nthreads) const {
+                            std::vector<seal::Serializable<seal::Ciphertext>>& out,
+                            std::vector<seal::Plaintext>& encoded_share, size_t nthreads) const {
     ENSURE_OR_RETURN(direct_context_ && direct_encryptor_, Code::ERR_CONFIG);
     ENSURE_OR_RETURN(in_tensor.shape().IsSameSize(meta.ishape), Code::ERR_CONFIG);
     TensorShape split_shape = getSplitBN(meta.ishape, poly_degree());

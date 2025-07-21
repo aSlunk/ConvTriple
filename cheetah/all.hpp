@@ -14,10 +14,10 @@
 
 #include <ot/cheetah-ot_pack.h>
 
+#include "protocols/bn_direct_proto.hpp"
 #include "protocols/conv_proto.hpp"
 #include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
-#include "protocols/bn_direct_proto.hpp"
 
 #include "defs.hpp"
 
@@ -91,7 +91,6 @@ class HE {
 
     void test_bn();
     double alt_bn(const gemini::HomBNSS::Meta& meta, double& data);
-
 };
 
 template <class Channel>
@@ -127,20 +126,21 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
 
     using namespace seal;
     size_t ntarget_bits = std::ceil(std::log2(PLAIN_MOD));
-    size_t crt_bits = 2 * ntarget_bits + 1 + gemini::HomBNSS::kStatBits;
+    size_t crt_bits     = 2 * ntarget_bits + 1 + gemini::HomBNSS::kStatBits;
 
     const size_t nbits_per_crt_plain = [](size_t crt_bits) {
         constexpr size_t kMaxCRTPrime = 50;
         for (size_t nCRT = 1;; ++nCRT) {
             size_t np = gemini::CeilDiv(crt_bits, nCRT);
-            if (np <= kMaxCRTPrime) return np;
+            if (np <= kMaxCRTPrime)
+                return np;
         }
     }(crt_bits + 1);
 
     const size_t nCRT = gemini::CeilDiv<size_t>(crt_bits, nbits_per_crt_plain);
     std::vector<int> crt_primes_bits(nCRT, nbits_per_crt_plain);
 
-    const size_t N = POLY_MOD;
+    const size_t N  = POLY_MOD;
     auto plain_crts = CoeffModulus::Create(N, crt_primes_bits);
     EncryptionParameters seal_parms(scheme_type::bfv);
     seal_parms.set_n_special_primes(0);
@@ -152,8 +152,7 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     bn_contexts_.resize(nCRT);
     for (size_t i = 0; i < nCRT; ++i) {
         seal_parms.set_plain_modulus(plain_crts[i]);
-        bn_contexts_[i] =
-            std::make_shared<SEALContext>(seal_parms, true, sec_level_type::tc128);
+        bn_contexts_[i] = std::make_shared<SEALContext>(seal_parms, true, sec_level_type::tc128);
     }
 
     std::vector<seal::SEALContext> contexts;
@@ -162,8 +161,8 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     bn_pks_.resize(nCRT);
     for (size_t i = 0; i < nCRT; ++i) {
         KeyGenerator keygen(*bn_contexts_[i]);
-        bn_sks_[i] = std::make_shared<SecretKey>(keygen.secret_key());
-        bn_pks_[i] = std::make_shared<PublicKey>();
+        bn_sks_[i]                   = std::make_shared<SecretKey>(keygen.secret_key());
+        bn_pks_[i]                   = std::make_shared<PublicKey>();
         Serializable<PublicKey> s_pk = keygen.create_public_key();
 
         exchange_keys_(s_pk, *bn_pks_[i], *bn_contexts_[i]);

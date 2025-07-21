@@ -35,7 +35,7 @@ Result perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
 
 #ifdef VERIFY
 template <class T>
-void Verify_Conv(IO::NetIO& io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& conv,
+void Verify_BN_DIRECT(IO::NetIO& io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& conv,
                  const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
 #endif
 
@@ -337,7 +337,7 @@ Result Server::perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
     for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
 #ifdef VERIFY
-    Verify_Conv(*(server[0]), meta, hom_conv, A1, B1, C1);
+    Verify_BN_DIRECT(*(server[0]), meta, hom_conv, A1, B1, C1);
 #endif
     return measures;
 }
@@ -374,14 +374,14 @@ Result Client::perform_proto(gemini::HomBNSS::Meta& meta, Channel** client,
     for (size_t i = 0; i < threads; ++i) client[i]->counter = 0;
 
 #ifdef VERIFY
-    Verify_Conv(*(client[0]), A2, B2, C2);
+    Verify_BN(*(client[0]), A2, B2, C2);
 #endif
     return measures;
 }
 
 #ifdef VERIFY
 template <class T>
-void Server::Verify_Conv(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
+void Server::Verify_BN_DIRECT(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
                          const gemini::HomBNSS& conv, const Tensor<T>& A1, const Tensor<T>& B1,
                          const Tensor<T>& C1) {
     Utils::log(Utils::Level::INFO, "VERIFYING BN");
@@ -419,16 +419,6 @@ end:
     else
         Utils::log(Utils::Level::FAILED, "BN: FAILED");
 }
-
-// template <class T>
-// void Client::Verify_Conv(IO::NetIO& io, const Tensor<T>& A2, const Tensor<T>& B2,
-//                          const Tensor<T>& C2) {
-//     log(Utils::Level::INFO, "SENDING");
-//     io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);
-//     io.send_data(B2.data(), B2.NumElements() * sizeof(T), false);
-//     io.send_data(C2.data(), C2.NumElements() * sizeof(T), false);
-//     io.flush();
-// }
 #endif
 
 #endif
