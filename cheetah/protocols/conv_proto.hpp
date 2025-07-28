@@ -93,7 +93,7 @@ Result Client::Protocol2(Channel** client, const seal::SEALContext& context,
     if (measures.ret != Code::OK)
         return measures;
 
-    hom_conv.filtersToNtt(enc_B2, threads);
+    // hom_conv.filtersToNtt(enc_B2, threads);
 
     measures.encryption = Utils::time_diff(start);
 
@@ -113,6 +113,9 @@ Result Client::Protocol2(Channel** client, const seal::SEALContext& context,
 
     std::vector<seal::Ciphertext> M2;
     measures.ret = hom_conv.conv2DSS(enc_A1, enc_A2, enc_B2, meta, M2, C2, threads);
+    enc_A1.clear();
+    enc_A2.clear();
+    enc_B2.clear();
     if (measures.ret != Code::OK)
         return measures;
 
@@ -154,13 +157,14 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
     if (measures.ret != Code::OK)
         return measures;
 
-    hom_conv.filtersToNtt(enc_B2, threads);
+    //hom_conv.filtersToNtt(enc_B2, threads);
 
     measures.encryption = Utils::time_diff(start);
     start               = measure::now();
 
     std::vector<seal::Ciphertext> enc_A1;
     measures.ret = IO::recv_send(context, client, enc_A2, enc_A1, threads);
+    enc_A2.clear();
     if (measures.ret != Code::OK)
         return measures;
 
@@ -173,6 +177,9 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
     std::vector<seal::Ciphertext> enc_M2;
     Tensor<uint64_t> R2;
     measures.ret = hom_conv.conv2DSS(enc_A1, encoded_A2, enc_B2, meta, enc_M2, R2, threads);
+    enc_A1.clear();
+    encoded_A2.clear();
+    enc_B2.clear();
     if (measures.ret != Code::OK)
         return measures;
 
@@ -232,6 +239,7 @@ Result Server::Protocol2(const gemini::HomConv2DSS::Meta& meta, Channel** server
     start = measure::now();
 
     IO::send_encrypted_vector(server, enc_A1, threads);
+    enc_A1.clear();
 
     measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -277,7 +285,7 @@ Result Server::Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel** server
     if (measures.ret != Code::OK)
         return measures;
 
-    conv.filtersToNtt(enc_B1, threads);
+    //conv.filtersToNtt(enc_B1, threads);
 
     measures.encryption = Utils::time_diff(start);
 
@@ -285,6 +293,7 @@ Result Server::Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel** server
 
     std::vector<seal::Ciphertext> enc_A2;
     IO::send_recv(context, server, enc_A1, enc_A2, threads);
+    enc_A1.clear();
 
     measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -295,6 +304,9 @@ Result Server::Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel** server
     std::vector<seal::Ciphertext> M1;
     Tensor<uint64_t> R1;
     measures.ret = conv.conv2DSS(enc_A2, encoded_A1, enc_B1, meta, M1, R1, threads);
+    enc_A2.clear();
+    encoded_A1.clear();
+    enc_B1.clear();
     if (measures.ret != Code::OK)
         return measures;
 
