@@ -99,7 +99,7 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     : threads_(threads), batchSize_(batchSize), samples_(samples), party_(party) {
     Code code;
 
-    batch_threads_      = batchSize > 1 ? threads : 1;
+    batch_threads_      = batchSize > 1 ? batchSize : 1;
     threads_per_thread_ = threads / batch_threads_;
 
     ios_   = Utils::init_ios<Channel>(addr, port, threads);
