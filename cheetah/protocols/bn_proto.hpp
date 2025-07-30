@@ -122,7 +122,9 @@ Result Client::Protocol2_alt(Channel** client, const seal::SEALContext& context,
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    hom_conv.sendEncryptVector(client[0], M2, meta);
+    measures.ret = hom_conv.sendEncryptVector(client[0], M2, meta);
+    if (measures.ret != Code::OK)
+        return measures;
 
     measures.send_recv += Utils::time_diff(start);
 
@@ -238,7 +240,9 @@ Result Server::Protocol2_alt(const gemini::HomBNSS::Meta& meta, Channel** server
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_C1;
-    conv.recvEncryptVector(server[0], enc_C1, meta);
+    measures.ret = conv.recvEncryptVector(server[0], enc_C1, meta);
+    if (measures.ret != Code::OK)
+        return measures;
 
     measures.send_recv += Utils::time_diff(start);
     start = measure::now();
