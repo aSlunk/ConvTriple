@@ -25,7 +25,7 @@ Enquiries about further applications and development opportunities are welcome.
 #ifndef NETWORK_IO_CHANNEL
 #define NETWORK_IO_CHANNEL
 
-#include "io/io_channel.hpp"
+#include "io_channel.hpp"
 #include <iostream>
 #include <memory> // std::align
 #include <stdio.h>

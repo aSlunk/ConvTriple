@@ -22,9 +22,13 @@ add_library(IO INTERFACE)
 target_include_directories(IO INTERFACE io)
 target_link_libraries(IO INTERFACE SEAL::seal gemini OT)
 
+add_library(HE INTERFACE)
+target_include_directories(HE INTERFACE core)
+target_link_libraries(HE INTERFACE SEAL::seal gemini IO OT)
+
 set(server cheetah)
 add_executable(${server} server.cpp)
-target_link_libraries(${server} PRIVATE gemini IO OT)
+target_link_libraries(${server} PRIVATE HE)
 target_compile_definitions(${server} PUBLIC USE_CHEETAH=1)
 target_compile_options(
     ${server} PRIVATE
@@ -35,7 +39,7 @@ target_compile_options(
 
 set(client cheetah_client)
 add_executable(${client} client.cpp)
-target_link_libraries(${client} PRIVATE gemini IO OT)
+target_link_libraries(${client} PRIVATE HE)
 target_compile_definitions(${client} PUBLIC USE_CHEETAH=1)
 target_compile_options(
     ${client} PRIVATE
