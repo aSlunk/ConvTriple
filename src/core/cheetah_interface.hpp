@@ -1,5 +1,5 @@
-#ifndef ALL_HPP
-#define ALL_HPP
+#ifndef CHEETAH_INTERFACE_HPP_
+#define CHEETAH_INTERFACE_HPP_
 
 #include <memory>
 
@@ -49,6 +49,11 @@ class HE {
 
     void run_conv(const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
                   const Tensor<uint64_t>& C, const size_t& stride, const size_t& padding,
+                  const size_t& batchSize = 1);
+
+    template <class T>
+    void run_he(const T& cheetah, const class T::Meta& meta, const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
+                  const Tensor<uint64_t>& C,
                   const size_t& batchSize = 1);
 
     void run_ot(const size_t& batchSize, bool packed = false);
@@ -424,15 +429,13 @@ double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn) {
 }
 
 template <class Channel>
-void HE<Channel>::run_conv(const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
-                           const Tensor<uint64_t>& C, const size_t& stride, const size_t& padding,
-                           const size_t& batchSize) {
+template <class T>
+void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta, const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
+                  const Tensor<uint64_t>& C,
+                  const size_t& batchSize) {
     size_t batch_threads      = batchSize > 1 ? batchSize : 1;
     size_t threads_per_thread = threads_ / batch_threads;
 
-    gemini::HomConv2DSS::Meta meta
-        = Utils::init_meta_conv(A.channels(), A.height(), A.width(), B[0].channels(), B[0].height(),
-                                B[0].width(), B.size(), stride, padding);
     double total      = 0;
     double total_data = 0;
     std::string proto("AB");
@@ -445,10 +448,10 @@ void HE<Channel>::run_conv(const Tensor<uint64_t>& A, const std::vector<Tensor<u
             if ((PROTO == 2 && party_ == emp::ALICE)
                 || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) {
                 result = Server::perform_proto(meta, ios_c_ + wid * threads_per_thread, context_,
-                                               conv_, threads_per_thread);
+                                               cheetah, threads_per_thread);
             } else {
                 result = Client::perform_proto(meta, ios_c_ + wid * threads_per_thread, context_,
-                                               conv_, threads_per_thread);
+                                               cheetah, threads_per_thread);
             }
 
             if (result.ret != Code::OK)
@@ -473,6 +476,16 @@ void HE<Channel>::run_conv(const Tensor<uint64_t>& A, const std::vector<Tensor<u
     std::cout << "Party " << party_ << ": total data [" << unit << "]: " << total_data << "\n";
 
     reset_counter_();
+}
+
+template <class Channel>
+void HE<Channel>::run_conv(const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
+                           const Tensor<uint64_t>& C, const size_t& stride, const size_t& padding,
+                           const size_t& batchSize) {
+    gemini::HomConv2DSS::Meta meta
+        = Utils::init_meta_conv(A.channels(), A.height(), A.width(), B[0].channels(), B[0].height(),
+                                B[0].width(), B.size(), stride, padding);
+    run_he(conv_, meta, A, B, C, batchSize);
 }
 
 } // namespace HE_OT

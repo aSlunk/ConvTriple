@@ -1,5 +1,5 @@
-#ifndef FC_PROTO_HPP
-#define FC_PROTO_HPP
+#ifndef FC_PROTO_HPP_
+#define FC_PROTO_HPP_
 
 #include <gemini/cheetah/hom_fc_ss.h>
 #include <gemini/cheetah/shape_inference.h>

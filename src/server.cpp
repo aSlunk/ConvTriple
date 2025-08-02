@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include <all.hpp>
+#include <cheetah_interface.hpp>
 #include <networks/resnet50.hpp>
 
 #define PARTY 1

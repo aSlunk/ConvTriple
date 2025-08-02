@@ -1,5 +1,5 @@
-#ifndef OT_PROTO_HPP
-#define OT_PROTO_HPP
+#ifndef OT_PROTO_HPP_
+#define OT_PROTO_HPP_
 
 #include <iostream>
 

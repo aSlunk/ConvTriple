@@ -1,5 +1,5 @@
-#ifndef CONV_PROTO_HPP
-#define CONV_PROTO_HPP
+#ifndef CONV_PROTO_HPP_
+#define CONV_PROTO_HPP_
 
 #include <gemini/cheetah/hom_conv2d_ss.h>
 #include <gemini/cheetah/shape_inference.h>

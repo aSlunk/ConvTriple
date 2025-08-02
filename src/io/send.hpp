@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SEND_HPP_
+#define SEND_HPP_
 
 #include <cassert>
 #include <chrono>
@@ -432,3 +433,5 @@ Code IO::recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const Vec& sen
     }
     return Code::OK;
 }
+
+#endif

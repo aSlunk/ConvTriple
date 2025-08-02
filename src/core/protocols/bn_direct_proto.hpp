@@ -1,5 +1,5 @@
-#ifndef BN_DIRECT_PROTO_HPP
-#define BN_DIRECT_PROTO_HPP
+#ifndef BN_DIRECT_PROTO_HPP_
+#define BN_DIRECT_PROTO_HPP_
 
 #include <gemini/cheetah/hom_bn_ss.h>
 #include <gemini/cheetah/shape_inference.h>
