@@ -180,6 +180,21 @@ double print_results(const Result& res, const size_t& layer, const size_t& batch
 void make_csv(const std::vector<Result>& results, const size_t& batchSize, const size_t& threads,
               const std::string& path = "");
 
+template <class T>
+std::vector<gemini::Tensor<uint64_t>> to_tensor64(T* buf, const gemini::TensorShape& shape,
+                                                  const size_t& batch = 1) {
+    std::vector<gemini::Tensor<uint64_t>> res(batch, gemini::Tensor<uint64_t>(shape));
+
+    for (size_t cur = 0; cur < batch; ++cur) {
+        uint64_t* data = res[cur].data();
+        for (ssize_t i = 0; i < shape.num_elements(); ++i) {
+            data[i] = static_cast<uint64_t>(buf[i + cur * shape.num_elements()]);
+        }
+    }
+
+    return res;
+}
+
 } // namespace Utils
 
 template <class Meta>
