@@ -62,7 +62,6 @@ class HE {
 
     void run_ot(const size_t& batchSize, bool packed = false);
 
-    void test_bn();
     double alt_bn(const gemini::HomBNSS::Meta& meta);
 
   private:
@@ -334,76 +333,6 @@ void HE<Channel>::test_he(std::vector<class T::Meta>& layers, const T& cheetah,
     std::cout << "Party " << party_ << ": total data [" << unit << "]: " << total_data << "\n";
 
     reset_counter_();
-}
-
-template <class Channel>
-void HE<Channel>::test_bn() {
-    gemini::Tensor<uint64_t> image({2048, 49, 1});
-    gemini::Tensor<uint64_t> scales({2048});
-    for (long c = 0; c < image.channels(); ++c) {
-        for (long r = 0; r < image.height(); ++r) {
-            for (long i = 0; i < image.width(); ++i) {
-                image(c, r, i) = r + 1;
-            }
-        }
-    }
-
-    for (long i = 0; i < scales.NumElements(); ++i) scales(i) = i + 1;
-
-    gemini::HomBNSS::Meta meta;
-    meta.ishape          = image.shape();
-    meta.vec_shape       = scales.shape();
-    meta.target_base_mod = PLAIN_MOD;
-    meta.is_shared_input = false;
-
-    std::vector<seal::Serializable<seal::Ciphertext>> enc_image;
-    bn_.encryptTensor(image, meta, enc_image, threads_);
-
-    std::vector<seal::Ciphertext> enc_images(enc_image.size());
-    double total = 0;
-    for (size_t i = 0; i < enc_image.size(); ++i) {
-        std::stringstream ss;
-        enc_image[i].save(ss);
-        total += ss.tellp();
-        enc_images[i].load(context_, ss);
-    }
-    std::string unit;
-    std::cerr << "Total: " << Utils::to_MB(total, unit) << unit << "\n";
-
-    gemini::Tensor<uint64_t> R;
-    std::vector<seal::Ciphertext> out;
-    Code code
-        = bn_.bn_direct(enc_images, std::vector<seal::Plaintext>(), scales, meta, out, R, threads_);
-    if (code != Code::OK) {
-        std::cerr << CodeMessage(code) << "\n";
-        return;
-    }
-
-    gemini::Tensor<uint64_t> out_tensor;
-    bn_.decryptToTensor(out, meta, out_tensor, threads_);
-
-    Utils::op_inplace<uint64_t>(
-        out_tensor, R, [](uint64_t a, uint64_t b) -> uint64_t { return (a + b) & moduloMask; });
-
-    gemini::Tensor<uint64_t> ideal;
-    bn_.idealFunctionality(image, scales, meta, ideal);
-
-    bool same = ideal.shape() == out_tensor.shape();
-    for (long c = 0; c < image.channels(); ++c) {
-        for (long h = 0; h < image.height(); ++h) {
-            for (long w = 0; w < image.width(); ++w) {
-                if (!same || out_tensor(c, h, w) != ideal(c, h, w)) {
-                    same = false;
-                    goto ret;
-                }
-            }
-        }
-    }
-ret:
-    if (same)
-        Utils::log(Utils::Level::PASSED, "BN: PASSED");
-    else
-        Utils::log(Utils::Level::FAILED, "BN: FAILED");
 }
 
 template <class Channel>
