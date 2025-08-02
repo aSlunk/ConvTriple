@@ -29,7 +29,7 @@ template <class Channel>
 class HE {
   public:
     explicit HE(const int& party, const char* addr, const int& port, const size_t& threads,
-                size_t& samples, bool setup_ot = true);
+                size_t& samples, bool setup_ot = true, bool setup_bn = true);
 
     HE(const HE& other) = delete;
     HE(HE&& other)      = delete;
@@ -106,7 +106,7 @@ class HE {
 
 template <class Channel>
 HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_t& threads,
-                size_t& samples, bool setup_ot)
+                size_t& samples, bool setup_ot, bool setup_bn)
     : threads_(threads), samples_(samples), party_(party) {
     Code code;
 
@@ -132,7 +132,8 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     if (code != Code::OK)
         Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), ": ", CodeMessage(code));
 
-    setup_BN(skey, o_pkey);
+    if (setup_bn)
+        setup_BN(skey, o_pkey);
 
     encryptor_ = std::make_unique<seal::Encryptor>(context_, skey);
 
