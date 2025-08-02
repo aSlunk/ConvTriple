@@ -48,12 +48,16 @@ class HE {
     void test_he(std::vector<class T::Meta>& layers, const T& cheetah, const size_t& batchSize = 1);
 
     void run_conv(const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
-                  const Tensor<uint64_t>& C, const size_t& stride, const size_t& padding,
+                  Tensor<uint64_t>& C, const size_t& stride, const size_t& padding,
                   const size_t& batchSize = 1);
 
-    template <class T>
-    void run_he(const T& cheetah, const class T::Meta& meta, const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
-                  const Tensor<uint64_t>& C,
+    void run_bn(const Tensor<uint64_t>& A, const Tensor<uint64_t>& B,
+                           Tensor<uint64_t>& C,
+                           const size_t& batchSize);
+
+    template <class T, class Bs>
+    void run_he(const T& cheetah, const class T::Meta& meta, const Tensor<uint64_t>& A, const Bs& B,
+                  Tensor<uint64_t>& C,
                   const size_t& batchSize = 1);
 
     void run_ot(const size_t& batchSize, bool packed = false);
@@ -429,9 +433,9 @@ double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn) {
 }
 
 template <class Channel>
-template <class T>
-void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta, const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
-                  const Tensor<uint64_t>& C,
+template <class T, class Bs>
+void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta, const Tensor<uint64_t>& A, const Bs& B,
+                  Tensor<uint64_t>& C,
                   const size_t& batchSize) {
     size_t batch_threads      = batchSize > 1 ? batchSize : 1;
     size_t threads_per_thread = threads_ / batch_threads;
@@ -480,12 +484,22 @@ void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta, const Tens
 
 template <class Channel>
 void HE<Channel>::run_conv(const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
-                           const Tensor<uint64_t>& C, const size_t& stride, const size_t& padding,
+                           Tensor<uint64_t>& C, const size_t& stride, const size_t& padding,
                            const size_t& batchSize) {
     gemini::HomConv2DSS::Meta meta
         = Utils::init_meta_conv(A.channels(), A.height(), A.width(), B[0].channels(), B[0].height(),
                                 B[0].width(), B.size(), stride, padding);
     run_he(conv_, meta, A, B, C, batchSize);
+}
+
+template <class Channel>
+void HE<Channel>::run_bn(const Tensor<uint64_t>& A, const Tensor<uint64_t>& B,
+                           Tensor<uint64_t>& C,
+                           const size_t& batchSize) {
+    gemini::HomBNSS::Meta meta
+        = Utils::init_meta_bn(B.NumElements(), A.shape().rows()* A.shape().rows());
+
+    run_he(bn_, meta, A, B, C, batchSize);
 }
 
 } // namespace HE_OT
