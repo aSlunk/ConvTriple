@@ -27,6 +27,35 @@ namespace HE_OT {
 
 template <class Channel>
 class HE {
+  public:
+    explicit HE(const int& party, const char* addr, const int& port, const size_t& threads,
+                size_t& samples, bool setup_ot = true);
+
+    HE(const HE& other) = delete;
+    HE(HE&& other)      = delete;
+
+    HE& operator=(const HE& other) = delete;
+    HE& operator=(HE&& other)      = delete;
+
+    ~HE() { delete[] ios_c_; }
+
+    const gemini::HomConv2DSS& get_conv() const { return conv_; }
+    const gemini::HomFCSS& get_fc() const { return fc_; }
+    const gemini::HomBNSS& get_bn() const { return bn_; }
+    Channel** get_ios() const { return ios_c_; }
+
+    template <class T>
+    void test_he(std::vector<class T::Meta>& layers, const T& cheetah, const size_t& batchSize = 1);
+
+    void run_conv(const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
+                  const Tensor<uint64_t>& C, const size_t& stride, const size_t& padding,
+                  const size_t& batchSize = 1);
+
+    void run_ot(const size_t& batchSize, bool packed = false);
+
+    void test_bn();
+    double alt_bn(const gemini::HomBNSS::Meta& meta);
+
   private:
     gemini::HomBNSS bn_;
     gemini::HomConv2DSS conv_;
@@ -42,9 +71,6 @@ class HE {
     std::unique_ptr<seal::Encryptor> encryptor_;
 
     size_t threads_;
-    size_t batch_threads_;
-    size_t threads_per_thread_;
-    size_t batchSize_;
     size_t samples_;
 
     std::vector<Channel> ios_;
@@ -55,6 +81,10 @@ class HE {
     template <class SerKey>
     void exchange_keys_(const SerKey& pkey, seal::PublicKey& o_pkey, const seal::SEALContext& ctx);
 
+    void setup_OT();
+    void setup_BN(const std::optional<seal::SecretKey>& skey,
+                  const std::shared_ptr<seal::PublicKey>& o_pkey);
+
     inline size_t counter_() {
         size_t counter = 0;
         for (size_t i = 0; i < threads_; ++i) counter += ios_c_[i]->counter;
@@ -64,43 +94,13 @@ class HE {
     inline void reset_counter_() {
         for (size_t i = 0; i < threads_; ++i) ios_c_[i]->counter = 0;
     }
-
-  public:
-    explicit HE(const int& party, const char* addr, const int& port, const size_t& threads,
-                const size_t& batchSize, size_t& samples, bool setup_ot = true);
-
-    HE(const HE& other) = delete;
-    HE(HE&& other)      = delete;
-
-    HE& operator=(const HE& other) = delete;
-    HE& operator=(HE&& other)      = delete;
-
-    ~HE() { delete[] ios_c_; }
-
-    void setup_OT();
-
-    const gemini::HomConv2DSS& get_conv() const { return conv_; }
-    const gemini::HomFCSS& get_fc() const { return fc_; }
-    const gemini::HomBNSS& get_bn() const { return bn_; }
-    Channel** get_ios() const { return ios_c_; }
-
-    template <class T>
-    void run_he(std::vector<class T::Meta>& layers, const T& conv);
-
-    void run_ot(const size_t& batchSize, bool packed = false);
-
-    void test_bn();
-    double alt_bn(const gemini::HomBNSS::Meta& meta);
 };
 
 template <class Channel>
 HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_t& threads,
-                const size_t& batchSize, size_t& samples, bool setup_ot)
-    : threads_(threads), batchSize_(batchSize), samples_(samples), party_(party) {
+                size_t& samples, bool setup_ot)
+    : threads_(threads), samples_(samples), party_(party) {
     Code code;
-
-    batch_threads_      = batchSize > 1 ? batchSize : 1;
-    threads_per_thread_ = threads / batch_threads_;
 
     ios_   = Utils::init_ios<Channel>(addr, port, threads);
     ios_c_ = new Channel*[threads];
@@ -124,6 +124,16 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     if (code != Code::OK)
         Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), ": ", CodeMessage(code));
 
+    setup_BN(skey, o_pkey);
+
+    encryptor_ = std::make_unique<seal::Encryptor>(context_, skey);
+
+    reset_counter_();
+}
+
+template <class Channel>
+void HE<Channel>::setup_BN(const std::optional<seal::SecretKey>& skey,
+                           const std::shared_ptr<seal::PublicKey>& o_pkey) {
     using namespace seal;
     size_t ntarget_bits = std::ceil(std::log2(PLAIN_MOD));
     size_t crt_bits     = 2 * ntarget_bits + 1 + gemini::HomBNSS::kStatBits;
@@ -170,6 +180,7 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
         opt_sks.emplace_back(*bn_sks_[i]);
     }
 
+    Code code;
     if (party_ == 2) { // ALICE
         code = bn_.setUp(PLAIN_MOD, context_, skey, o_pkey);
         if (code != Code::OK)
@@ -185,10 +196,6 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
         if (code != Code::OK)
             Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), ": ", CodeMessage(code));
     }
-
-    encryptor_ = std::make_unique<seal::Encryptor>(context_, skey);
-
-    reset_counter_();
 }
 
 template <class Channel>
@@ -241,7 +248,11 @@ void HE<Channel>::run_ot(const size_t& batchSize, bool packed) {
 
 template <class Channel>
 template <class T>
-void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
+void HE<Channel>::test_he(std::vector<class T::Meta>& layers, const T& cheetah,
+                          const size_t& batchSize) {
+    size_t batch_threads      = batchSize > 1 ? batchSize : 1;
+    size_t threads_per_thread = threads_ / batch_threads;
+
     double total      = 0;
     double total_data = 0;
     std::string proto("AB");
@@ -256,19 +267,17 @@ void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
         double tmp_total = 0;
 
         for (size_t round = 0; round < samples_; ++round) {
-            std::vector<Result> batches_results(batch_threads_);
+            std::vector<Result> batches_results(batch_threads);
             auto batch = [&](long wid, size_t start, size_t end) -> Code {
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
                     if ((PROTO == 2 && party_ == emp::ALICE)
                         || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) {
-                        result
-                            = Server::perform_proto(layers[i], ios_c_ + wid * threads_per_thread_,
-                                                    context_, conv, threads_per_thread_);
+                        result = Server::perform_proto(layers[i], ios_c_ + wid * threads_per_thread,
+                                                       context_, cheetah, threads_per_thread);
                     } else {
-                        result
-                            = Client::perform_proto(layers[i], ios_c_ + wid * threads_per_thread_,
-                                                    context_, conv, threads_per_thread_);
+                        result = Client::perform_proto(layers[i], ios_c_ + wid * threads_per_thread,
+                                                       context_, cheetah, threads_per_thread);
                     }
 
                     if (result.ret != Code::OK)
@@ -279,10 +288,10 @@ void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
                 return Code::OK;
             };
 
-            gemini::ThreadPool tpool(batch_threads_);
+            gemini::ThreadPool tpool(batch_threads);
 
             auto start = measure::now();
-            auto code  = gemini::LaunchWorks(tpool, batchSize_, batch);
+            auto code  = gemini::LaunchWorks(tpool, batchSize, batch);
             total += Utils::to_sec(Utils::time_diff(start));
             if (code != Code::OK)
                 Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), " ",
@@ -299,13 +308,13 @@ void HE<Channel>::run_he(std::vector<class T::Meta>& layers, const T& conv) {
 
     switch (party_) {
     case emp::ALICE:
-        Utils::make_csv(all_results, batchSize_, threads_,
-                        "party" + std::to_string(party_) + "_" + conv.get_str() + "_" + proto
+        Utils::make_csv(all_results, batchSize, threads_,
+                        "party" + std::to_string(party_) + "_" + cheetah.get_str() + "_" + proto
                             + ".csv");
         break;
     case emp::BOB:
-        Utils::make_csv(all_results, batchSize_, threads_,
-                        "party" + std::to_string(party_) + "_" + conv.get_str() + "_" + proto
+        Utils::make_csv(all_results, batchSize, threads_,
+                        "party" + std::to_string(party_) + "_" + cheetah.get_str() + "_" + proto
                             + ".csv");
         break;
     }
@@ -412,6 +421,58 @@ double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn) {
     double time = Utils::to_sec(Utils::time_diff(start));
 
     return time;
+}
+
+template <class Channel>
+void HE<Channel>::run_conv(const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
+                           const Tensor<uint64_t>& C, const size_t& stride, const size_t& padding,
+                           const size_t& batchSize) {
+    size_t batch_threads      = batchSize > 1 ? batchSize : 1;
+    size_t threads_per_thread = threads_ / batch_threads;
+
+    gemini::HomConv2DSS::Meta meta
+        = Utils::init_meta_conv(A.channels(), A.height(), A.width(), B[0].channels(), B[0].height(),
+                                B[0].width(), B.size(), stride, padding);
+    double total      = 0;
+    double total_data = 0;
+    std::string proto("AB");
+    proto += PROTO > 1 ? std::to_string(PROTO) : "";
+
+    std::vector<Result> batches_results(batch_threads);
+    auto batch = [&](long wid, size_t start, size_t end) -> Code {
+        for (size_t cur = start; cur < end; ++cur) {
+            Result result;
+            if ((PROTO == 2 && party_ == emp::ALICE)
+                || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) {
+                result = Server::perform_proto(meta, ios_c_ + wid * threads_per_thread, context_,
+                                               conv_, threads_per_thread);
+            } else {
+                result = Client::perform_proto(meta, ios_c_ + wid * threads_per_thread, context_,
+                                               conv_, threads_per_thread);
+            }
+
+            if (result.ret != Code::OK)
+                return result.ret;
+
+            Utils::add_result(batches_results[wid], result);
+        }
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(batch_threads);
+
+    auto start = measure::now();
+    auto code  = gemini::LaunchWorks(tpool, batchSize, batch);
+    total += Utils::to_sec(Utils::time_diff(start));
+    if (code != Code::OK)
+        Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), " ", CodeMessage(code));
+
+    std::string unit;
+    total_data = Utils::to_MB(total_data, unit);
+    std::cout << "Party " << party_ << ": total time [s]: " << total << "\n";
+    std::cout << "Party " << party_ << ": total data [" << unit << "]: " << total_data << "\n";
+
+    reset_counter_();
 }
 
 } // namespace HE_OT

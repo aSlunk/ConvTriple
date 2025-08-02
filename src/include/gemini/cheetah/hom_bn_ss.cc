@@ -419,7 +419,8 @@ Code HomBNSS::addMaskRing(std::vector<seal::Ciphertext>& cts, Tensor<uint64_t>& 
     }
 
     // -r mod 2^k
-    mask.Reshape(meta.vec_shape);
+    // mask.Reshape(meta.vec_shape);
+    assert(mask.shape() == meta.vec_shape);
     const uint64_t mod_mask = (1ULL << n_base_mod_bits_) - 1;
     for (size_t i = 0, j = 0; i < random.size(); i += n_random_limbs, ++j) {
         mask(j) = (-random[i]) & mod_mask;
@@ -513,7 +514,8 @@ Code HomBNSS::decryptToVector(const std::vector<seal::Ciphertext>& in_vec, const
     auto rns_tool = kcontext->rns_tool();
     ENSURE_OR_RETURN(rns_tool != nullptr, Code::ERR_INTERNAL);
 
-    out_vec.Reshape(meta.vec_shape);
+    // out_vec.Reshape(meta.vec_shape);
+    assert(out_vec.shape() == meta.vec_shape);
     if (nCRT > 1) {
         auto tl = seal::MemoryManager::GetPool(seal::mm_force_thread_local);
         rns_tool->base_q()->compose_array(tmp.data(), meta.vec_shape.length(), tl);

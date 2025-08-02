@@ -29,7 +29,7 @@ Result Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
                  const size_t& threads = 1);
 
 template <class Channel>
-Result perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
+Result perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server,
                      const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
                      const size_t& threads = 1);
 
@@ -56,7 +56,7 @@ Result Protocol2(Channel** client, const seal::SEALContext& context,
                  const size_t& threads = 1);
 
 template <class Channel>
-Result perform_proto(gemini::HomBNSS::Meta& meta, Channel** client,
+Result perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client,
                      const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
                      const size_t& threads);
 
@@ -307,7 +307,7 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
 }
 
 template <class Channel>
-Result Server::perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
+Result Server::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server,
                              const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
                              const size_t& threads) {
     auto A1 = Utils::init_image(meta, 5);
@@ -317,6 +317,7 @@ Result Server::perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
         B1(i) = i + 1;
     }
 
+    Result measures;
     Tensor<uint64_t> C1;
 
     auto s2                   = meta.ishape.height();
@@ -325,15 +326,16 @@ Result Server::perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
     size_t n_ct_coeff_packing = ((s2 * s3 + POLY_MOD - 1) / POLY_MOD) * s4;
     size_t n_ct_bfv_packing   = ((s2 * s3 * s4 + POLY_MOD - 1) / POLY_MOD) * 3;
     if (n_ct_coeff_packing >= n_ct_bfv_packing)
-        return Server::perform_proto(server, context, hom_conv, meta, A1, B1, threads);
-
-    server[0]->sync();
+        measures = Server::perform_proto(server, context, hom_conv, meta, A1, B1, C1, threads);
+    else {
+        server[0]->sync();
 
 #if PROTO == 1
-    auto measures = Server::Protocol1(meta, server, context, hom_conv, A1, B1, C1, threads);
+        measures = Server::Protocol1(meta, server, context, hom_conv, A1, B1, C1, threads);
 #else
-    auto measures = Server::Protocol2(meta, server, context, hom_conv, A1, C1, threads);
+        measures = Server::Protocol2(meta, server, context, hom_conv, A1, C1, threads);
 #endif
+    }
     for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
 #ifdef VERIFY
@@ -343,7 +345,7 @@ Result Server::perform_proto(gemini::HomBNSS::Meta& meta, Channel** server,
 }
 
 template <class Channel>
-Result Client::perform_proto(gemini::HomBNSS::Meta& meta, Channel** client,
+Result Client::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client,
                              const seal::SEALContext& context, const gemini::HomBNSS& hom_conv,
                              const size_t& threads) {
     Tensor<uint64_t> A2 = Utils::init_image(meta, 5);
@@ -353,23 +355,25 @@ Result Client::perform_proto(gemini::HomBNSS::Meta& meta, Channel** client,
         B2(i) = i + 1;
     }
 
+    Result measures;
+    Tensor<uint64_t> C2;
+
     auto s2                   = meta.ishape.height();
     auto s3                   = meta.ishape.width();
     auto s4                   = meta.ishape.channels();
     size_t n_ct_coeff_packing = ((s2 * s3 + POLY_MOD - 1) / POLY_MOD) * s4;
     size_t n_ct_bfv_packing   = ((s2 * s3 * s4 + POLY_MOD - 1) / POLY_MOD) * 3;
     if (n_ct_coeff_packing >= n_ct_bfv_packing)
-        return Client::perform_proto(client, context, hom_conv, meta, A2, B2, threads);
-
-    client[0]->sync();
-
-    Tensor<uint64_t> C2;
+        measures = Client::perform_proto(client, context, hom_conv, meta, A2, B2, C2, threads);
+    else {
+        client[0]->sync();
 
 #if PROTO == 1
-    auto measures = Client::Protocol1(client, context, hom_conv, meta, A2, B2, C2, threads);
+        measures = Client::Protocol1(client, context, hom_conv, meta, A2, B2, C2, threads);
 #else
-    auto measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, C2, threads);
+        measures = Client::Protocol2(client, context, hom_conv, meta, A2, B2, C2, threads);
 #endif
+    }
 
     for (size_t i = 0; i < threads; ++i) client[i]->counter = 0;
 

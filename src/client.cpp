@@ -27,19 +27,19 @@ int main(int argc, char** argv) {
     else
         threads = std::min(strtoul(argv[5], NULL, 10), (size_t)N_THREADS);
 
-    HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, batchSize, samples, false);
+    HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, samples, false);
     {
         auto layers = Utils::init_layers_fc();
-        all.run_he(layers, all.get_fc());
+        all.test_he(layers, all.get_fc(), batchSize);
     }
 
     {
         auto layers = ResNet50::init_layers_conv_cheetah();
-        all.run_he(layers, all.get_conv());
+        all.test_he(layers, all.get_conv(), batchSize);
     }
 
     {
         auto layers = ResNet50::init_layers_bn_cheetah();
-        all.run_he(layers, all.get_bn());
+        all.test_he(layers, all.get_bn(), batchSize);
     }
 }

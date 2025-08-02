@@ -6,14 +6,14 @@
 #include "defs.hpp"
 
 namespace ResNet50 {
-    using std::vector;
+using std::vector;
 
-    vector<gemini::HomConv2DSS::Meta> init_layers_conv_cheetah();
-    vector<gemini::HomConv2DSS::Meta> init_layers_conv_alt();
+vector<gemini::HomConv2DSS::Meta> init_layers_conv_cheetah();
+vector<gemini::HomConv2DSS::Meta> init_layers_conv_alt();
 
-    vector<gemini::HomBNSS::Meta> init_layers_bn_cheetah();
-    vector<gemini::HomBNSS::Meta> init_layers_bn_alt();
-}
+vector<gemini::HomBNSS::Meta> init_layers_bn_cheetah();
+vector<gemini::HomBNSS::Meta> init_layers_bn_alt();
+} // namespace ResNet50
 
 vector<gemini::HomBNSS::Meta> ResNet50::init_layers_bn_alt() {
     vector<gemini::HomBNSS::Meta> layers;
