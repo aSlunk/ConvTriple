@@ -27,7 +27,9 @@ int main(int argc, char** argv) {
     else
         threads = std::min(strtoul(argv[5], NULL, 10), (size_t)N_THREADS);
 
-    HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, samples, false);
+    HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, samples, true);
+    all.run_ot(20'000'000);
+
     {
         auto layers = Utils::init_layers_fc();
         all.test_he(layers, all.get_fc(), batchSize);

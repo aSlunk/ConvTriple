@@ -56,11 +56,11 @@ class HE {
                            const size_t& batchSize);
 
     template <class T, class Bs>
-    void run_he(const T& cheetah, const class T::Meta& meta, const Tensor<uint64_t>& A, const Bs& B,
-                  Tensor<uint64_t>& C,
+    void run_he(const T& cheetah, const class T::Meta& meta, const std::vector<Tensor<uint64_t>>& A, const std::vector<Bs>& B,
+                  std::vector<Tensor<uint64_t>>& C,
                   const size_t& batchSize = 1);
 
-    void run_ot(const size_t& batchSize, bool packed = false);
+    void run_ot(const size_t& numTriples, bool packed = false);
 
     double alt_bn(const gemini::HomBNSS::Meta& meta);
 
@@ -209,11 +209,14 @@ void HE<Channel>::setup_BN(const std::optional<seal::SecretKey>& skey,
 
 template <class Channel>
 void HE<Channel>::setup_OT() {
+    std::string unit;
     auto start  = measure::now();
     ot_pack_    = std::make_unique<sci::OTPack<Channel>>(ios_c_, threads_, party_);
     triple_gen_ = std::make_unique<TripleGenerator<Channel>>(party_, ios_c_[0], ot_pack_.get());
     Utils::log(Utils::Level::INFO, "P", party_,
                ": OT startup time: ", Utils::to_sec(Utils::time_diff(start)));
+    Utils::log(Utils::Level::INFO, "P", party_,
+               ": OT startup data: ", Utils::to_MB(counter_(), unit), unit);
 }
 
 template <class Channel>
@@ -233,15 +236,22 @@ void HE<Channel>::exchange_keys_(const SerKey& pkey, seal::PublicKey& o_pkey,
 }
 
 template <class Channel>
-void HE<Channel>::run_ot(const size_t& batchSize, bool packed) {
+void HE<Channel>::run_ot(const size_t& numTriples, bool packed) {
+    size_t len = numTriples / (packed ? 8 : 1);
+    uint8_t* a = new uint8_t[len];
+    uint8_t* b = new uint8_t[len];
+    uint8_t* c = new uint8_t[len];
+
+    Utils::log(Utils::Level::DEBUG, "Num Triples: ", numTriples);
+
     auto start = measure::now();
     for (size_t i = 0; i < samples_; ++i) {
         switch (party_) {
         case emp::ALICE:
-            Server::RunGen(*triple_gen_, batchSize, packed);
+            Server::triple_gen(*triple_gen_, a, b, c, numTriples, packed);
             break;
         case emp::BOB:
-            Client::RunGen(*triple_gen_, batchSize, packed);
+            Client::triple_gen(*triple_gen_, a, b, c, numTriples, packed);
             break;
         }
     }
@@ -250,8 +260,12 @@ void HE<Channel>::run_ot(const size_t& batchSize, bool packed) {
     Utils::log(Utils::Level::INFO, "P", party_,
                ": OT TIME[s]: ", Utils::to_sec(Utils::time_diff(start)) / samples_);
     Utils::log(Utils::Level::INFO, "P", party_, ": OT data[", unit,
-               "]: ", (Utils::to_MB(data) / samples_));
+               "]: ", (data / samples_));
 
+
+    delete[] a;
+    delete[] b;
+    delete[] c;
     reset_counter_();
 }
 
@@ -364,8 +378,8 @@ double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn) {
 
 template <class Channel>
 template <class T, class Bs>
-void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta, const Tensor<uint64_t>& A, const Bs& B,
-                  Tensor<uint64_t>& C,
+void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta, const std::vector<Tensor<uint64_t>>& A, const std::vector<Bs>& B,
+                  std::vector<Tensor<uint64_t>>& C,
                   const size_t& batchSize) {
     size_t batch_threads      = batchSize > 1 ? batchSize : 1;
     size_t threads_per_thread = threads_ / batch_threads;
@@ -382,10 +396,10 @@ void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta, const Tens
             if ((PROTO == 2 && party_ == emp::ALICE)
                 || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) {
                 result = Server::perform_proto(meta, ios_c_ + wid * threads_per_thread, context_,
-                                               cheetah, threads_per_thread);
+                                               cheetah, A[cur], B[cur], C[cur], threads_per_thread);
             } else {
                 result = Client::perform_proto(meta, ios_c_ + wid * threads_per_thread, context_,
-                                               cheetah, threads_per_thread);
+                                               cheetah, A[cur], B[cur], C[cur], threads_per_thread);
             }
 
             if (result.ret != Code::OK)

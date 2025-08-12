@@ -38,6 +38,11 @@ Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::
                      const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                      const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads);
 
+template <class Channel>
+Result perform_elem(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
+                    const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
+                    const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads);
+
 #ifdef VERIFY
 template <class T>
 void Verify_BN(IO::NetIO& io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& bn,
@@ -61,6 +66,11 @@ template <class Channel>
 Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                      const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                      const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads);
+
+template <class Channel>
+Result perform_elem(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
+                    const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
+                    const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads);
 
 #ifdef VERIFY
 template <class T>
@@ -396,6 +406,19 @@ Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
 }
 
 template <class Channel>
+Result Server::perform_elem(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
+                            const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
+                            const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads) {
+    auto result = perform_proto(ios, ctx, bn, meta, A, B, C, threads);
+
+#ifdef VERIFY
+    Verify_BN(ios[0], meta, bn, A, B, C);
+#endif
+
+    return result;
+}
+
+template <class Channel>
 Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                              const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                              const Tensor<uint64_t>& B, Tensor<uint64_t>& C,
@@ -423,6 +446,19 @@ Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
         return res;
 
     return res;
+}
+
+template <class Channel>
+Result Client::perform_elem(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
+                            const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
+                            const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads) {
+    auto result = perform_proto(ios, ctx, bn, meta, A, B, C, threads);
+
+#ifdef VERIFY
+    Verify_BN(ios[0], meta, bn, A, B, C);
+#endif
+
+    return result;
 }
 
 #ifdef VERIFY
