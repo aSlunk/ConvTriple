@@ -55,6 +55,10 @@ class HE {
                            Tensor<uint64_t>& C,
                            const size_t& batchSize);
 
+    void run_elem_mult(const vector<Tensor<uint64_t>>& A, const vector<Tensor<uint64_t>>& B,
+                            vector<Tensor<uint64_t>>& C,
+                            const size_t& batchSize);
+
     template <class T, class Bs>
     void run_he(const T& cheetah, const class T::Meta& meta, const std::vector<Tensor<uint64_t>>& A, const std::vector<Bs>& B,
                   std::vector<Tensor<uint64_t>>& C,
@@ -444,6 +448,60 @@ void HE<Channel>::run_bn(const Tensor<uint64_t>& A, const Tensor<uint64_t>& B,
         = Utils::init_meta_bn(B.NumElements(), A.shape().rows()* A.shape().rows());
 
     run_he(bn_, meta, A, B, C, batchSize);
+}
+
+template <class Channel>
+void HE<Channel>::run_elem_mult(const vector<Tensor<uint64_t>>& A, const vector<Tensor<uint64_t>>& B,
+                           vector<Tensor<uint64_t>>& C,
+                           const size_t& batchSize) {
+    gemini::HomBNSS::Meta meta;
+    meta.vec_shape = {A[0].NumElements()};
+    meta.is_shared_input = true;
+    meta.target_base_mod = PLAIN_MOD;
+
+    size_t batch_threads      = batchSize > 1 ? batchSize : 1;
+    size_t threads_per_thread = threads_ / batch_threads;
+
+    double total      = 0;
+    double total_data = 0;
+    std::string proto("AB");
+    proto += PROTO > 1 ? std::to_string(PROTO) : "";
+
+    std::vector<Result> batches_results(batch_threads);
+    auto batch = [&](long wid, size_t start, size_t end) -> Code {
+        for (size_t cur = start; cur < end; ++cur) {
+            Result result;
+            if ((PROTO == 2 && party_ == emp::ALICE)
+                || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) { // for AB alternate parties
+                result = Server::perform_elem(meta, ios_c_ + wid * threads_per_thread, context_,
+                                               bn_, A[cur], B[cur], C[cur], threads_per_thread);
+            } else {
+                result = Client::perform_elem(meta, ios_c_ + wid * threads_per_thread, context_,
+                                               bn_, A[cur], B[cur], C[cur], threads_per_thread);
+            }
+
+            if (result.ret != Code::OK)
+                return result.ret;
+
+            Utils::add_result(batches_results[wid], result);
+        }
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(batch_threads);
+
+    auto start = measure::now();
+    auto code  = gemini::LaunchWorks(tpool, batchSize, batch);
+    total += Utils::to_sec(Utils::time_diff(start));
+    if (code != Code::OK)
+        Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), " ", CodeMessage(code));
+
+    std::string unit;
+    total_data = Utils::to_MB(total_data, unit);
+    std::cout << "Party " << party_ << ": total time [s]: " << total << "\n";
+    std::cout << "Party " << party_ << ": total data [" << unit << "]: " << total_data << "\n";
+
+    reset_counter_();
 }
 
 } // namespace HE_OT
