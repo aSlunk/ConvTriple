@@ -400,7 +400,6 @@ Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
     if (res.ret != Code::OK)
         return res;
 
-    // unpack(meta.ishape, tmp_C, C);
 
     return res;
 }
@@ -409,7 +408,19 @@ template <class Channel>
 Result Server::perform_elem(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                             const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                             const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads) {
-    auto result = perform_proto(ios, ctx, bn, meta, A, B, C, threads);
+    Result result;
+
+#if PROTO == 1
+    result = Protocol1_alt(meta, ios, ctx, bn, A, B, C, threads);
+#elif PROTO == 2
+    result = Protocol2_alt(meta, ios, ctx, bn, A, C, threads);
+#endif
+
+    for (size_t i = 0; i < threads; ++i) ios[i]->counter = 0;
+
+    if (result.ret != Code::OK)
+        return result;
+
 
 #ifdef VERIFY
     Verify_BN(ios[0], meta, bn, A, B, C);
@@ -452,7 +463,16 @@ template <class Channel>
 Result Client::perform_elem(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                             const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                             const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads) {
-    auto result = perform_proto(ios, ctx, bn, meta, A, B, C, threads);
+    Result result;
+
+#if PROTO == 1
+    result = Client::Protocol1_alt(ios, ctx, bn, meta, A, B, C, threads);
+#elif PROTO == 2
+    result = Client::Protocol2_alt(ios, ctx, bn, meta, A, B, C, threads);
+#endif
+
+    if (result.ret != Code::OK)
+        return result;
 
 #ifdef VERIFY
     Verify_BN(ios[0], meta, bn, A, B, C);
