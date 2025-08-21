@@ -29,7 +29,7 @@
 #endif
 
 #define EXEC_FAILED -1
-#define PROTO 2 // 1 or 2
+#define PROTO 1 // 1 or 2
 
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;
@@ -141,8 +141,15 @@ gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const l
 
 std::vector<gemini::HomFCSS::Meta> init_layers_fc();
 
+/**
+ * Assigns a port to each thread
+ * @param addr NULL for server otherwise IP-addr
+ * @param port [Port..(port + threads)] to use
+ * @param threads number of ports to listen
+ * @return The created channels
+ */
 template <class Channel>
-std::vector<Channel> init_ios(const char* addr, const int& port, const size_t& threads);
+Channel** init_ios(const char* addr, const int& port, const size_t& threads);
 
 template <class T>
 gemini::Tensor<uint64_t> convert_fix_point(const gemini::Tensor<T>& in);
@@ -280,13 +287,12 @@ void Utils::add_result(Result& res, const Result& res2) {
 }
 
 template <class Channel>
-std::vector<Channel> Utils::init_ios(const char* addr, const int& port, const size_t& threads) {
-    std::vector<Channel> ioss;
-    ioss.reserve(threads);
+Channel** Utils::init_ios(const char* addr, const int& port, const size_t& threads) {
+    Channel** res = new Channel*[threads];
     for (size_t wid = 0; wid < threads; ++wid) {
-        ioss.emplace_back(addr, port + wid, true);
+        res[wid] = new Channel(addr, port + wid, true);
     }
-    return ioss;
+    return res;
 }
 
 void Utils::print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padding) {

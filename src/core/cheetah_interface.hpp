@@ -28,6 +28,18 @@ namespace HE_OT {
 template <class Channel>
 class HE {
   public:
+    /**
+     * Initializes communication channels/seal contexts and exchanges public
+     * keys between Alice and Bob
+     *
+     * @param party 1 Alice / 2 Bob
+     * @param addr nullptr server / IP-addr client
+     * @param port First port to use
+     * @param threads
+     * @param samples Number of repeats (benchmark)
+     * @param setup_ot True if OT required (takes some time) otherwise false
+     * @param setup_bn Whether to setup encryption contexts for BN
+     */
     explicit HE(const int& party, const char* addr, const int& port, const size_t& threads,
                 size_t& samples, bool setup_ot = true, bool setup_bn = true);
 
@@ -37,74 +49,121 @@ class HE {
     HE& operator=(const HE& other) = delete;
     HE& operator=(HE&& other)      = delete;
 
-    ~HE() { delete[] ios_c_; }
+    ~HE() {
+        for (size_t i = 0; i < threads_; ++i)
+            delete ios_[i];
+
+        delete[] ios_;
+    }
 
     const gemini::HomConv2DSS& get_conv() const { return conv_; }
     const gemini::HomFCSS& get_fc() const { return fc_; }
     const gemini::HomBNSS& get_bn() const { return bn_; }
-    Channel** get_ios() const { return ios_c_; }
 
+    /**
+     * Uses Random random values for inference.
+     */
     template <class T>
     void test_he(std::vector<class T::Meta>& layers, const T& cheetah, const size_t& batchSize = 1);
 
+    /**
+     * Computes 2D-Convolution
+     * @param A input data
+     * @param B input filter
+     * @param C result Tensor
+     * @param stride
+     * @param padding
+     * @param batchSize
+     */
     void run_conv(const Tensor<uint64_t>& A, const std::vector<Tensor<uint64_t>>& B,
                   Tensor<uint64_t>& C, const size_t& stride, const size_t& padding,
                   const size_t& batchSize = 1);
 
+    /**
+     * Performs Scaling/BatchNorm
+     * @param A input data
+     * @param B scales
+     * @param C result Tensor
+     * @param batchSize
+     */
     void run_bn(const Tensor<uint64_t>& A, const Tensor<uint64_t>& B,
                            Tensor<uint64_t>& C,
                            const size_t& batchSize);
 
+    /**
+     * Elementwise Multiplication
+     * @param A input data
+     * @param B scales
+     * @param C result Tensor
+     * @param batchSize
+     */
     void run_elem_mult(const vector<Tensor<uint64_t>>& A, const vector<Tensor<uint64_t>>& B,
                             vector<Tensor<uint64_t>>& C,
                             const size_t& batchSize);
 
+    /**
+     * Wrapper function to perform Conv/Batchnorm/FC
+     */
     template <class T, class Bs>
     void run_he(const T& cheetah, const class T::Meta& meta, const std::vector<Tensor<uint64_t>>& A, const std::vector<Bs>& B,
                   std::vector<Tensor<uint64_t>>& C,
                   const size_t& batchSize = 1);
 
+    /**
+     * Generates beaver boolean-triple
+     */
     void run_ot(const size_t& numTriples, bool packed = false);
 
+    /**
+     * Do BatchNorm via FC
+     */
     double alt_bn(const gemini::HomBNSS::Meta& meta);
 
   private:
-    gemini::HomBNSS bn_;
-    gemini::HomConv2DSS conv_;
-    gemini::HomFCSS fc_;
+    gemini::HomBNSS bn_; // cheetah BatchNorm
+    gemini::HomConv2DSS conv_; // cheetah 2d-conv
+    gemini::HomFCSS fc_; // cheetah-fc
 
-    std::unique_ptr<sci::OTPack<Channel>> ot_pack_;
+    std::unique_ptr<sci::OTPack<Channel>> ot_pack_; // cheeath triple-gen
     std::unique_ptr<TripleGenerator<Channel>> triple_gen_;
 
     seal::SEALContext context_ = Utils::init_he_context();
     std::vector<std::shared_ptr<seal::SEALContext>> bn_contexts_;
-    std::vector<std::shared_ptr<seal::PublicKey>> bn_pks_;
-    std::vector<std::shared_ptr<seal::SecretKey>> bn_sks_;
-    std::unique_ptr<seal::Encryptor> encryptor_;
+    std::vector<std::shared_ptr<seal::PublicKey>> bn_pks_; // public keys (BN)
+    std::vector<std::shared_ptr<seal::SecretKey>> bn_sks_; // secret keys (BN)
 
     size_t threads_;
-    size_t samples_;
+    size_t samples_; // for benchmarking
 
-    std::vector<Channel> ios_;
-    Channel** ios_c_;
+    Channel** ios_; // <thread>xChannels
 
-    int party_;
+    int party_; // 1 (Alice)/2 (Bob)
 
     template <class SerKey>
     void exchange_keys_(const SerKey& pkey, seal::PublicKey& o_pkey, const seal::SEALContext& ctx);
 
     void setup_OT();
+
+    /**
+     * Creates/exchanges keys required for BN
+     */
     void setup_BN(const std::optional<seal::SecretKey>& skey,
                   const std::shared_ptr<seal::PublicKey>& o_pkey);
 
+    /**
+     * @return Total number of bytes send
+     */
     inline size_t counter_() {
         size_t counter = 0;
-        for (size_t i = 0; i < threads_; ++i) counter += ios_c_[i]->counter;
+        for (size_t i = 0; i < threads_; ++i) counter += ios_[i]->counter;
         return counter;
     }
 
+    /**
+     * Sets the byte counter back to zero (for all channels)
+     */
     inline void reset_counter_() {
-        for (size_t i = 0; i < threads_; ++i) ios_c_[i]->counter = 0;
+        for (size_t i = 0; i < threads_; ++i) ios_[i]->counter = 0;
     }
 };
 
@@ -115,9 +174,6 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     Code code;
 
     ios_   = Utils::init_ios<Channel>(addr, port, threads);
-    ios_c_ = new Channel*[threads];
-
-    for (size_t i = 0; i < threads; ++i) ios_c_[i] = &ios_[i];
 
     if (setup_ot)
         setup_OT();
@@ -138,8 +194,6 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
 
     if (setup_bn)
         setup_BN(skey, o_pkey);
-
-    encryptor_ = std::make_unique<seal::Encryptor>(context_, skey);
 
     reset_counter_();
 }
@@ -194,29 +248,20 @@ void HE<Channel>::setup_BN(const std::optional<seal::SecretKey>& skey,
     }
 
     Code code;
-    if (party_ == 2) { // ALICE
-        code = bn_.setUp(PLAIN_MOD, context_, skey, o_pkey);
-        if (code != Code::OK)
-            Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), ": ", CodeMessage(code));
-        code = bn_.setUp(PLAIN_MOD, contexts, opt_sks, bn_pks_);
-        if (code != Code::OK)
-            Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), ": ", CodeMessage(code));
-    } else { // BOB
-        code = bn_.setUp(PLAIN_MOD, context_, skey, o_pkey);
-        if (code != Code::OK)
-            Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), ": ", CodeMessage(code));
-        code = bn_.setUp(PLAIN_MOD, contexts, opt_sks, bn_pks_);
-        if (code != Code::OK)
-            Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), ": ", CodeMessage(code));
-    }
+    code = bn_.setUp(PLAIN_MOD, context_, skey, o_pkey);
+    if (code != Code::OK)
+        Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), ": ", CodeMessage(code));
+    code = bn_.setUp(PLAIN_MOD, contexts, opt_sks, bn_pks_);
+    if (code != Code::OK)
+        Utils::log(Utils::Level::ERROR, "P", std::to_string(party_), ": ", CodeMessage(code));
 }
 
 template <class Channel>
 void HE<Channel>::setup_OT() {
     std::string unit;
     auto start  = measure::now();
-    ot_pack_    = std::make_unique<sci::OTPack<Channel>>(ios_c_, threads_, party_);
-    triple_gen_ = std::make_unique<TripleGenerator<Channel>>(party_, ios_c_[0], ot_pack_.get());
+    ot_pack_    = std::make_unique<sci::OTPack<Channel>>(ios_, threads_, party_);
+    triple_gen_ = std::make_unique<TripleGenerator<Channel>>(party_, ios_[0], ot_pack_.get());
     Utils::log(Utils::Level::INFO, "P", party_,
                ": OT startup time: ", Utils::to_sec(Utils::time_diff(start)));
     Utils::log(Utils::Level::INFO, "P", party_,
@@ -229,12 +274,12 @@ void HE<Channel>::exchange_keys_(const SerKey& pkey, seal::PublicKey& o_pkey,
                                  const seal::SEALContext& ctx) {
     switch (party_) {
     case emp::ALICE:
-        IO::send_pkey(*(ios_c_[0]), pkey);
-        IO::recv_pkey(*(ios_c_[0]), ctx, o_pkey);
+        IO::send_pkey(*(ios_[0]), pkey);
+        IO::recv_pkey(*(ios_[0]), ctx, o_pkey);
         break;
     case emp::BOB:
-        IO::recv_pkey(*(ios_c_[0]), ctx, o_pkey);
-        IO::send_pkey(*(ios_c_[0]), pkey);
+        IO::recv_pkey(*(ios_[0]), ctx, o_pkey);
+        IO::send_pkey(*(ios_[0]), pkey);
         break;
     }
 }
@@ -289,7 +334,7 @@ void HE<Channel>::test_he(std::vector<class T::Meta>& layers, const T& cheetah,
     std::vector<Result> all_results(layers.size()); // averaged samples
 
     for (size_t i = 0; i < layers.size(); ++i) {
-        ios_c_[0]->sync();
+        ios_[0]->sync();
         Utils::log(Utils::Level::DEBUG, "Current layer: ", i);
         double tmp_total = 0;
 
@@ -300,10 +345,10 @@ void HE<Channel>::test_he(std::vector<class T::Meta>& layers, const T& cheetah,
                     Result result;
                     if ((PROTO == 2 && party_ == emp::ALICE)
                         || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) {
-                        result = Server::perform_proto(layers[i], ios_c_ + wid * threads_per_thread,
+                        result = Server::perform_proto(layers[i], ios_ + wid * threads_per_thread,
                                                        context_, cheetah, threads_per_thread);
                     } else {
-                        result = Client::perform_proto(layers[i], ios_c_ + wid * threads_per_thread,
+                        result = Client::perform_proto(layers[i], ios_ + wid * threads_per_thread,
                                                        context_, cheetah, threads_per_thread);
                     }
 
@@ -364,12 +409,12 @@ double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn) {
     switch (party_) {
     case emp::ALICE: {
         std::cerr << meta_bn.ishape.height() << " x " << meta_bn.vec_shape.num_elements() << "\n";
-        res = Server::perform_proto(meta, ios_c_, context_, fc_, threads_,
+        res = Server::perform_proto(meta, ios_, context_, fc_, threads_,
                                     meta_bn.vec_shape.num_elements());
         break;
     }
     case emp::BOB: {
-        res = Client::perform_proto(meta, ios_c_, context_, fc_, threads_,
+        res = Client::perform_proto(meta, ios_, context_, fc_, threads_,
                                     meta_bn.vec_shape.num_elements());
         break;
     }
@@ -399,10 +444,10 @@ void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta, const std:
             Result result;
             if ((PROTO == 2 && party_ == emp::ALICE)
                 || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) {
-                result = Server::perform_proto(meta, ios_c_ + wid * threads_per_thread, context_,
+                result = Server::perform_proto(meta, ios_ + wid * threads_per_thread, context_,
                                                cheetah, A[cur], B[cur], C[cur], threads_per_thread);
             } else {
-                result = Client::perform_proto(meta, ios_c_ + wid * threads_per_thread, context_,
+                result = Client::perform_proto(meta, ios_ + wid * threads_per_thread, context_,
                                                cheetah, A[cur], B[cur], C[cur], threads_per_thread);
             }
 
@@ -473,10 +518,10 @@ void HE<Channel>::run_elem_mult(const vector<Tensor<uint64_t>>& A, const vector<
             Result result;
             if ((PROTO == 2 && party_ == emp::ALICE)
                 || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) { // for AB alternate parties
-                result = Server::perform_elem(meta, ios_c_ + wid * threads_per_thread, context_,
+                result = Server::perform_elem(meta, ios_ + wid * threads_per_thread, context_,
                                                bn_, A[cur], B[cur], C[cur], threads_per_thread);
             } else {
-                result = Client::perform_elem(meta, ios_c_ + wid * threads_per_thread, context_,
+                result = Client::perform_elem(meta, ios_ + wid * threads_per_thread, context_,
                                                bn_, A[cur], B[cur], C[cur], threads_per_thread);
             }
 

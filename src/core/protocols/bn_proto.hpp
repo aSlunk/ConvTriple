@@ -400,7 +400,6 @@ Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
     if (res.ret != Code::OK)
         return res;
 
-
     return res;
 }
 
@@ -420,7 +419,6 @@ Result Server::perform_elem(Channel** ios, const seal::SEALContext& ctx, const g
 
     if (result.ret != Code::OK)
         return result;
-
 
 #ifdef VERIFY
     Verify_BN(ios[0], meta, bn, A, B, C);
