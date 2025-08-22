@@ -45,7 +45,7 @@ Result perform_elem(Channel** ios, const seal::SEALContext& ctx, const gemini::H
 
 #ifdef VERIFY
 template <class T>
-void Verify_BN(IO::NetIO& io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& bn,
+void Verify_BN(IO::NetIO* io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& bn,
                const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
 #endif
 } // namespace Server
@@ -74,7 +74,7 @@ Result perform_elem(Channel** ios, const seal::SEALContext& ctx, const gemini::H
 
 #ifdef VERIFY
 template <class T>
-void Verify_BN(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
+void Verify_BN(IO::NetIO* io, const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
 #endif
 } // namespace Client
 
@@ -473,7 +473,7 @@ Result Client::perform_elem(Channel** ios, const seal::SEALContext& ctx, const g
         return result;
 
 #ifdef VERIFY
-    Verify_BN(ios[0], meta, bn, A, B, C);
+    Verify_BN(ios[0], A, B, C);
 #endif
 
     return result;
@@ -481,16 +481,16 @@ Result Client::perform_elem(Channel** ios, const seal::SEALContext& ctx, const g
 
 #ifdef VERIFY
 template <class T>
-void Server::Verify_BN(IO::NetIO& io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& bn,
+void Server::Verify_BN(IO::NetIO* io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& bn,
                        const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1) {
     Utils::log(Utils::Level::INFO, "VERIFYING BN");
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.vec_shape);
     Tensor<T> C2(C1.shape());
 
-    io.recv_data(A2.data(), A2.NumElements() * sizeof(T));
-    io.recv_data(B2.data(), B2.NumElements() * sizeof(T));
-    io.recv_data(C2.data(), C2.NumElements() * sizeof(T));
+    io->recv_data(A2.data(), A2.NumElements() * sizeof(T));
+    io->recv_data(B2.data(), B2.NumElements() * sizeof(T));
+    io->recv_data(C2.data(), C2.NumElements() * sizeof(T));
 
     Utils::op_inplace<T>(C2, C1, [&bn](T a, T b) -> T { return add(bn, a, b); }); // C
     Utils::op_inplace<T>(A2, A1, [&bn](T a, T b) -> T { return add(bn, a, b); }); // A1 + A2
@@ -520,13 +520,13 @@ end:
         Utils::log(Utils::Level::FAILED, "BN: FAILED");
 }
 template <class T>
-void Client::Verify_BN(IO::NetIO& io, const Tensor<T>& A2, const Tensor<T>& B2,
+void Client::Verify_BN(IO::NetIO* io, const Tensor<T>& A2, const Tensor<T>& B2,
                        const Tensor<T>& C2) {
     log(Utils::Level::INFO, "SENDING");
-    io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);
-    io.send_data(B2.data(), B2.NumElements() * sizeof(T), false);
-    io.send_data(C2.data(), C2.NumElements() * sizeof(T), false);
-    io.flush();
+    io->send_data(A2.data(), A2.NumElements() * sizeof(T), false);
+    io->send_data(B2.data(), B2.NumElements() * sizeof(T), false);
+    io->send_data(C2.data(), C2.NumElements() * sizeof(T), false);
+    io->flush();
 }
 #endif
 

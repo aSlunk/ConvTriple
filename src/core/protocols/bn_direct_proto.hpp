@@ -329,7 +329,6 @@ Result Server::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server
     if (n_ct_coeff_packing >= n_ct_bfv_packing)
         measures = Server::perform_proto(server, context, bn, meta, A1, B1, C1, threads);
     else {
-        server[0]->sync();
 
 #if PROTO == 1
         measures = Server::Protocol1(meta, server, context, bn, A1, B1, C1, threads);
@@ -374,7 +373,6 @@ Result Client::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client
     if (n_ct_coeff_packing >= n_ct_bfv_packing)
         measures = Client::perform_proto(client, context, bn, meta, A2, B2, C2, threads);
     else {
-        client[0]->sync();
 
 #if PROTO == 1
         measures = Client::Protocol1(client, context, bn, meta, A2, B2, C2, threads);
