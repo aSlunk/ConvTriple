@@ -1,7 +1,7 @@
 #ifndef HPMPC_INTERFACE_HPP_
 #define HPMPC_INTERFACE_HPP_
 
-#include "core/defs.hpp"
+#include "defs.hpp"
 #include "protocols/bn_direct_proto.hpp"
 
 #include <string>
@@ -28,25 +28,10 @@ void exchange_keys(Channel** ios, const SerKey& pkey, seal::PublicKey& o_pkey,
     }
 }
 
-void generateTripleCheetah(uint8_t a[], uint8_t b[], uint8_t c[], int bitlength, uint64_t num_triples, std::string ip, int port, int party, int threads = 1) {
-    const char* addr = ip.c_str();
-    if (ip == "")
-        addr = nullptr;
-
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
-    sci::OTPack<IO::NetIO> ot_pack(ios, threads, party, true, false);
-    TripleGenerator<IO::NetIO> triple_gen(party, ios[0], &ot_pack);
-
-    triple_gen.generate(party, a, b, c, num_triples, TripleGenMethod::_2COT, false);
-
-    for (int i = 0; i < threads; ++i)
-        delete ios[i];
-
-    delete[] ios;
-}
+void generateBoolTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength, uint64_t num_triples, std::string ip, int port, int party, int threads = 1);
 
 template <class T>
-void generateArithTripleCheetah(T a[], T b[], T c[], int bitlength, uint64_t num_triples, std::string ip, int port, int party, int threads = 1) {
+void generateArithTriplesCheetah(T a[], T b[], T c[], int bitlength, uint64_t num_triples, std::string ip, int port, int party, int threads = 1) {
     using namespace seal;
     const char* addr = ip.c_str();
     if (ip == "")

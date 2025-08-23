@@ -272,7 +272,6 @@ Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server
                              Tensor<uint64_t>& C1, const size_t& threads) {
     Result measures;
     measures.send_recv = 0;
-    std::cerr << "okay\n";
 
     ////////////////////////////////////////////////////////////////////////////
     // Enc(A1), enc(B1), send(A1), recv(A2)

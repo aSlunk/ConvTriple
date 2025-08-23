@@ -15,24 +15,23 @@ int main(int argc, char** argv) {
     }
 
     size_t port      = strtoul(argv[1], NULL, 10);
-    size_t samples   = strtoul(argv[2], NULL, 10);
-    size_t batchSize = strtoul(argv[3], NULL, 10);
+    [[maybe_unused]] size_t samples   = strtoul(argv[2], NULL, 10);
+    [[maybe_unused]] size_t batchSize = strtoul(argv[3], NULL, 10);
     size_t threads;
     if (argc == 4)
         threads = N_THREADS;
     else
         threads = std::min(strtoul(argv[4], NULL, 10), (size_t)N_THREADS);
 
-    int num_triples = 3;
+    int num_triples = 4;
 
     {
-        uint8_t a[3] = {1, 1, 1};
-        uint8_t b[3] = {0, 1, 0};
-        uint8_t* c = new uint8_t[num_triples];
+        uint32_t a[4] = {0, 0, 1, 1};
+        uint32_t b[4] = {0, 1, 1, 0};
+        uint32_t* c = new uint32_t[num_triples];
 
-        Iface::generateTripleCheetah(a, b, c, 1, num_triples, std::string(""), port, PARTY);
+        Iface::generateBoolTriplesCheetah(a, b, c, 1, num_triples, std::string(""), port, PARTY);
 
-        std::cout << "okay\n";
         for (int i = 0; i < num_triples; ++i) {
             std::cerr << i << ": " << static_cast<int>(a[i]) << ", " << static_cast<int>(b[i]) << ", " << static_cast<int>(c[i]) << std::endl;
         }
@@ -41,18 +40,12 @@ int main(int argc, char** argv) {
     }
 
     {
-        uint64_t a[3] = {1, 1, 1};
-        uint64_t b[3] = {0, 1, 0};
-        uint64_t* c = new uint64_t[num_triples];
+        num_triples = 1'168'448;
+        std::vector<uint64_t> a(num_triples, 1);
+        std::vector<uint64_t> b(num_triples, 1);
+        std::vector<uint64_t> c(num_triples, 1);
 
-        Iface::generateArithTripleCheetah(a, b, c, 1, num_triples, std::string(""), port, PARTY);
-
-        std::cout << "okay\n";
-        for (int i = 0; i < num_triples; ++i) {
-            std::cerr << i << ": " << a[i] << ", " << b[i] << ", " << c[i] << std::endl;
-        }
-
-        delete[] c;
+        Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 1, num_triples, std::string(""), port, PARTY, threads);
     }
     // HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, samples, true);
     // all.run_ot(20'000'000);
