@@ -23,19 +23,17 @@ int main(int argc, char** argv) {
     else
         threads = std::min(strtoul(argv[4], NULL, 10), (size_t)N_THREADS);
 
-    int num_triples = 4;
+    int num_triples = 320608;
 
     {
-        uint32_t a[4] = {0, 0, 1, 1};
-        uint32_t b[4] = {0, 1, 1, 0};
-        uint32_t* c   = new uint32_t[num_triples];
+        uint32_t* a = new uint32_t[num_triples];
+        uint32_t* b = new uint32_t[num_triples];
+        uint32_t* c = new uint32_t[num_triples];
 
         Iface::generateBoolTriplesCheetah(a, b, c, 1, num_triples, std::string(""), port, PARTY);
 
-        for (int i = 0; i < num_triples; ++i) {
-            std::cerr << i << ": " << static_cast<int>(a[i]) << ", " << static_cast<int>(b[i])
-                      << ", " << static_cast<int>(c[i]) << std::endl;
-        }
+        delete[] a;
+        delete[] b;
         delete[] c;
     }
 

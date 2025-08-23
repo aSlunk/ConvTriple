@@ -45,3 +45,6 @@ void Iface::generateBoolTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
     delete[] bi;
     delete[] ci;
 }
+
+template void Iface::generateArithTriplesCheetah<uint32_t>(uint32_t[], uint32_t[], uint32_t[], int,
+                                                           uint64_t, std::string, int, int, int);

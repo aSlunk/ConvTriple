@@ -482,7 +482,7 @@ Result Client::perform_elem(Channel** ios, const seal::SEALContext& ctx, const g
 template <class T>
 void Server::Verify_BN(IO::NetIO* io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& bn,
                        const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1) {
-    Utils::log(Utils::Level::INFO, "VERIFYING BN");
+    Utils::log(Utils::Level::INFO, "VERIFYING Elem. Mult");
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.vec_shape);
     Tensor<T> C2(C1.shape());
@@ -514,9 +514,9 @@ void Server::Verify_BN(IO::NetIO* io, const gemini::HomBNSS::Meta& meta, const g
         }
 end:
     if (same)
-        Utils::log(Utils::Level::PASSED, "BN: PASSED");
+        Utils::log(Utils::Level::PASSED, "Elem. Mult: PASSED");
     else
-        Utils::log(Utils::Level::FAILED, "BN: FAILED");
+        Utils::log(Utils::Level::FAILED, "Elem. Mult: FAILED");
 }
 template <class T>
 void Client::Verify_BN(IO::NetIO* io, const Tensor<T>& A2, const Tensor<T>& B2,
