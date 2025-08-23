@@ -95,7 +95,7 @@ class HomConv2DSS {
                   const std::vector<seal::Plaintext>& img_share1,
                   const std::vector<std::vector<seal::Plaintext>>& filters, const Meta& meta,
                   std::vector<seal::Ciphertext>& out_share0, Tensor<uint64_t>& out_share1,
-                  size_t nthreads = 1, bool in_ntt = true, bool fil_ntt = false,
+                  size_t nthreads = 1, bool in_ntt = true, bool fil_ntt = true,
                   bool out_ntt = true) const;
 
     Code decryptToTensor(const std::vector<seal::Ciphertext>& enc_tensor, const Meta& meta,

@@ -129,6 +129,7 @@ class HomBNSS {
                 io->send_data(ct_ser.c_str(), ct_ser.size());
             }
         }
+        io->flush();
         return Code::OK;
     }
 

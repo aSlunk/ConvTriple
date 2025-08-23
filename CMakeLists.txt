@@ -4,18 +4,26 @@ project(IDP)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED 20)
 
+option(USE_APPROX_RESHARE "Enable APPROX RESHARE" OFF)
 option(TRIP_VERIFY "Enable verification" ON)
 option(TRIP_COLOR "Enable colored output" ON)
 
-include(FetchContent)
+add_compile_options(-fPIC)
+add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)
 
-FetchContent_Declare(
-    seal
-    GIT_REPOSITORY https://github.com/microsoft/SEAL.git
-    GIT_TAG main
-)
+## Dependencies
+set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps;${CMAKE_PREFIX_PATH}")
 
-FetchContent_MakeAvailable(seal)
+find_package(Threads REQUIRED)
+find_package(Eigen3 3.3.3 REQUIRED)
+find_package(emp-tool REQUIRED)
+find_package(emp-ot REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(SEAL 4.0.0 REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIR}
+                    ${EMP-OT_INCLUDE_DIRS}
+                    ${EMP-TOOL_INCLUDE_DIRS})
+
 
 set(ALL_SOURCE_FILES "")
 
@@ -23,7 +31,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-add_subdirectory(cheetah)
+add_subdirectory(src)
 
 add_custom_target(
     format

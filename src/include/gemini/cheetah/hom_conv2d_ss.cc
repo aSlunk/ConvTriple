@@ -164,9 +164,10 @@ void remove_unused_coeffs(seal::Ciphertext& ct, const seal::Evaluator& evaluator
     }
 }
 
-static void set_poly_coeffs_uniform(uint64_t* poly, int bitlen,
-                                    std::shared_ptr<seal::UniformRandomGenerator> prng,
-                                    const seal::EncryptionParameters& parms) {
+static void set_poly_coeffs_uniform
+    [[maybe_unused]] (uint64_t* poly, int bitlen,
+                      std::shared_ptr<seal::UniformRandomGenerator> prng,
+                      const seal::EncryptionParameters& parms) {
     using namespace seal::util;
     if (bitlen < 0 || bitlen > 64) {
         LOG(WARNING) << "set_poly_coeffs_uniform invalid bitlen";

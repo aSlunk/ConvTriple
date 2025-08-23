@@ -224,8 +224,8 @@ class TripleGenerator {
                 b = bi;
                 c = ci;
             }
-            prg->random_bool((bool*)a, num_triples);
-            prg->random_bool((bool*)b, num_triples);
+            // prg->random_bool((bool*)a, num_triples);
+            // prg->random_bool((bool*)b, num_triples);
             uint8_t *u, *v;
             u = new uint8_t[num_triples];
             v = new uint8_t[num_triples];

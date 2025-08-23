@@ -6,7 +6,6 @@
 #include <seal/util/polyarithsmallmod.h>
 #include <seal/util/rlwe.h>
 
-#include "gemini/cheetah/hom_conv2d_ss.h"
 #include "gemini/cheetah/sliced_3d_tensor.h"
 #include "gemini/core/logging.h"
 #include "gemini/core/util/ThreadPool.h"
@@ -28,6 +27,34 @@ void remove_unused_coeffs(seal::Ciphertext& ct, const seal::Evaluator& evaluator
 
 void truncate_for_decryption(seal::Ciphertext& ct, const seal::Evaluator& evaluator,
                              const seal::SEALContext& context);
+
+static Code LaunchWorks(ThreadPool& tpool, size_t num_works,
+                        std::function<Code(long wid, size_t start, size_t end)> program) {
+    if (num_works == 0)
+        return Code::OK;
+    const long pool_sze = tpool.pool_size();
+    if (pool_sze <= 1L) {
+        return program(0, 0, num_works);
+    } else {
+        Code code;
+        std::vector<std::future<Code>> futures;
+        size_t work_load = (num_works + pool_sze - 1) / pool_sze;
+        for (long wid = 0; wid < pool_sze; ++wid) {
+            size_t start = wid * work_load;
+            size_t end   = std::min(start + work_load, num_works);
+            futures.push_back(tpool.enqueue(program, wid, start, end));
+        }
+
+        code = Code::OK;
+        for (auto&& work : futures) {
+            Code c = work.get();
+            if (code == Code::OK && c != Code::OK) {
+                code = c;
+            }
+        }
+        return code;
+    }
+}
 
 TensorShape getSplitBN(const TensorShape& ishape, size_t N) {
     // NOTE(wen-jie) current implementation does not split along the C-axis
@@ -157,11 +184,7 @@ Code HomBNSS::setUp(uint64_t target_base_mod, const std::vector<seal::SEALContex
         sks_.resize(nCRT);
         encryptors_.resize(nCRT);
         for (size_t i = 0; i < nCRT; ++i) {
-            sks_[i] = seal::SecretKey(*sks[i]);
-            if (!seal::is_metadata_valid_for(*sks[i], *contexts_[i])) {
-                LOG(WARNING) << "HomBNSS: invalid secret key for this SEALContext";
-                return Code::ERR_INVALID_ARG;
-            }
+            sks_[i]        = seal::SecretKey(*sks[i]);
             encryptors_[i] = std::make_shared<seal::Encryptor>(*contexts_[i], *sks_[i]);
         }
     }
@@ -169,10 +192,6 @@ Code HomBNSS::setUp(uint64_t target_base_mod, const std::vector<seal::SEALContex
     if (!pks.empty()) {
         pk_encryptors_.resize(nCRT);
         for (size_t i = 0; i < nCRT; ++i) {
-            if (!seal::is_metadata_valid_for(*pks[i], *contexts_[i])) {
-                LOG(WARNING) << "HomBNSS: invalid public key for this SEALContext";
-                return Code::ERR_INVALID_ARG;
-            }
             pk_encryptors_[i] = std::make_shared<seal::Encryptor>(*contexts_[i], *pks[i]);
         }
     }
@@ -182,7 +201,7 @@ Code HomBNSS::setUp(uint64_t target_base_mod, const std::vector<seal::SEALContex
 
 Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
                             std::vector<seal::Serializable<seal::Ciphertext>>& out,
-                            std::vector<seal::Plaintext>& plain, size_t nthreads) const {
+                            std::vector<seal::Plaintext>& enc, size_t nthreads) const {
     ENSURE_OR_RETURN(!contexts_.empty() && !encryptors_.empty() && !encoders_.empty(),
                      Code::ERR_CONFIG);
     ENSURE_OR_RETURN(in_vec.dims() == 1 && in_vec.shape().IsSameSize(meta.vec_shape),
@@ -194,10 +213,11 @@ Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
     const size_t sub_vec_len = split_shape.dim_size(1);
     const size_t n_sub_vecs  = CeilDiv<size_t>(meta.vec_shape.length(), sub_vec_len);
 
-    plain.resize(nCRT * n_sub_vecs);
+    std::vector<uint64_t> tmp(poly_degree());
 
     seal::Serializable<seal::Ciphertext> dummy = encryptors_[0]->encrypt_zero_symmetric();
     out.resize(nCRT * n_sub_vecs, dummy);
+    enc.resize(nCRT * n_sub_vecs);
 
     auto encrypt_prg = [&](long wid, size_t start, size_t end) {
         std::vector<uint64_t> tmp(poly_degree());
@@ -211,8 +231,8 @@ Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
             std::copy(in_vec.data() + vec_pos_bgn, in_vec.data() + vec_pos_end, tmp.data());
             std::fill(tmp.begin() + len, tmp.end(), 0);
 
-            encoders_[crt_idx]->encode(tmp, plain[wid]);
-            out.at(k) = encryptors_[crt_idx]->encrypt_symmetric(plain[wid]);
+            encoders_[crt_idx]->encode(tmp, enc[k]);
+            out.at(k) = encryptors_[crt_idx]->encrypt_symmetric(enc[k]);
         }
         seal::util::seal_memzero(tmp.data(), sizeof(uint64_t) * tmp.size());
         return Code::OK;
@@ -220,20 +240,6 @@ Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
 
     ThreadPool tpool(nthreads);
     return LaunchWorks(tpool, out.size(), encrypt_prg);
-
-    /// Single thread version
-    //  for (size_t i = 0; i < nCRT; ++i) {
-    //    for (size_t j = 0; j < n_sub_vecs; ++j) {
-    //      auto start = j * sub_vec_len;
-    //      auto end = std::min<size_t>(start + sub_vec_len,
-    //      meta.vec_shape.length()); std::copy(in_vec.data() + start,
-    //      in_vec.data() + end, tmp.data()); std::fill(tmp.begin() + end - start,
-    //      tmp.end(), 0); encoders_[i]->encode(tmp, pt); out.at(i * n_sub_vecs +
-    //      j) = encryptors_[i]->encrypt_symmetric(pt);
-    //    }
-    //  }
-
-    return Code::OK;
 }
 Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
                             std::vector<seal::Serializable<seal::Ciphertext>>& out,
@@ -249,7 +255,7 @@ Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
     const size_t sub_vec_len = split_shape.dim_size(1);
     const size_t n_sub_vecs  = CeilDiv<size_t>(meta.vec_shape.length(), sub_vec_len);
 
-    seal::Plaintext pt;
+    std::vector<uint64_t> tmp(poly_degree());
 
     seal::Serializable<seal::Ciphertext> dummy = encryptors_[0]->encrypt_zero_symmetric();
     out.resize(nCRT * n_sub_vecs, dummy);
@@ -290,7 +296,7 @@ Code HomBNSS::encryptVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
     //    }
     //  }
 
-    return Code::OK;
+    // return Code::OK;
 }
 
 Code HomBNSS::encodeVector(const Tensor<uint64_t>& in_vec, const Meta& meta,
@@ -375,9 +381,7 @@ Code HomBNSS::bn(const std::vector<seal::Ciphertext>& vec_share0,
 
     ThreadPool tpool(nthreads);
     (void)LaunchWorks(tpool, n_ct, bn_prg);
-    out_share1.Reshape(meta.vec_shape);
-    return Code::OK;
-    // return addMask(out_share0, out_share1, meta, tpool);
+    return addMask(out_share0, out_share1, meta, tpool);
 }
 
 Code HomBNSS::addMaskPrimeField(std::vector<seal::Ciphertext>& cts, Tensor<uint64_t>& mask,
@@ -415,7 +419,8 @@ Code HomBNSS::addMaskRing(std::vector<seal::Ciphertext>& cts, Tensor<uint64_t>& 
     }
 
     // -r mod 2^k
-    mask.Reshape(meta.vec_shape);
+    // mask.Reshape(meta.vec_shape);
+    assert(mask.shape() == meta.vec_shape);
     const uint64_t mod_mask = (1ULL << n_base_mod_bits_) - 1;
     for (size_t i = 0, j = 0; i < random.size(); i += n_random_limbs, ++j) {
         mask(j) = (-random[i]) & mod_mask;
@@ -509,7 +514,8 @@ Code HomBNSS::decryptToVector(const std::vector<seal::Ciphertext>& in_vec, const
     auto rns_tool = kcontext->rns_tool();
     ENSURE_OR_RETURN(rns_tool != nullptr, Code::ERR_INTERNAL);
 
-    out_vec.Reshape(meta.vec_shape);
+    // out_vec.Reshape(meta.vec_shape);
+    assert(out_vec.shape() == meta.vec_shape);
     if (nCRT > 1) {
         auto tl = seal::MemoryManager::GetPool(seal::mm_force_thread_local);
         rns_tool->base_q()->compose_array(tmp.data(), meta.vec_shape.length(), tl);
@@ -562,14 +568,14 @@ Code HomBNSS::initPtx(seal::Plaintext& pt, seal::parms_id_type pid) const {
 Code HomBNSS::vec2PolyBFV(const uint64_t* vec, size_t len, seal::Plaintext& pt,
                           bool is_to_ntt) const {
     if (scheme() != seal::scheme_type::bfv) {
-        LOG(FATAL) << "A2HBFV: invalid scheme";
+        LOG(FATAL) << "vec2PolyBFV: invalid scheme";
     }
 
     if (is_to_ntt) {
-        LOG(WARNING) << "A2H: demand is_to_ntt = false for scheme bfv";
+        LOG(WARNING) << "vec2PolyBFV: demand is_to_ntt = false for scheme bfv";
     }
 
-    CHECK_ERR(initPtx(pt), "A2H: InitPtx");
+    CHECK_ERR(initPtx(pt), "vec2PolyBFV: InitPtx");
     ENSURE_OR_RETURN(vec != nullptr, Code::ERR_NULL_POINTER);
     ENSURE_OR_RETURN(len > 0 && len <= poly_degree(), Code::ERR_OUT_BOUND);
 
@@ -610,6 +616,11 @@ Code HomBNSS::encodeTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
             for (int c = 0; c < split_shape.channels(); ++c) {
                 for (int h = 0; h < split_shape.height(); ++h) {
                     for (int w = 0; w < split_shape.width(); ++w) {
+                        if (offsets[0] + c >= meta.ishape.channels()
+                            || offsets[1] + h >= meta.ishape.height()
+                            || offsets[2] + w >= meta.ishape.width()) {
+                            continue;
+                        }
                         *tmp_ptr++ = tensor_slice(c, h, w);
                     }
                 }
@@ -630,7 +641,7 @@ Code HomBNSS::encodeTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
 
 Code HomBNSS::encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
                             std::vector<seal::Serializable<seal::Ciphertext>>& out,
-                            std::vector<seal::Plaintext>& polys, size_t nthreads) const {
+                            std::vector<seal::Plaintext>& encoded_share, size_t nthreads) const {
     ENSURE_OR_RETURN(direct_context_ && direct_encryptor_, Code::ERR_CONFIG);
     ENSURE_OR_RETURN(in_tensor.shape().IsSameSize(meta.ishape), Code::ERR_CONFIG);
     TensorShape split_shape = getSplitBN(meta.ishape, poly_degree());
@@ -641,8 +652,8 @@ Code HomBNSS::encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
     const size_t n_pt = dC * dH * dW;
 
     out.resize(n_pt, direct_encryptor_->encrypt_zero_symmetric());
+    encoded_share.resize(n_pt);
 
-    polys.resize(n_pt);
     auto encrypt_prg = [&](long wid, size_t start, size_t end) {
         std::array<size_t, 3> indices{0};
         std::vector<uint64_t> tmp(poly_degree());
@@ -661,16 +672,21 @@ Code HomBNSS::encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
             for (int c = 0; c < split_shape.channels(); ++c) {
                 for (int h = 0; h < split_shape.height(); ++h) {
                     for (int w = 0; w < split_shape.width(); ++w) {
+                        if (offsets[0] + c >= meta.ishape.channels()
+                            || offsets[1] + h >= meta.ishape.height()
+                            || offsets[2] + w >= meta.ishape.width()) {
+                            continue;
+                        }
                         *tmp_ptr++ = tensor_slice(c, h, w);
                     }
                 }
             }
             std::fill(tmp_ptr, tmp.end(), 0);
-            auto code = vec2PolyBFV(tmp.data(), tmp.size(), polys.at(cid), false);
+            auto code = vec2PolyBFV(tmp.data(), tmp.size(), encoded_share[cid], false);
             if (code != Code::OK) {
                 LOG(FATAL) << "vec2PolyBFV: " << CodeMessage(code) << std::endl;
             }
-            out.at(cid) = direct_encryptor_->encrypt_symmetric(polys.at(cid));
+            out.at(cid) = direct_encryptor_->encrypt_symmetric(encoded_share[cid]);
         }
 
         seal::util::seal_memzero(tmp.data(), tmp.size() * sizeof(uint64_t));
@@ -714,6 +730,11 @@ Code HomBNSS::encryptTensor(const Tensor<uint64_t>& in_tensor, const Meta& meta,
             for (int c = 0; c < split_shape.channels(); ++c) {
                 for (int h = 0; h < split_shape.height(); ++h) {
                     for (int w = 0; w < split_shape.width(); ++w) {
+                        if (offsets[0] + c >= meta.ishape.channels()
+                            || offsets[1] + h >= meta.ishape.height()
+                            || offsets[2] + w >= meta.ishape.width()) {
+                            continue;
+                        }
                         *tmp_ptr++ = tensor_slice(c, h, w);
                     }
                 }
@@ -802,7 +823,7 @@ Code HomBNSS::bn_direct(const std::vector<seal::Ciphertext>& tensor_share0,
 
     std::vector<seal::Plaintext> rnd;
     auto mask_prog = [&](long wid, size_t start, size_t end) {
-        RLWECt zero;
+        seal::Ciphertext zero;
         for (size_t cid = start; cid < end; ++cid) {
             direct_evaluator_->mod_switch_to_inplace(out_share0[cid],
                                                      direct_context_->last_parms_id());

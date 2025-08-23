@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SEND_HPP_
+#define SEND_HPP_
 
 #include <cassert>
 #include <chrono>
@@ -8,7 +9,7 @@
 #include <seal/seal.h>
 #include <sys/socket.h>
 
-#include "io/net_io_channel.hpp"
+#include "net_io_channel.hpp"
 #include <gemini/cheetah/hom_conv2d_ss.h>
 
 using std::string;
@@ -432,3 +433,5 @@ Code IO::recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const Vec& sen
     }
     return Code::OK;
 }
+
+#endif
