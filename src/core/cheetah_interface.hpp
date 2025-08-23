@@ -50,8 +50,7 @@ class HE {
     HE& operator=(HE&& other)      = delete;
 
     ~HE() {
-        for (size_t i = 0; i < threads_; ++i)
-            delete ios_[i];
+        for (size_t i = 0; i < threads_; ++i) delete ios_[i];
 
         delete[] ios_;
     }
@@ -86,9 +85,8 @@ class HE {
      * @param C result Tensor
      * @param batchSize
      */
-    void run_bn(const Tensor<uint64_t>& A, const Tensor<uint64_t>& B,
-                           Tensor<uint64_t>& C,
-                           const size_t& batchSize);
+    void run_bn(const Tensor<uint64_t>& A, const Tensor<uint64_t>& B, Tensor<uint64_t>& C,
+                const size_t& batchSize);
 
     /**
      * Elementwise Multiplication
@@ -98,16 +96,15 @@ class HE {
      * @param batchSize
      */
     void run_elem_mult(const vector<Tensor<uint64_t>>& A, const vector<Tensor<uint64_t>>& B,
-                            vector<Tensor<uint64_t>>& C,
-                            const size_t& batchSize);
+                       vector<Tensor<uint64_t>>& C, const size_t& batchSize);
 
     /**
      * Wrapper function to perform Conv/Batchnorm/FC
      */
     template <class T, class Bs>
-    void run_he(const T& cheetah, const class T::Meta& meta, const std::vector<Tensor<uint64_t>>& A, const std::vector<Bs>& B,
-                  std::vector<Tensor<uint64_t>>& C,
-                  const size_t& batchSize = 1);
+    void run_he(const T& cheetah, const class T::Meta& meta, const std::vector<Tensor<uint64_t>>& A,
+                const std::vector<Bs>& B, std::vector<Tensor<uint64_t>>& C,
+                const size_t& batchSize = 1);
 
     /**
      * Generates beaver boolean-triple
@@ -120,9 +117,9 @@ class HE {
     double alt_bn(const gemini::HomBNSS::Meta& meta);
 
   private:
-    gemini::HomBNSS bn_; // cheetah BatchNorm
+    gemini::HomBNSS bn_;       // cheetah BatchNorm
     gemini::HomConv2DSS conv_; // cheetah 2d-conv
-    gemini::HomFCSS fc_; // cheetah-fc
+    gemini::HomFCSS fc_;       // cheetah-fc
 
     std::unique_ptr<sci::OTPack<Channel>> ot_pack_; // cheeath triple-gen
     std::unique_ptr<TripleGenerator<Channel>> triple_gen_;
@@ -173,7 +170,7 @@ HE<Channel>::HE(const int& party, const char* addr, const int& port, const size_
     : threads_(threads), samples_(samples), party_(party) {
     Code code;
 
-    ios_   = Utils::init_ios<Channel>(addr, port, threads);
+    ios_ = Utils::init_ios<Channel>(addr, port, threads);
 
     if (setup_ot)
         setup_OT();
@@ -308,9 +305,7 @@ void HE<Channel>::run_ot(const size_t& numTriples, bool packed) {
     auto data = Utils::to_MB(counter_(), unit);
     Utils::log(Utils::Level::INFO, "P", party_,
                ": OT TIME[s]: ", Utils::to_sec(Utils::time_diff(start)) / samples_);
-    Utils::log(Utils::Level::INFO, "P", party_, ": OT data[", unit,
-               "]: ", (data / samples_));
-
+    Utils::log(Utils::Level::INFO, "P", party_, ": OT data[", unit, "]: ", (data / samples_));
 
     delete[] a;
     delete[] b;
@@ -427,9 +422,9 @@ double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn) {
 
 template <class Channel>
 template <class T, class Bs>
-void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta, const std::vector<Tensor<uint64_t>>& A, const std::vector<Bs>& B,
-                  std::vector<Tensor<uint64_t>>& C,
-                  const size_t& batchSize) {
+void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta,
+                         const std::vector<Tensor<uint64_t>>& A, const std::vector<Bs>& B,
+                         std::vector<Tensor<uint64_t>>& C, const size_t& batchSize) {
     size_t batch_threads      = batchSize > 1 ? batchSize : 1;
     size_t threads_per_thread = threads_ / batch_threads;
 
@@ -486,21 +481,20 @@ void HE<Channel>::run_conv(const Tensor<uint64_t>& A, const std::vector<Tensor<u
 }
 
 template <class Channel>
-void HE<Channel>::run_bn(const Tensor<uint64_t>& A, const Tensor<uint64_t>& B,
-                           Tensor<uint64_t>& C,
-                           const size_t& batchSize) {
+void HE<Channel>::run_bn(const Tensor<uint64_t>& A, const Tensor<uint64_t>& B, Tensor<uint64_t>& C,
+                         const size_t& batchSize) {
     gemini::HomBNSS::Meta meta
-        = Utils::init_meta_bn(B.NumElements(), A.shape().rows()* A.shape().rows());
+        = Utils::init_meta_bn(B.NumElements(), A.shape().rows() * A.shape().rows());
 
     run_he(bn_, meta, A, B, C, batchSize);
 }
 
 template <class Channel>
-void HE<Channel>::run_elem_mult(const vector<Tensor<uint64_t>>& A, const vector<Tensor<uint64_t>>& B,
-                           vector<Tensor<uint64_t>>& C,
-                           const size_t& batchSize) {
+void HE<Channel>::run_elem_mult(const vector<Tensor<uint64_t>>& A,
+                                const vector<Tensor<uint64_t>>& B, vector<Tensor<uint64_t>>& C,
+                                const size_t& batchSize) {
     gemini::HomBNSS::Meta meta;
-    meta.vec_shape = {A[0].NumElements()};
+    meta.vec_shape       = {A[0].NumElements()};
     meta.is_shared_input = true;
     meta.target_base_mod = PLAIN_MOD;
 
@@ -518,11 +512,11 @@ void HE<Channel>::run_elem_mult(const vector<Tensor<uint64_t>>& A, const vector<
             Result result;
             if ((PROTO == 2 && party_ == emp::ALICE)
                 || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) { // for AB alternate parties
-                result = Server::perform_elem(meta, ios_ + wid * threads_per_thread, context_,
-                                               bn_, A[cur], B[cur], C[cur], threads_per_thread);
+                result = Server::perform_elem(meta, ios_ + wid * threads_per_thread, context_, bn_,
+                                              A[cur], B[cur], C[cur], threads_per_thread);
             } else {
-                result = Client::perform_elem(meta, ios_ + wid * threads_per_thread, context_,
-                                               bn_, A[cur], B[cur], C[cur], threads_per_thread);
+                result = Client::perform_elem(meta, ios_ + wid * threads_per_thread, context_, bn_,
+                                              A[cur], B[cur], C[cur], threads_per_thread);
             }
 
             if (result.ret != Code::OK)

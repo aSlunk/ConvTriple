@@ -2,7 +2,9 @@
 
 #include "protocols/ot_proto.hpp"
 
-void Iface::generateBoolTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength, uint64_t num_triples, std::string ip, int port, int party, int threads) {
+void Iface::generateBoolTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength,
+                                       uint64_t num_triples, std::string ip, int port, int party,
+                                       int threads) {
     const char* addr = ip.c_str();
     if (ip == "")
         addr = nullptr;
@@ -21,16 +23,15 @@ void Iface::generateBoolTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
     TripleGenerator<IO::NetIO> triple_gen(party, ios[0], &ot_pack);
 
     switch (party) {
-        case emp::ALICE:
-            Server::triple_gen(triple_gen, ai, bi, ci, num_triples, false);
-            break;
-        case emp::BOB:
-            Client::triple_gen(triple_gen, ai, bi, ci, num_triples, false);
-            break;
+    case emp::ALICE:
+        Server::triple_gen(triple_gen, ai, bi, ci, num_triples, false);
+        break;
+    case emp::BOB:
+        Client::triple_gen(triple_gen, ai, bi, ci, num_triples, false);
+        break;
     }
 
-    for (int i = 0; i < threads; ++i)
-        delete ios[i];
+    for (int i = 0; i < threads; ++i) delete ios[i];
 
     delete[] ios;
 

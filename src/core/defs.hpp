@@ -10,8 +10,8 @@
 #include <ostream>
 #include <thread>
 
-#include <gemini/cheetah/hom_conv2d_ss.h>
 #include <gemini/cheetah/hom_bn_ss.h>
+#include <gemini/cheetah/hom_conv2d_ss.h>
 #include <gemini/cheetah/hom_fc_ss.h>
 #include <gemini/cheetah/tensor.h>
 

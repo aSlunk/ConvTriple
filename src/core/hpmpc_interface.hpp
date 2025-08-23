@@ -8,14 +8,14 @@
 
 #include <io/net_io_channel.hpp>
 
-#include <ot/cheetah-ot_pack.h>
 #include <ot/bit-triple-generator.h>
+#include <ot/cheetah-ot_pack.h>
 
 namespace Iface {
 
 template <class Channel, class SerKey>
 void exchange_keys(Channel** ios, const SerKey& pkey, seal::PublicKey& o_pkey,
-                                 const seal::SEALContext& ctx, int party) {
+                   const seal::SEALContext& ctx, int party) {
     switch (party) {
     case emp::ALICE:
         IO::send_pkey(*(ios[0]), pkey);
@@ -28,23 +28,26 @@ void exchange_keys(Channel** ios, const SerKey& pkey, seal::PublicKey& o_pkey,
     }
 }
 
-void generateBoolTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength, uint64_t num_triples, std::string ip, int port, int party, int threads = 1);
+void generateBoolTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength,
+                                uint64_t num_triples, std::string ip, int port, int party,
+                                int threads = 1);
 
 template <class T>
-void generateArithTriplesCheetah(T a[], T b[], T c[], int bitlength, uint64_t num_triples, std::string ip, int port, int party, int threads = 1) {
+void generateArithTriplesCheetah(T a[], T b[], T c[], int bitlength, uint64_t num_triples,
+                                 std::string ip, int port, int party, int threads = 1) {
     using namespace seal;
     const char* addr = ip.c_str();
     if (ip == "")
         addr = nullptr;
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
-    
+
     SEALContext ctx = Utils::init_he_context();
 
     KeyGenerator keygen(ctx);
     SecretKey skey = keygen.secret_key();
-    auto pkey            = std::make_shared<PublicKey>();
-    auto o_pkey          = std::make_shared<PublicKey>();
+    auto pkey      = std::make_shared<PublicKey>();
+    auto o_pkey    = std::make_shared<PublicKey>();
     keygen.create_public_key(*pkey);
     exchange_keys(ios, *pkey, *o_pkey, ctx, party);
 
@@ -105,10 +108,9 @@ void generateArithTriplesCheetah(T a[], T b[], T c[], int bitlength, uint64_t nu
     if (code != Code::OK)
         Utils::log(Utils::Level::ERROR, "P", std::to_string(party), ": ", CodeMessage(code));
 
-
     gemini::HomBNSS::Meta meta;
     meta.is_shared_input = true;
-    meta.vec_shape = {static_cast<long>(num_triples)};
+    meta.vec_shape       = {static_cast<long>(num_triples)};
     meta.target_base_mod = PLAIN_MOD;
 
     Tensor<uint64_t> A(meta.vec_shape);
@@ -122,28 +124,26 @@ void generateArithTriplesCheetah(T a[], T b[], T c[], int bitlength, uint64_t nu
     Tensor<uint64_t> C(meta.vec_shape);
 
     switch (party) {
-        case emp::ALICE: {
-            Server::perform_elem(ios, ctx, bn, meta, A, B, C, threads);
-            break;
-        }
-        case emp::BOB: {
-            Client::perform_elem(ios, ctx, bn, meta, A, B, C, threads);
-            break;
-        }
-        default: {
-            Utils::log(Utils::Level::ERROR, "Unknown party: P", party);
-        }
+    case emp::ALICE: {
+        Server::perform_elem(ios, ctx, bn, meta, A, B, C, threads);
+        break;
+    }
+    case emp::BOB: {
+        Client::perform_elem(ios, ctx, bn, meta, A, B, C, threads);
+        break;
+    }
+    default: {
+        Utils::log(Utils::Level::ERROR, "Unknown party: P", party);
+    }
     }
 
-    for (uint64_t i = 0; i < num_triples; ++i)
-        c[i] = static_cast<T>(C(i));
+    for (uint64_t i = 0; i < num_triples; ++i) c[i] = static_cast<T>(C(i));
 
-    for (int i = 0; i < threads; ++i)
-        delete ios[i];
+    for (int i = 0; i < threads; ++i) delete ios[i];
 
     delete[] ios;
 }
 
-}
+} // namespace Iface
 
 #endif

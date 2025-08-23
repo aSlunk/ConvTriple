@@ -3,8 +3,8 @@
 #include <vector>
 
 #include <cheetah_interface.hpp>
+#include <hpmpc_interface.hpp>
 #include <networks/resnet50.hpp>
-#include <core/hpmpc_interface.hpp>
 
 #define PARTY 2
 
@@ -18,8 +18,8 @@ int main(int argc, char** argv) {
         Utils::log(Utils::Level::ERROR, "Unknown <PROTO>: ", PROTO);
     }
 
-    size_t port      = strtoul(argv[1], NULL, 10);
-    char* addr       = argv[2];
+    size_t port                       = strtoul(argv[1], NULL, 10);
+    char* addr                        = argv[2];
     [[maybe_unused]] size_t samples   = strtoul(argv[3], NULL, 10);
     [[maybe_unused]] size_t batchSize = strtoul(argv[4], NULL, 10);
     size_t threads;
@@ -29,16 +29,17 @@ int main(int argc, char** argv) {
         threads = std::min(strtoul(argv[5], NULL, 10), (size_t)N_THREADS);
 
     int num_triples = 4;
-    
+
     {
         uint32_t a[4] = {1, 1, 1, 1};
         uint32_t b[4] = {1, 1, 1, 1};
-        uint32_t* c = new uint32_t[num_triples];
+        uint32_t* c   = new uint32_t[num_triples];
 
         Iface::generateBoolTriplesCheetah(a, b, c, 1, num_triples, std::string(addr), port, PARTY);
 
         for (int i = 0; i < num_triples; ++i) {
-            std::cerr << i << ": " << static_cast<int>(a[i]) << ", " << static_cast<int>(b[i]) << ", " << static_cast<int>(c[i]) << std::endl;
+            std::cerr << i << ": " << static_cast<int>(a[i]) << ", " << static_cast<int>(b[i])
+                      << ", " << static_cast<int>(c[i]) << std::endl;
         }
         delete[] c;
     }
@@ -50,9 +51,10 @@ int main(int argc, char** argv) {
         std::vector<uint64_t> b(num_triples, 1);
         std::vector<uint64_t> c(num_triples, 1);
 
-        Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples, std::string(addr), port, PARTY, threads);
+        Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples,
+                                           std::string(addr), port, PARTY, threads);
     }
-    
+
     // HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, samples, true);
     // all.run_ot(20'000'000);
 

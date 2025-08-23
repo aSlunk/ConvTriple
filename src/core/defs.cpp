@@ -34,7 +34,6 @@ seal::SEALContext Utils::init_he_context() {
     return context;
 }
 
-
 gemini::HomBNSS::Meta Utils::init_meta_bn(const long& rows, const long& cols) {
     gemini::HomBNSS::Meta meta;
     long tmp             = sqrt(cols);
