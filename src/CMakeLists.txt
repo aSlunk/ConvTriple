@@ -22,9 +22,15 @@ add_library(IO INTERFACE)
 target_include_directories(IO INTERFACE io)
 target_link_libraries(IO INTERFACE SEAL::seal gemini OT)
 
-add_library(HE INTERFACE)
-target_include_directories(HE INTERFACE core)
-target_link_libraries(HE INTERFACE SEAL::seal gemini IO OT)
+add_library(HE STATIC core/hpmpc_interface.cpp core/defs.cpp io/send.cpp)
+target_include_directories(HE PUBLIC core include)
+target_link_libraries(HE PUBLIC SEAL::seal gemini IO OT)
+target_compile_options(
+    HE PRIVATE
+    "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra;-Wno-unused-parameter>"
+    "$<$<CONFIG:Release>:-Wall;-Wextra;-Wno-unused-parameter>"
+    "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers"
+)
 
 set(server cheetah)
 add_executable(${server} server.cpp)
