@@ -9,8 +9,8 @@
 #include <io/net_io_channel.hpp>
 #include <io/send.hpp>
 
-#include "defs.hpp"
-#include "protocols/bn_proto.hpp"
+#include "core/defs.hpp"
+#include "bn_proto.hpp"
 
 using gemini::Tensor;
 using Utils::Result;

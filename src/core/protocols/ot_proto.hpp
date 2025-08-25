@@ -8,7 +8,7 @@
 #include <ot/bit-triple-generator.h>
 #include <ot/silent_ot.h>
 
-#include "defs.hpp"
+#include "core/defs.hpp"
 
 static constexpr TripleGenMethod METHOD = TripleGenMethod::_2ROT;
 

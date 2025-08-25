@@ -2,11 +2,12 @@
 #include <iostream>
 #include <vector>
 
-#include <cheetah_interface.hpp>
-#include <hpmpc_interface.hpp>
-#include <networks/resnet50.hpp>
+#include <core/cheetah_interface.hpp>
+#include <core/hpmpc_interface.hpp>
+#include <core/networks/resnet50.hpp>
 
 #define PARTY 1
+
 
 int main(int argc, char** argv) {
     if (argc != 5 && argc != 4) {
@@ -39,9 +40,9 @@ int main(int argc, char** argv) {
 
     {
         num_triples = 1'168'448;
-        std::vector<uint64_t> a(num_triples, 1);
-        std::vector<uint64_t> b(num_triples, 1);
-        std::vector<uint64_t> c(num_triples, 1);
+        std::vector<uint32_t> a(num_triples, 1);
+        std::vector<uint32_t> b(num_triples, 1);
+        std::vector<uint32_t> c(num_triples, 1);
 
         Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 1, num_triples,
                                            std::string(""), port, PARTY, threads);

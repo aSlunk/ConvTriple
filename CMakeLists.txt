@@ -9,7 +9,7 @@ option(TRIP_VERIFY "Enable verification" ON)
 option(TRIP_COLOR "Enable colored output" ON)
 
 add_compile_options(-fPIC)
-add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)
+# add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)
 
 ## Dependencies
 set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps;${CMAKE_PREFIX_PATH}")

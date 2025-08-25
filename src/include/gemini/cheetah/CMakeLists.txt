@@ -1,4 +1,4 @@
-target_sources(gemini PUBLIC
+target_sources(gemini PRIVATE
 ${CMAKE_CURRENT_LIST_DIR}/shape_inference.cc
 ${CMAKE_CURRENT_LIST_DIR}/tensor_shape.cc
 ${CMAKE_CURRENT_LIST_DIR}/tensor_encoder.cc
