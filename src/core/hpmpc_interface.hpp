@@ -28,12 +28,13 @@ void exchange_keys(Channel** ios, const SerKey& pkey, seal::PublicKey& o_pkey,
     }
 }
 
-void generateBoolTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength,
+void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[], int bitlength,
                                 uint64_t num_triples, std::string ip, int port, int party,
                                 int threads = 1);
 
-void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength, uint64_t num_triples,
-                                 std::string ip, int port, int party, int threads = 1);
+void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength,
+                                 uint64_t num_triples, std::string ip, int port, int party,
+                                 int threads = 1);
 
 } // namespace Iface
 

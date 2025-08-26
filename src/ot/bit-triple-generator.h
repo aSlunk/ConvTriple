@@ -77,7 +77,7 @@ class TripleGenerator {
     sci::PRG128* prg;
     int party;
 
-    TripleGenerator(int party, IO* io, sci::OTPack<IO>* otpack) {
+    TripleGenerator(int party [[maybe_unused]], IO* io, sci::OTPack<IO>* otpack) {
         this->io     = io;
         this->otpack = otpack;
         this->prg    = new sci::PRG128;

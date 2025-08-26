@@ -8,7 +8,6 @@
 
 #define PARTY 1
 
-
 int main(int argc, char** argv) {
     if (argc != 5 && argc != 4) {
         std::cout << argv[0] << " <port> <samples> <batchSize> (<threads>)\n";
@@ -27,9 +26,9 @@ int main(int argc, char** argv) {
     int num_triples = 320608;
 
     {
-        uint32_t* a = new uint32_t[num_triples];
-        uint32_t* b = new uint32_t[num_triples];
-        uint32_t* c = new uint32_t[num_triples];
+        uint8_t* a = new uint8_t[num_triples];
+        uint8_t* b = new uint8_t[num_triples];
+        uint8_t* c = new uint8_t[num_triples];
 
         Iface::generateBoolTriplesCheetah(a, b, c, 1, num_triples, std::string(""), port, PARTY);
 
@@ -39,7 +38,7 @@ int main(int argc, char** argv) {
     }
 
     {
-        num_triples = 1'168'448;
+        num_triples = 48'168'448 / 10;
         std::vector<uint32_t> a(num_triples, 1);
         std::vector<uint32_t> b(num_triples, 1);
         std::vector<uint32_t> c(num_triples, 1);

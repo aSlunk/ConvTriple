@@ -4,21 +4,12 @@
 
 namespace Iface {
 
-void generateBoolTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength,
-                                       uint64_t num_triples, std::string ip, int port, int party,
-                                       int threads) {
+void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
+                                int bitlength [[maybe_unused]], uint64_t num_triples,
+                                std::string ip, int port, int party, int threads) {
     const char* addr = ip.c_str();
-    if (ip == "")
+    if (party == emp::ALICE)
         addr = nullptr;
-
-    uint8_t* ai = new uint8_t[num_triples];
-    uint8_t* bi = new uint8_t[num_triples];
-    uint8_t* ci = new uint8_t[num_triples];
-
-    for (size_t i = 0; i < num_triples; ++i) {
-        ai[i] = static_cast<uint8_t>(a[i]);
-        bi[i] = static_cast<uint8_t>(b[i]);
-    }
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
     sci::OTPack<IO::NetIO> ot_pack(ios, threads, party, true, false);
@@ -26,33 +17,23 @@ void generateBoolTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bi
 
     switch (party) {
     case emp::ALICE:
-        Server::triple_gen(triple_gen, ai, bi, ci, num_triples, false);
+        Server::triple_gen(triple_gen, a, b, c, num_triples, false);
         break;
     case emp::BOB:
-        Client::triple_gen(triple_gen, ai, bi, ci, num_triples, false);
+        Client::triple_gen(triple_gen, a, b, c, num_triples, false);
         break;
     }
 
     for (int i = 0; i < threads; ++i) delete ios[i];
-
     delete[] ios;
-
-    for (size_t i = 0; i < num_triples; ++i) {
-        a[i] = static_cast<uint32_t>(ai[i]);
-        b[i] = static_cast<uint32_t>(bi[i]);
-        c[i] = static_cast<uint32_t>(ci[i]);
-    }
-
-    delete[] ai;
-    delete[] bi;
-    delete[] ci;
 }
 
-void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength, uint64_t num_triples,
+void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
+                                 int bitlength [[maybe_unused]], uint64_t num_triples,
                                  std::string ip, int port, int party, int threads) {
     using namespace seal;
     const char* addr = ip.c_str();
-    if (ip == "")
+    if (party == emp::ALICE)
         addr = nullptr;
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
@@ -131,20 +112,27 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int b
     Tensor<uint64_t> A(meta.vec_shape);
     Tensor<uint64_t> B(meta.vec_shape);
 
+    A.Randomize();
+    B.Randomize();
+
     for (uint64_t i = 0; i < num_triples; ++i) {
-        A(i) = static_cast<uint64_t>(a[i]);
-        B(i) = static_cast<uint64_t>(b[i]);
+        // A(i) = static_cast<uint64_t>(a[i]);
+        // B(i) = static_cast<uint64_t>(b[i]);
+        A(i) %= PLAIN_MOD;
+        B(i) %= PLAIN_MOD;
+        a[i] = A(i);
+        b[i] = B(i);
     }
 
     Tensor<uint64_t> C(meta.vec_shape);
 
     switch (party) {
     case emp::ALICE: {
-        Server::perform_elem(ios, ctx, bn, meta, A, B, C, threads);
+        Server::perform_elem(ios, bn, meta, A, B, C, threads);
         break;
     }
     case emp::BOB: {
-        Client::perform_elem(ios, ctx, bn, meta, A, B, C, threads);
+        Client::perform_elem(ios, bn, meta, A, B, C, threads);
         break;
     }
     default: {
@@ -159,4 +147,4 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int b
     delete[] ios;
 }
 
-}
+} // namespace Iface

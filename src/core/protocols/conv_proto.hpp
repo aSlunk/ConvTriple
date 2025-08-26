@@ -14,12 +14,6 @@
 using gemini::Tensor;
 using Utils::Result;
 
-static uint64_t add(const gemini::HomConv2DSS& conv, const uint64_t& a, const uint64_t& b) {
-    uint64_t sum;
-    seal::util::add_uint(&a, 1, b, &sum);
-    return seal::util::barrett_reduce_64(sum, conv.plain_modulus());
-}
-
 namespace Server {
 
 template <class Channel>
@@ -219,7 +213,7 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
     start = measure::now();
 
     Utils::op_inplace<uint64_t>(
-        C2, R2, [&conv](uint64_t a, uint64_t b) -> uint64_t { return add(conv, a, b); });
+        C2, R2, [](uint64_t a, uint64_t b) -> uint64_t { return Utils::add(a, b); });
 
     measures.plain_op = Utils::time_diff(start);
 
@@ -345,8 +339,7 @@ Result Server::Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel** server
     measures.decryption = Utils::time_diff(start);
     start               = measure::now();
 
-    Utils::op_inplace<uint64_t>(C1, R1,
-                                [&conv](uint64_t a, uint64_t b) { return add(conv, a, b); });
+    Utils::op_inplace<uint64_t>(C1, R1, [](uint64_t a, uint64_t b) { return Utils::add(a, b); });
 
     measures.plain_op = Utils::time_diff(start);
 

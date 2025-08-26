@@ -16,12 +16,6 @@ using gemini::Tensor;
 using std::vector;
 using Utils::Result;
 
-static uint64_t add(const HomFCSS& fc, const uint64_t& a, const uint64_t& b) {
-    uint64_t sum;
-    seal::util::add_uint(&a, 1, b, &sum);
-    return seal::util::barrett_reduce_64(sum, fc.plain_modulus());
-}
-
 namespace Server {
 
 template <class Channel>
@@ -237,7 +231,7 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context, con
         for (size_t i = 0; i < ele; ++i)
             Utils::op_inplace<uint64_t>(
                 C2[start + i], R2[i],
-                [&fc](uint64_t a, uint64_t b) -> uint64_t { return add(fc, a, b); });
+                [](uint64_t a, uint64_t b) -> uint64_t { return Utils::add(a, b); });
 
         measures.plain_op = Utils::time_diff(mess);
         return Code::OK;
@@ -392,7 +386,7 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server,
 
         for (size_t i = 0; i < ele; ++i)
             Utils::op_inplace<uint64_t>(C1[first + i], R1[i],
-                                        [&fc](uint64_t a, uint64_t b) { return add(fc, a, b); });
+                                        [](uint64_t a, uint64_t b) { return Utils::add(a, b); });
 
         measures.plain_op = Utils::time_diff(start);
         return Code::OK;
@@ -494,11 +488,11 @@ void Server::Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& 
     io.recv_data(B2.data(), B2.NumElements() * sizeof(T));
     io.recv_data(C2.data(), C2.NumElements() * sizeof(T));
 
-    Utils::op_inplace<T>(C2, C1, [&fc](T a, T b) -> T { return add(fc, a, b); }); // C
-    Utils::op_inplace<T>(A2, A1, [&fc](T a, T b) -> T { return add(fc, a, b); }); // A1 + A2
+    Utils::op_inplace<T>(C2, C1, [&fc](T a, T b) -> T { return Utils::add(a, b); }); // C
+    Utils::op_inplace<T>(A2, A1, [&fc](T a, T b) -> T { return Utils::add(a, b); }); // A1 + A2
 
 #if PROTO == 1
-    Utils::op_inplace<T>(B2, B1, [&fc](T a, T b) -> T { return add(fc, a, b); });
+    Utils::op_inplace<T>(B2, B1, [&fc](T a, T b) -> T { return Utils::add(a, b); });
 #endif
 
     Tensor<T> test;                            // (A1 + A2) (B1 + B2)

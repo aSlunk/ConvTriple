@@ -14,13 +14,15 @@ else ()
   target_compile_definitions(gemini PUBLIC USE_APPROX_RESHARE=0)
 endif ()
 
+################################################################################
+## Interface: static library
+################################################################################
 set(HE_LIB HE)
 add_library(${HE_LIB} STATIC
   core/hpmpc_interface.cpp
   core/defs.cpp
   io/send.cpp
 )
-
 target_include_directories(${HE_LIB} PUBLIC include io ot)
 target_link_libraries(${HE_LIB} PUBLIC SEAL::seal gemini OpenSSL::SSL OpenSSL::Crypto)
 target_compile_definitions(${HE_LIB} PUBLIC USE_CHEETAH=1)
@@ -32,7 +34,7 @@ target_compile_options(
 )
 
 ################################################################################
-## Interface: static library
+## Server / Client executables
 ################################################################################
 set(server cheetah)
 add_executable(${server} server.cpp)
@@ -52,10 +54,6 @@ if(TRIP_COLOR)
   target_compile_definitions(${HE_LIB} PRIVATE COLOR)
 endif()
 
-
-################################################################################
-## Server / Client executables
-################################################################################
 set(client cheetah_client)
 add_executable(${client} client.cpp)
 target_link_libraries(${client} PRIVATE ${HE_LIB})

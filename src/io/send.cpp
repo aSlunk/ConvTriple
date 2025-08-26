@@ -16,7 +16,7 @@ void IO::recv_encrypted_filters(IO::NetIO& io, const seal::SEALContext& context,
     if (ncts > 0) {
         ct_vec.resize(ncts);
         for (size_t i = 0; i < ncts; ++i) {
-            recv_encrypted_vector(io, context, ct_vec[i]);
+            recv_encrypted_vector(io, context, ct_vec[i], is_truncated);
         }
     }
 }
@@ -47,7 +47,10 @@ void IO::recv_encrypted_vector(IO::NetIO& io, const seal::SEALContext& context,
         io.recv_data(c_enc_result, ct_size);
         std::istringstream is(std::string(c_enc_result, ct_size));
         for (size_t i = 0; i < ncts; ++i) {
-            ct_vec[i].load(context, is);
+            if (is_truncated)
+                ct_vec[i].unsafe_load(context, is);
+            else
+                ct_vec[i].load(context, is);
         }
         delete[] c_enc_result;
     }

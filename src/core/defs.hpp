@@ -168,7 +168,17 @@ std::vector<gemini::Tensor<uint64_t>> init_filter(const gemini::HomConv2DSS::Met
 template <class T>
 void op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B, std::function<T(T, T)> op);
 
-static inline uint64_t getRingElt(int64_t x) { return ((uint64_t)x) & moduloMask; }
+template <class T>
+static inline uint64_t getRingElt(T x) {
+    return ((uint64_t)x) & moduloMask;
+}
+
+template <class T>
+inline uint64_t add(T a, T b) {
+    uint64_t sum;
+    seal::util::add_uint(&a, 1, b, &sum);
+    return getRingElt(sum);
+}
 
 static inline int64_t getSignedVal(uint64_t x) {
     assert(x < MOD);

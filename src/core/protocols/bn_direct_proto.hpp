@@ -9,8 +9,8 @@
 #include <io/net_io_channel.hpp>
 #include <io/send.hpp>
 
-#include "core/defs.hpp"
 #include "bn_proto.hpp"
+#include "core/defs.hpp"
 
 using gemini::Tensor;
 using Utils::Result;
@@ -190,7 +190,7 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context,
     start = measure::now();
 
     Utils::op_inplace<uint64_t>(
-        C2, R2, [&bn](uint64_t a, uint64_t b) -> uint64_t { return add(bn, a, b); });
+        C2, R2, [](uint64_t a, uint64_t b) -> uint64_t { return Utils::add(a, b); });
 
     measures.plain_op = Utils::time_diff(start);
 
@@ -304,7 +304,7 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
     measures.decryption = Utils::time_diff(start);
     start               = measure::now();
 
-    Utils::op_inplace<uint64_t>(C1, R1, [&bn](uint64_t a, uint64_t b) { return add(bn, a, b); });
+    Utils::op_inplace<uint64_t>(C1, R1, [](uint64_t a, uint64_t b) { return Utils::add(a, b); });
 
     measures.plain_op = Utils::time_diff(start);
 
@@ -419,11 +419,11 @@ void Server::Verify_BN_DIRECT(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
     io.recv_data(B2.data(), B2.NumElements() * sizeof(T));
     io.recv_data(C2.data(), C2.NumElements() * sizeof(T));
 
-    Utils::op_inplace<T>(C2, C1, [&bn](T a, T b) -> T { return add(bn, a, b); }); // C
-    Utils::op_inplace<T>(A2, A1, [&bn](T a, T b) -> T { return add(bn, a, b); }); // A1 + A2
+    Utils::op_inplace<T>(C2, C1, [&bn](T a, T b) -> T { return Utils::add(a, b); }); // C
+    Utils::op_inplace<T>(A2, A1, [&bn](T a, T b) -> T { return Utils::add(a, b); }); // A1 + A2
 
 #if PROTO == 1
-    Utils::op_inplace<T>(B2, B1, [&bn](T a, T b) -> T { return add(bn, a, b); });
+    Utils::op_inplace<T>(B2, B1, [&bn](T a, T b) -> T { return Utils::add(a, b); });
 #endif
 
     Tensor<T> test;                            // (A1 + A2) (B1 + B2)
