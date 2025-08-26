@@ -7,6 +7,12 @@ target_include_directories(gemini PUBLIC include)
 target_include_directories(gemini PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(include)
 target_link_libraries(gemini PUBLIC SEAL::seal Eigen3::Eigen Threads::Threads)
+target_compile_options(
+    gemini PRIVATE
+    "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra>"
+    "$<$<CONFIG:Release>:-Wall;-Wextra>"
+    "-Wno-unused-parameter"
+)
 
 if (USE_APPROX_RESHARE)
   target_compile_definitions(gemini PUBLIC USE_APPROX_RESHARE=1)

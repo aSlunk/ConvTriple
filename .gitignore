@@ -9,6 +9,7 @@ run.sh
 *.csv
 
 *perf.data*
+massif*
 
 data
 *.bak

@@ -1,6 +1,11 @@
 #include "hpmpc_interface.hpp"
 
+#include <algorithm>
+
+#include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
+
+constexpr uint64_t MAX_ARITH = 20'000'000;
 
 namespace Iface {
 
@@ -28,18 +33,8 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     delete[] ios;
 }
 
-void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
-                                 int bitlength [[maybe_unused]], uint64_t num_triples,
-                                 std::string ip, int port, int party, int threads) {
+void setUpBn(IO::NetIO** ios, gemini::HomBNSS& bn, const seal::SEALContext& ctx, const int& party) {
     using namespace seal;
-    const char* addr = ip.c_str();
-    if (party == emp::ALICE)
-        addr = nullptr;
-
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
-
-    SEALContext ctx = Utils::init_he_context();
-
     KeyGenerator keygen(ctx);
     SecretKey skey = keygen.secret_key();
     auto pkey      = std::make_shared<PublicKey>();
@@ -47,7 +42,7 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
     keygen.create_public_key(*pkey);
     exchange_keys(ios, *pkey, *o_pkey, ctx, party);
 
-    size_t ntarget_bits = std::ceil(std::log2(PLAIN_MOD));
+    size_t ntarget_bits = BIT_LEN;
     size_t crt_bits     = 2 * ntarget_bits + 1 + gemini::HomBNSS::kStatBits;
 
     const size_t nbits_per_crt_plain = [](size_t crt_bits) {
@@ -94,8 +89,6 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
         opt_sks.emplace_back(*bn_sks_[i]);
     }
 
-    gemini::HomBNSS bn;
-
     Code code;
     code = bn.setUp(PLAIN_MOD, ctx, skey, o_pkey);
     if (code != Code::OK)
@@ -103,48 +96,114 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
     code = bn.setUp(PLAIN_MOD, contexts, opt_sks, bn_pks_);
     if (code != Code::OK)
         Utils::log(Utils::Level::ERROR, "P", std::to_string(party), ": ", CodeMessage(code));
+}
 
-    gemini::HomBNSS::Meta meta;
-    meta.is_shared_input = true;
-    meta.vec_shape       = {static_cast<long>(num_triples)};
-    meta.target_base_mod = PLAIN_MOD;
+void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
+                                 int bitlength [[maybe_unused]], uint64_t num_triples,
+                                 std::string ip, int port, int party, int threads) {
+    const char* addr = ip.c_str();
+    if (party == emp::ALICE)
+        addr = nullptr;
 
-    Tensor<uint64_t> A(meta.vec_shape);
-    Tensor<uint64_t> B(meta.vec_shape);
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
 
-    A.Randomize();
-    B.Randomize();
+    seal::SEALContext ctx = Utils::init_he_context();
+    gemini::HomBNSS bn;
 
-    for (uint64_t i = 0; i < num_triples; ++i) {
-        // A(i) = static_cast<uint64_t>(a[i]);
-        // B(i) = static_cast<uint64_t>(b[i]);
-        A(i) %= PLAIN_MOD;
-        B(i) %= PLAIN_MOD;
-        a[i] = A(i);
-        b[i] = B(i);
+    setUpBn(ios, bn, ctx, party);
+
+    for (size_t total = num_triples; total > 0;) {
+        size_t current = std::min(MAX_ARITH, total);
+
+        gemini::HomBNSS::Meta meta;
+        meta.is_shared_input = true;
+        meta.vec_shape       = {static_cast<long>(current)};
+        meta.target_base_mod = PLAIN_MOD;
+
+        Tensor<uint64_t> A({static_cast<long>(std::min(MAX_ARITH, current))});
+        Tensor<uint64_t> B({static_cast<long>(std::min(MAX_ARITH, current))});
+        Tensor<uint64_t> C({static_cast<long>(std::min(MAX_ARITH, current))});
+
+        A.Randomize();
+        B.Randomize();
+
+        for (uint64_t i = 0; i < current; ++i) {
+            // A(i) = static_cast<uint64_t>(a[i]);
+            // B(i) = static_cast<uint64_t>(b[i]);
+            A(i) %= PLAIN_MOD;
+            B(i) %= PLAIN_MOD;
+            a[i + num_triples - total] = A(i);
+            b[i + num_triples - total] = B(i);
+        }
+
+        switch (party) {
+        case emp::ALICE: {
+            Server::perform_elem(ios, bn, meta, A, B, C, threads);
+            break;
+        }
+        case emp::BOB: {
+            Client::perform_elem(ios, bn, meta, A, B, C, threads);
+            break;
+        }
+        default: {
+            Utils::log(Utils::Level::ERROR, "Unknown party: P", party);
+        }
+        }
+
+        for (uint64_t i = 0; i < current; ++i)
+            c[i + num_triples - total] = static_cast<uint32_t>(C(i));
+        total -= current;
     }
-
-    Tensor<uint64_t> C(meta.vec_shape);
-
-    switch (party) {
-    case emp::ALICE: {
-        Server::perform_elem(ios, bn, meta, A, B, C, threads);
-        break;
-    }
-    case emp::BOB: {
-        Client::perform_elem(ios, bn, meta, A, B, C, threads);
-        break;
-    }
-    default: {
-        Utils::log(Utils::Level::ERROR, "Unknown party: P", party);
-    }
-    }
-
-    for (uint64_t i = 0; i < num_triples; ++i) c[i] = static_cast<uint32_t>(C(i));
 
     for (int i = 0; i < threads; ++i) delete ios[i];
 
     delete[] ios;
+}
+
+void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, int port) {
+    int batch        = 1;
+    const char* addr = ip.c_str();
+
+    if (party == emp::ALICE) {
+        addr = nullptr;
+    }
+
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
+
+    auto meta = Utils::init_meta_fc(num_triples, 1);
+    gemini::HomFCSS fc;
+    seal::SEALContext ctx = Utils::init_he_context();
+    gemini::HomBNSS bn;
+
+    seal::KeyGenerator keygen(ctx);
+    seal::SecretKey skey = keygen.secret_key();
+    auto pkey            = std::make_shared<seal::PublicKey>();
+    auto o_pkey          = std::make_shared<seal::PublicKey>();
+    keygen.create_public_key(*pkey);
+    exchange_keys(ios, *pkey, *o_pkey, ctx, party);
+
+    fc.setUp(ctx, skey, o_pkey);
+
+    std::vector<Tensor<uint64_t>> A(batch, Tensor<uint64_t>(meta.input_shape));
+    std::vector<Tensor<uint64_t>> B(batch, Tensor<uint64_t>(meta.weight_shape));
+
+    for (int i = 0; i < batch; ++i) {
+        A[i].Randomize(PLAIN_MOD);
+        B[i].Randomize(PLAIN_MOD);
+    }
+
+    std::vector<Tensor<uint64_t>> C(batch);
+
+    switch (party) {
+    case emp::ALICE: {
+        Server::perform_proto(meta, ios, ctx, fc, A, B, C, 1ul, batch);
+        break;
+    }
+    case emp::BOB: {
+        Client::perform_proto(meta, ios, ctx, fc, A, B, C, 1ul, batch);
+        break;
+    }
+    }
 }
 
 } // namespace Iface

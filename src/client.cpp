@@ -30,21 +30,22 @@ int main(int argc, char** argv) {
 
     int num_triples = 320608;
 
-    {
-        uint8_t* a = new uint8_t[num_triples];
-        uint8_t* b = new uint8_t[num_triples];
-        uint8_t* c = new uint8_t[num_triples];
+    // {
+    //     uint8_t* a = new uint8_t[num_triples];
+    //     uint8_t* b = new uint8_t[num_triples];
+    //     uint8_t* c = new uint8_t[num_triples];
 
-        Iface::generateBoolTriplesCheetah(a, b, c, 1, num_triples, std::string(addr), port, PARTY);
+    //     Iface::generateBoolTriplesCheetah(a, b, c, 1, num_triples, std::string(addr), port,
+    //     PARTY);
 
-        delete[] a;
-        delete[] b;
-        delete[] c;
-    }
+    //     delete[] a;
+    //     delete[] b;
+    //     delete[] c;
+    // }
 
     {
         // num_triples = 30'000'000;
-        num_triples = 48'168'448 / 10;
+        num_triples = 48'168'448;
         std::vector<uint32_t> a(num_triples, 1);
         std::vector<uint32_t> b(num_triples, 1);
         std::vector<uint32_t> c(num_triples, 1);
@@ -52,6 +53,8 @@ int main(int argc, char** argv) {
         Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples,
                                            std::string(addr), port, PARTY, threads);
     }
+
+    Iface::generateFCTriplesCheetah(10, PARTY, std::string(addr), port);
 
     // HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, samples, true);
     // all.run_ot(20'000'000);
