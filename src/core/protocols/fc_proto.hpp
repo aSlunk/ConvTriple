@@ -413,7 +413,6 @@ Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
                              const size_t& batch) {
 
     assert(A1.size() == batch && B1.size() == batch && C1.size() == batch);
-    server[0]->sync();
 
 #if PROTO == 1
     auto measures = Server::Protocol1(meta, server, context, fc, A1, B1, C1, threads, batch);
@@ -423,7 +422,6 @@ Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
     for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
 #ifdef VERIFY
-    server[0]->sync();
     for (size_t i = 0; i < batch; ++i) {
         Verify_FC(*(server[0]), meta, fc, A1[i], B1[i], C1[i]);
     }
@@ -454,8 +452,6 @@ Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client,
                              const vector<Tensor<uint64_t>>& A2, const vector<Tensor<uint64_t>>& B2,
                              vector<Tensor<uint64_t>>& C2, const size_t& threads,
                              const size_t& batch) {
-    client[0]->sync();
-
 #if PROTO == 1
     auto measures = Client::Protocol1(client, context, fc, meta, A2, B2, C2, threads, batch);
 #else
@@ -465,7 +461,6 @@ Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client,
     for (size_t i = 0; i < threads; ++i) client[i]->counter = 0;
 
 #ifdef VERIFY
-    client[0]->sync();
     for (size_t i = 0; i < batch; ++i) {
         Verify_FC(*(client[0]), A2[i], B2[i], C2[i]);
     }

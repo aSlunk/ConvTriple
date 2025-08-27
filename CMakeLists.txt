@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED 20)
 option(USE_APPROX_RESHARE "Enable APPROX RESHARE" OFF)
 option(TRIP_VERIFY "Enable verification" ON)
 option(TRIP_COLOR "Enable colored output" ON)
+option(TRIP_ZERO "Enable computation with ZERO" OFF)
 
 add_compile_options(-fPIC)
 # add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)

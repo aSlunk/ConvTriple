@@ -20,6 +20,11 @@ else ()
   target_compile_definitions(gemini PUBLIC USE_APPROX_RESHARE=0)
 endif ()
 
+if(TRIP_ZERO)
+  target_compile_definitions(gemini PRIVATE ZERO)
+endif()
+
+
 ################################################################################
 ## Interface: static library
 ################################################################################
@@ -39,6 +44,14 @@ target_compile_options(
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
 )
 
+if(TRIP_VERIFY)
+  target_compile_definitions(${HE_LIB} PRIVATE VERIFY)
+endif()
+
+if(TRIP_COLOR)
+  target_compile_definitions(${HE_LIB} PRIVATE COLOR)
+endif()
+
 ################################################################################
 ## Server / Client executables
 ################################################################################
@@ -52,13 +65,6 @@ target_compile_options(
     "$<$<CONFIG:Release>:-Wall;-Wextra>"
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
 )
-if(TRIP_VERIFY)
-  target_compile_definitions(${HE_LIB} PRIVATE VERIFY)
-endif()
-
-if(TRIP_COLOR)
-  target_compile_definitions(${HE_LIB} PRIVATE COLOR)
-endif()
 
 set(client cheetah_client)
 add_executable(${client} client.cpp)

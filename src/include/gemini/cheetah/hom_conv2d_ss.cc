@@ -628,6 +628,7 @@ size_t HomConv2DSS::conv2DOneFilter(const std::vector<seal::Ciphertext>& image,
         return size_t(-1);
     }
 
+#ifndef ZERO
     size_t nnz = std::accumulate(
         filter.cbegin(), filter.cend(), 0,
         [](size_t nnz, const seal::Plaintext& f) { return nnz + (f.is_zero() ? 0 : 1); });
@@ -635,6 +636,7 @@ size_t HomConv2DSS::conv2DOneFilter(const std::vector<seal::Ciphertext>& image,
         LOG(WARNING) << "conv2DOneFilter: filter with all zero is not supported";
         return size_t(-1);
     }
+#endif
 
     const size_t out_size = image.size() / filter.size();
     if (out_size < 1) {

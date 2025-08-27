@@ -23,25 +23,25 @@ int main(int argc, char** argv) {
     else
         threads = std::min(strtoul(argv[4], NULL, 10), (size_t)N_THREADS);
 
-    int num_triples = 320608;
-
-    // {
-    //     uint8_t* a = new uint8_t[num_triples];
-    //     uint8_t* b = new uint8_t[num_triples];
-    //     uint8_t* c = new uint8_t[num_triples];
-
-    //     Iface::generateBoolTriplesCheetah(a, b, c, 1, num_triples, std::string(""), port, PARTY);
-
-    //     delete[] a;
-    //     delete[] b;
-    //     delete[] c;
-    // }
+    int num_triples = 1;
 
     {
-        num_triples = 48'168'448;
-        std::vector<uint32_t> a(num_triples, 1);
-        std::vector<uint32_t> b(num_triples, 1);
-        std::vector<uint32_t> c(num_triples, 1);
+        uint8_t* a = new uint8_t[num_triples];
+        uint8_t* b = new uint8_t[num_triples];
+        uint8_t* c = new uint8_t[num_triples];
+
+        Iface::generateBoolTriplesCheetah(a, b, c, 1, num_triples, std::string(""), port, PARTY);
+
+        delete[] a;
+        delete[] b;
+        delete[] c;
+    }
+
+    {
+        // num_triples = 48'168'448;
+        std::vector<uint32_t> a(num_triples, 0);
+        std::vector<uint32_t> b(num_triples, 0);
+        std::vector<uint32_t> c(num_triples, 0);
 
         Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 1, num_triples,
                                            std::string(""), port, PARTY, threads);

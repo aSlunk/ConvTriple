@@ -5,6 +5,7 @@
 #include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
 
+constexpr uint64_t MAX_BOOL  = 20'000'000;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
 namespace Iface {
@@ -20,13 +21,17 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     sci::OTPack<IO::NetIO> ot_pack(ios, threads, party, true, false);
     TripleGenerator<IO::NetIO> triple_gen(party, ios[0], &ot_pack);
 
-    switch (party) {
-    case emp::ALICE:
-        Server::triple_gen(triple_gen, a, b, c, num_triples, false);
-        break;
-    case emp::BOB:
-        Client::triple_gen(triple_gen, a, b, c, num_triples, false);
-        break;
+    for (size_t total = 0; total < num_triples;) {
+        int current = std::min(num_triples - total, MAX_BOOL);
+        switch (party) {
+        case emp::ALICE:
+            Server::triple_gen(triple_gen, a + total, b + total, c + total, current, false);
+            break;
+        case emp::BOB:
+            Client::triple_gen(triple_gen, a + total, b + total, c + total, current, false);
+            break;
+        }
+        total += current;
     }
 
     for (int i = 0; i < threads; ++i) delete ios[i];
@@ -112,6 +117,16 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
 
     setUpBn(ios, bn, ctx, party);
 
+    Result total_res;
+
+    Tensor<uint64_t> A({static_cast<long>(num_triples)});
+    Tensor<uint64_t> B({static_cast<long>(num_triples)});
+
+    for (uint64_t i = 0; i < num_triples; ++i) {
+        A(i) = static_cast<uint64_t>(a[i]);
+        B(i) = static_cast<uint64_t>(b[i]);
+    }
+
     for (size_t total = num_triples; total > 0;) {
         size_t current = std::min(MAX_ARITH, total);
 
@@ -120,29 +135,18 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
         meta.vec_shape       = {static_cast<long>(current)};
         meta.target_base_mod = PLAIN_MOD;
 
-        Tensor<uint64_t> A({static_cast<long>(std::min(MAX_ARITH, current))});
-        Tensor<uint64_t> B({static_cast<long>(std::min(MAX_ARITH, current))});
-        Tensor<uint64_t> C({static_cast<long>(std::min(MAX_ARITH, current))});
+        Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(A.data(), meta.vec_shape);
+        Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(B.data(), meta.vec_shape);
+        Tensor<uint64_t> tmp_C(meta.vec_shape);
 
-        A.Randomize();
-        B.Randomize();
-
-        for (uint64_t i = 0; i < current; ++i) {
-            // A(i) = static_cast<uint64_t>(a[i]);
-            // B(i) = static_cast<uint64_t>(b[i]);
-            A(i) %= PLAIN_MOD;
-            B(i) %= PLAIN_MOD;
-            a[i + num_triples - total] = A(i);
-            b[i + num_triples - total] = B(i);
-        }
-
+        Result res;
         switch (party) {
         case emp::ALICE: {
-            Server::perform_elem(ios, bn, meta, A, B, C, threads);
+            res = Server::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads);
             break;
         }
         case emp::BOB: {
-            Client::perform_elem(ios, bn, meta, A, B, C, threads);
+            res = Client::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads);
             break;
         }
         default: {
@@ -150,10 +154,16 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
         }
         }
 
+        Utils::add_result(total_res, res);
+
         for (uint64_t i = 0; i < current; ++i)
-            c[i + num_triples - total] = static_cast<uint32_t>(C(i));
+            c[i + num_triples - total] = static_cast<uint32_t>(tmp_C(i));
         total -= current;
     }
+
+    Utils::print_results(total_res, 0, party, threads);
+    // std::cout << Utils::to_sec(Utils::time_diff(start)) << "\n";
+    //  std::cout << total_time << "\n";
 
     for (int i = 0; i < threads; ++i) delete ios[i];
 
@@ -188,8 +198,8 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
     std::vector<Tensor<uint64_t>> B(batch, Tensor<uint64_t>(meta.weight_shape));
 
     for (int i = 0; i < batch; ++i) {
-        A[i].Randomize(PLAIN_MOD);
-        B[i].Randomize(PLAIN_MOD);
+        // A[i].Randomize(PLAIN_MOD);
+        // B[i].Randomize(PLAIN_MOD);
     }
 
     std::vector<Tensor<uint64_t>> C(batch);
@@ -205,5 +215,37 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
     }
     }
 }
+
+// void tmp(int party) {
+//     // auto context = Utils::init_he_context();
+//     seal::EncryptionParameters parms(seal::scheme_type::bfv);
+//     parms.set_poly_modulus_degree(POLY_MOD);
+//     parms.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 60, 60, 49}));
+//     size_t prime_mod = seal::PlainModulus::Batching(POLY_MOD, 20).value();
+//     parms.set_plain_modulus(prime_mod);
+//     seal::SEALContext context(parms, true, seal::sec_level_type::none);
+// 
+//     auto io = Utils::init_ios<IO::NetIO>(party == emp::ALICE ? nullptr : "127.0.0.1", 6969, 1);
+// 
+//     seal::KeyGenerator keygen(context);
+//     seal::SecretKey skey = keygen.secret_key();
+//     auto pkey            = std::make_shared<seal::PublicKey>();
+//     auto o_pkey          = std::make_shared<seal::PublicKey>();
+//     keygen.create_public_key(*pkey);
+//     exchange_keys(io, *pkey, *o_pkey, context, party);
+// 
+//     uint64_t num_triples = 20'000'000;
+// 
+//     std::vector<uint64_t> A(num_triples);
+//     std::vector<uint64_t> B(num_triples);
+//     std::vector<uint64_t> C(num_triples);
+// 
+//     seal::Encryptor enc(context, *o_pkey);
+//     seal::Decryptor dec(context, skey);
+// 
+//     elemwise_product(&context, io[0], &enc, &dec, num_triples, A, B, C, prime_mod, party);
+//     std::cout << "okay\n";
+//     std::cout << io[0]->counter << "\n";
+// }
 
 } // namespace Iface

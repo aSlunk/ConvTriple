@@ -42,6 +42,8 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int b
 
 void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, int port);
 
+// void tmp(int party);
+
 } // namespace Iface
 
 #endif
