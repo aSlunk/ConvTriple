@@ -31,7 +31,8 @@ template <class Channel>
 Result perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** server,
                      const seal::SEALContext& context, const gemini::HomConv2DSS& conv,
                      const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>> B1,
-                     Tensor<uint64_t>& C1, const size_t& threads = 1, Utils::PROTO proto = Utils::PROTO::AB);
+                     Tensor<uint64_t>& C1, const size_t& threads = 1,
+                     Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** server,
@@ -42,7 +43,7 @@ Result perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** server,
 template <class T>
 void Verify_Conv(IO::NetIO& io, const gemini::HomConv2DSS::Meta& meta,
                  const gemini::HomConv2DSS& conv, const Tensor<T>& A1,
-                 const std::vector<Tensor<T>>& B1, const Tensor<T>& C1);
+                 const std::vector<Tensor<T>>& B1, const Tensor<T>& C1, Utils::PROTO proto);
 #endif
 
 } // namespace Server
@@ -65,7 +66,8 @@ template <class Channel>
 Result perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** client,
                      const seal::SEALContext& context, const gemini::HomConv2DSS& conv,
                      const Tensor<uint64_t>& A1, const std::vector<Tensor<uint64_t>> B1,
-                     Tensor<uint64_t>& C1, const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
+                     Tensor<uint64_t>& C1, const size_t& threads,
+                     Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** client,
@@ -371,7 +373,7 @@ Result Server::perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** se
     for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
 #ifdef VERIFY
-    Verify_Conv(*(server[0]), meta, conv, A1, B1, C1);
+    Verify_Conv(*(server[0]), meta, conv, A1, B1, C1, proto);
 #endif
     return measures;
 }
@@ -429,7 +431,8 @@ Result Client::perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** cl
 template <class T>
 void Server::Verify_Conv(IO::NetIO& io, const gemini::HomConv2DSS::Meta& meta,
                          const gemini::HomConv2DSS& conv, const Tensor<T>& A1,
-                         const std::vector<Tensor<T>>& B1, const Tensor<T>& C1) {
+                         const std::vector<Tensor<T>>& B1, const Tensor<T>& C1,
+                         Utils::PROTO proto) {
     Utils::log(Utils::Level::INFO, "VERIFYING CONV");
     Tensor<T> A2(A1.shape());
     std::vector<Tensor<T>> B2(meta.n_filters, Tensor<T>(meta.fshape));
@@ -442,10 +445,10 @@ void Server::Verify_Conv(IO::NetIO& io, const gemini::HomConv2DSS::Meta& meta,
     Utils::op_inplace<T>(C2, C1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // C
     Utils::op_inplace<T>(A2, A1, [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; }); // A1 + A2
 
-#if PROTO == 1
-    for (size_t i = 0; i < B1.size(); ++i) // B1 + B2
-        Utils::op_inplace<T>(B2[i], B1[i], [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; });
-#endif
+    if (proto == Utils::PROTO::AB)
+        for (size_t i = 0; i < B1.size(); ++i) // B1 + B2
+            Utils::op_inplace<T>(B2[i], B1[i],
+                                 [&conv](T a, T b) -> T { return (a + b) % PLAIN_MOD; });
 
     Tensor<T> test;                              // (A1 + A2) (B1 + B2)
     conv.idealFunctionality(A2, B2, meta, test); // (A1 + A2) (B1 + B2)

@@ -5,7 +5,7 @@
 #include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
 
-constexpr uint64_t MAX_BOOL  = 30'000'000;
+constexpr uint64_t MAX_BOOL  = 20'000'000;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
 namespace Iface {
@@ -36,7 +36,8 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         total += current;
     }
 
-    Utils::log(Utils::Level::INFO, "P", party, ": Bool triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    Utils::log(Utils::Level::INFO, "P", party,
+               ": Bool triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     uint64_t data = Utils::to_MB(ios[0]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party, ": Bool triple data[", unit, "]: ", data);
@@ -112,7 +113,8 @@ void setUpBn(IO::NetIO** ios, gemini::HomBNSS& bn, const seal::SEALContext& ctx,
 
 void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
                                  int bitlength [[maybe_unused]], uint64_t num_triples,
-                                 std::string ip, int port, int party, int threads) {
+                                 std::string ip, int port, int party, int threads,
+                                 Utils::PROTO proto) {
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
         addr = nullptr;
@@ -149,11 +151,11 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
         Result res;
         switch (party) {
         case emp::ALICE: {
-            res = Server::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads);
+            res = Server::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
             break;
         }
         case emp::BOB: {
-            res = Client::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads);
+            res = Client::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
             break;
         }
         default: {
@@ -161,13 +163,12 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
         }
         }
 
-
-        for (uint64_t i = 0; i < current; ++i)
-            c[i + total] = static_cast<uint32_t>(tmp_C(i));
+        for (uint64_t i = 0; i < current; ++i) c[i + total] = static_cast<uint32_t>(tmp_C(i));
         total += current;
     }
 
-    Utils::log(Utils::Level::INFO, "P", party, ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    Utils::log(Utils::Level::INFO, "P", party,
+               ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     uint64_t data = Utils::to_MB(ios[0]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
@@ -177,7 +178,8 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
     delete[] ios;
 }
 
-void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, int port) {
+void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, int port,
+                              Utils::PROTO proto) {
     int batch        = 1;
     const char* addr = ip.c_str();
 
@@ -213,11 +215,11 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
 
     switch (party) {
     case emp::ALICE: {
-        Server::perform_proto(meta, ios, ctx, fc, A, B, C, 1ul, batch);
+        Server::perform_proto(meta, ios, ctx, fc, A, B, C, 1ul, batch, proto);
         break;
     }
     case emp::BOB: {
-        Client::perform_proto(meta, ios, ctx, fc, A, B, C, 1ul, batch);
+        Client::perform_proto(meta, ios, ctx, fc, A, B, C, 1ul, batch, proto);
         break;
     }
     }
@@ -231,25 +233,25 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
 //     size_t prime_mod = seal::PlainModulus::Batching(POLY_MOD, 20).value();
 //     parms.set_plain_modulus(prime_mod);
 //     seal::SEALContext context(parms, true, seal::sec_level_type::none);
-// 
+//
 //     auto io = Utils::init_ios<IO::NetIO>(party == emp::ALICE ? nullptr : "127.0.0.1", 6969, 1);
-// 
+//
 //     seal::KeyGenerator keygen(context);
 //     seal::SecretKey skey = keygen.secret_key();
 //     auto pkey            = std::make_shared<seal::PublicKey>();
 //     auto o_pkey          = std::make_shared<seal::PublicKey>();
 //     keygen.create_public_key(*pkey);
 //     exchange_keys(io, *pkey, *o_pkey, context, party);
-// 
+//
 //     uint64_t num_triples = 20'000'000;
-// 
+//
 //     std::vector<uint64_t> A(num_triples);
 //     std::vector<uint64_t> B(num_triples);
 //     std::vector<uint64_t> C(num_triples);
-// 
+//
 //     seal::Encryptor enc(context, *o_pkey);
 //     seal::Decryptor dec(context, skey);
-// 
+//
 //     elemwise_product(&context, io[0], &enc, &dec, num_triples, A, B, C, prime_mod, party);
 //     std::cout << "okay\n";
 //     std::cout << io[0]->counter << "\n";

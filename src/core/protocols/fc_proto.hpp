@@ -33,16 +33,18 @@ template <class Channel>
 Result perform_proto(const HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
                      const HomFCSS& fc, const vector<Tensor<uint64_t>>& A1,
                      const vector<Tensor<uint64_t>>& B1, vector<Tensor<uint64_t>>& C1,
-                     const size_t& threads = 1, const size_t& batch = 1, Utils::PROTO proto = Utils::PROTO::AB);
+                     const size_t& threads = 1, const size_t& batch = 1,
+                     Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_proto(const HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
-                     const HomFCSS& fc, const size_t& threads = 1, const size_t& batch = 1, Utils::PROTO proto = Utils::PROTO::AB2);
+                     const HomFCSS& fc, const size_t& threads = 1, const size_t& batch = 1,
+                     Utils::PROTO proto = Utils::PROTO::AB2);
 
 #ifdef VERIFY
 template <class T>
 void Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& fc, const Tensor<T>& A1,
-               const Tensor<T>& B1, const Tensor<T>& C1);
+               const Tensor<T>& B1, const Tensor<T>& C1, Utils::PROTO proto);
 #endif
 
 } // namespace Server
@@ -65,11 +67,13 @@ template <class Channel>
 Result perform_proto(const HomFCSS::Meta& meta, Channel** client, const seal::SEALContext& context,
                      const HomFCSS& fc, const vector<Tensor<uint64_t>>& A1,
                      const vector<Tensor<uint64_t>>& B1, vector<Tensor<uint64_t>>& C1,
-                     const size_t& threads, const size_t& batch = 1, Utils::PROTO proto = Utils::PROTO::AB);
+                     const size_t& threads, const size_t& batch = 1,
+                     Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_proto(const HomFCSS::Meta& meta, Channel** client, const seal::SEALContext& context,
-                     const HomFCSS& fc, const size_t& threads, const size_t& batch = 1, Utils::PROTO proto = Utils::PROTO::AB2);
+                     const HomFCSS& fc, const size_t& threads, const size_t& batch = 1,
+                     Utils::PROTO proto = Utils::PROTO::AB2);
 
 #ifdef VERIFY
 template <class T>
@@ -428,7 +432,7 @@ Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
 
 #ifdef VERIFY
     for (size_t i = 0; i < batch; ++i) {
-        Verify_FC(*(server[0]), meta, fc, A1[i], B1[i], C1[i]);
+        Verify_FC(*(server[0]), meta, fc, A1[i], B1[i], C1[i], proto);
     }
 #endif
     return measures;
@@ -499,7 +503,8 @@ Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client,
 #ifdef VERIFY
 template <class T>
 void Server::Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& fc,
-                       const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1) {
+                       const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1,
+                       Utils::PROTO proto) {
     Utils::log(Utils::Level::INFO, "VERIFYING FC");
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.weight_shape);
@@ -512,9 +517,8 @@ void Server::Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& 
     Utils::op_inplace<T>(C2, C1, [&fc](T a, T b) -> T { return Utils::add(a, b); }); // C
     Utils::op_inplace<T>(A2, A1, [&fc](T a, T b) -> T { return Utils::add(a, b); }); // A1 + A2
 
-#if PROTO == 1
-    Utils::op_inplace<T>(B2, B1, [&fc](T a, T b) -> T { return Utils::add(a, b); });
-#endif
+    if (proto == Utils::PROTO::AB)
+        Utils::op_inplace<T>(B2, B1, [&fc](T a, T b) -> T { return Utils::add(a, b); });
 
     Tensor<T> test;                            // (A1 + A2) (B1 + B2)
     fc.idealFunctionality(A2, B2, meta, test); // (A1 + A2) (B1 + B2)

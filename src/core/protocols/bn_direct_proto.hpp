@@ -42,7 +42,8 @@ Result perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server,
 #ifdef VERIFY
 template <class T>
 void Verify_BN_DIRECT(IO::NetIO& io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& bn,
-                      const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
+                      const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1,
+                      Utils::PROTO proto);
 #endif
 
 } // namespace Server
@@ -331,8 +332,8 @@ Result Server::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server
     else {
         switch (proto) {
         case Utils::PROTO::AB:
-                measures = Server::Protocol1(meta, server, context, bn, A1, B1, C1, threads);
-                break;
+            measures = Server::Protocol1(meta, server, context, bn, A1, B1, C1, threads);
+            break;
         case Utils::PROTO::AB2:
             measures = Server::Protocol2(meta, server, context, bn, A1, C1, threads);
             break;
@@ -341,7 +342,7 @@ Result Server::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server
     for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
 #ifdef VERIFY
-    Verify_BN_DIRECT(*(server[0]), meta, bn, A1, B1, C1);
+    Verify_BN_DIRECT(*(server[0]), meta, bn, A1, B1, C1, proto);
 #endif
     return measures;
 }
@@ -413,7 +414,7 @@ Result Client::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client
 template <class T>
 void Server::Verify_BN_DIRECT(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
                               const gemini::HomBNSS& bn, const Tensor<T>& A1, const Tensor<T>& B1,
-                              const Tensor<T>& C1) {
+                              const Tensor<T>& C1, Utils::PROTO proto) {
     Utils::log(Utils::Level::INFO, "VERIFYING BN");
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.vec_shape);
@@ -426,9 +427,8 @@ void Server::Verify_BN_DIRECT(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
     Utils::op_inplace<T>(C2, C1, [&bn](T a, T b) -> T { return Utils::add(a, b); }); // C
     Utils::op_inplace<T>(A2, A1, [&bn](T a, T b) -> T { return Utils::add(a, b); }); // A1 + A2
 
-#if PROTO == 1
-    Utils::op_inplace<T>(B2, B1, [&bn](T a, T b) -> T { return Utils::add(a, b); });
-#endif
+    if (proto == Utils::PROTO::AB)
+        Utils::op_inplace<T>(B2, B1, [&bn](T a, T b) -> T { return Utils::add(a, b); });
 
     Tensor<T> test;                            // (A1 + A2) (B1 + B2)
     bn.idealFunctionality(A2, B2, meta, test); // (A1 + A2) (B1 + B2)

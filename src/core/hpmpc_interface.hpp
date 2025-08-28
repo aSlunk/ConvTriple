@@ -38,9 +38,10 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[], int bitle
 
 void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength,
                                  uint64_t num_triples, std::string ip, int port, int party,
-                                 int threads = 1);
+                                 int threads = 1, Utils::PROTO proto = Utils::PROTO::AB);
 
-void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, int port);
+void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, int port,
+                              Utils::PROTO proto);
 
 // void tmp(int party);
 

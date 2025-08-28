@@ -422,7 +422,6 @@ Code HomFCSS::MatVecMul(const std::vector<seal::Ciphertext>& vec_share0,
         ENSURE_OR_RETURN(c.size() == n_ct_in, Code::ERR_INVALID_ARG);
     }
 
-
 #ifndef ZERO
     for (const auto& rows : matrix) {
         for (const auto& submat : rows) {

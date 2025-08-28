@@ -27,12 +27,12 @@ int main(int argc, char** argv) {
     int num_triples = 1;
 
     {
-        int tmp = 20'000'000;
+        int tmp    = 20'000'000;
         uint8_t* a = new uint8_t[tmp];
         uint8_t* b = new uint8_t[tmp];
         uint8_t* c = new uint8_t[tmp];
 
-        Iface::generateBoolTriplesCheetah(a, b, c, 1, tmp, std::string(addr), port, PARTY);
+        Iface::generateBoolTriplesCheetah(a, b, c, 1, tmp, std::string(addr), port, PARTY, threads);
 
         delete[] a;
         delete[] b;
@@ -46,7 +46,8 @@ int main(int argc, char** argv) {
         std::vector<uint32_t> c(num_triples, 0);
 
         Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples,
-                                           std::string(addr), port, PARTY, threads);
+                                           std::string(addr), port, PARTY, threads,
+                                           Utils::PROTO::AB);
     }
 
     // Iface::generateFCTriplesCheetah(10, PARTY, std::string(addr), port);

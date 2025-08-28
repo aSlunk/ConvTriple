@@ -28,7 +28,8 @@ Result Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server, const 
 template <class Channel>
 Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                      const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                     const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
+                     const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
+                     Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_elem(Channel** ios, const gemini::HomBNSS& bn, const gemini::HomBNSS::Meta& meta,
@@ -38,7 +39,7 @@ Result perform_elem(Channel** ios, const gemini::HomBNSS& bn, const gemini::HomB
 #ifdef VERIFY
 template <class T>
 void Verify_BN(IO::NetIO* io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& bn,
-               const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1);
+               const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1, Utils::PROTO proto);
 #endif
 } // namespace Server
 
@@ -57,7 +58,8 @@ Result Protocol2_alt(Channel** client, const gemini::HomBNSS& bn, const gemini::
 template <class Channel>
 Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                      const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                     const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
+                     const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
+                     Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_elem(Channel** ios, const gemini::HomBNSS& bn, const gemini::HomBNSS::Meta& meta,
@@ -365,8 +367,8 @@ void pack(const Tensor<uint64_t>& mat, const Tensor<uint64_t>& scales,
 template <class Channel>
 Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                              const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                             const Tensor<uint64_t>& B, Tensor<uint64_t>& C,
-                             const size_t& threads, Utils::PROTO proto) {
+                             const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
+                             Utils::PROTO proto) {
     Result res;
     Tensor<uint64_t> vec, scales;
     pack(A, B, vec, scales);
@@ -400,7 +402,8 @@ Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
 template <class Channel>
 Result Server::perform_elem(Channel** ios, const gemini::HomBNSS& bn,
                             const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                            const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads, Utils::PROTO proto) {
+                            const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
+                            Utils::PROTO proto) {
     Result result;
 
     switch (proto) {
@@ -418,7 +421,7 @@ Result Server::perform_elem(Channel** ios, const gemini::HomBNSS& bn,
         return result;
 
 #ifdef VERIFY
-    Verify_BN(ios[0], meta, bn, A, B, C);
+    Verify_BN(ios[0], meta, bn, A, B, C, proto);
 #endif
 
     return result;
@@ -427,8 +430,8 @@ Result Server::perform_elem(Channel** ios, const gemini::HomBNSS& bn,
 template <class Channel>
 Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                              const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                             const Tensor<uint64_t>& B, Tensor<uint64_t>& C,
-                             const size_t& threads, Utils::PROTO proto) {
+                             const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
+                             Utils::PROTO proto) {
     Utils::log(Utils::Level::INFO, "Using alt BN");
     Result res;
     Tensor<uint64_t> vec, scales;
@@ -441,7 +444,6 @@ Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
     tmp.vec_shape       = vec.shape();
 
     Tensor<uint64_t> tmp_C = Tensor<uint64_t>::Wrap(C.data(), tmp.vec_shape);
-
 
     switch (proto) {
     case Utils::PROTO::AB:
@@ -461,7 +463,8 @@ Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
 template <class Channel>
 Result Client::perform_elem(Channel** ios, const gemini::HomBNSS& bn,
                             const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                            const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads, Utils::PROTO proto) {
+                            const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
+                            Utils::PROTO proto) {
     Result result;
 
     switch (proto) {
@@ -486,7 +489,8 @@ Result Client::perform_elem(Channel** ios, const gemini::HomBNSS& bn,
 #ifdef VERIFY
 template <class T>
 void Server::Verify_BN(IO::NetIO* io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& bn,
-                       const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1) {
+                       const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1,
+                       Utils::PROTO proto) {
     Utils::log(Utils::Level::INFO, "VERIFYING Elem. Mult");
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.vec_shape);
@@ -499,9 +503,8 @@ void Server::Verify_BN(IO::NetIO* io, const gemini::HomBNSS::Meta& meta, const g
     Utils::op_inplace<T>(C2, C1, [&bn](T a, T b) -> T { return Utils::add(a, b); }); // C
     Utils::op_inplace<T>(A2, A1, [&bn](T a, T b) -> T { return Utils::add(a, b); }); // A1 + A2
 
-#if PROTO == 1
-    Utils::op_inplace<T>(B2, B1, [&bn](T a, T b) -> T { return Utils::add(a, b); });
-#endif
+    if (proto == Utils::PROTO::AB)
+        Utils::op_inplace<T>(B2, B1, [&bn](T a, T b) -> T { return Utils::add(a, b); });
 
     Tensor<T> test;                            // (A1 + A2) (B1 + B2)
     bn.idealFunctionality(A2, B2, meta, test); // (A1 + A2) (B1 + B2)

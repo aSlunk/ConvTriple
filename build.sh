@@ -9,10 +9,7 @@ if [[ ! -d $BUILD_DIR ]]; then
 fi
 
 if [[ -n $1 ]]; then
-    sed -i 's/\(^#define PROTO\) [0-9]\+/\1 '$1'/' src/core/defs.hpp
-    if [[ -n $2 ]]; then
-        sed -i 's/\(^#define COLOR\) [0-9]\+/\1 '$2'/' src/core/defs.hpp
-    fi
+    sed -i 's/\(^#define COLOR\) [0-9]\+/\1 '$2'/' src/core/defs.hpp
 fi
 
 
