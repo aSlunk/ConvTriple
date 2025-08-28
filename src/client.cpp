@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
                                            Utils::PROTO::AB);
     }
 
-    // Iface::generateFCTriplesCheetah(10, PARTY, std::string(addr), port);
+    Iface::generateFCTriplesCheetah(10, PARTY, std::string(addr), port, Utils::PROTO::AB);
 
     // HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, samples, true);
     // all.run_ot(20'000'000);

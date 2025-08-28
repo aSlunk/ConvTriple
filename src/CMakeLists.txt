@@ -1,6 +1,3 @@
-include(CMakeFindDependencyMacro)
-include(FetchContent)
-
 ## cheetah-core
 add_library(gemini SHARED)
 target_include_directories(gemini PUBLIC include)
@@ -20,7 +17,7 @@ else ()
   target_compile_definitions(gemini PUBLIC USE_APPROX_RESHARE=0)
 endif ()
 
-if(TRIP_ZERO)
+if(TRIPLE_ZERO)
   target_compile_definitions(gemini PRIVATE ZERO)
 endif()
 
@@ -44,11 +41,11 @@ target_compile_options(
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
 )
 
-if(TRIP_VERIFY)
+if(TRIPLE_VERIFY)
   target_compile_definitions(${HE_LIB} PRIVATE VERIFY)
 endif()
 
-if(TRIP_COLOR)
+if(TRIPLE_COLOR)
   target_compile_definitions(${HE_LIB} PRIVATE COLOR)
 endif()
 
@@ -77,8 +74,8 @@ target_compile_options(
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
 )
 
-message(STATUS "TRIP_VERIFY: ${TRIP_VERIFY}")
-message(STATUS "TRIP_COLOR: ${TRIP_COLOR}")
+message(STATUS "TRIPLE_VERIFY: ${TRIPLE_VERIFY}")
+message(STATUS "TRIPLE_COLOR: ${TRIPLE_COLOR}")
 
 file(GLOB_RECURSE SRC_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
