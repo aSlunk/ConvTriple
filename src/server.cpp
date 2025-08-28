@@ -49,6 +49,7 @@ int main(int argc, char** argv) {
     }
 
     Iface::generateFCTriplesCheetah(10, PARTY, std::string(""), port, Utils::PROTO::AB);
+
     // HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, samples, true);
     // all.run_ot(20'000'000);
     // {

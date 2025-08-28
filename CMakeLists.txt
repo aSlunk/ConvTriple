@@ -15,15 +15,14 @@ add_compile_options(-fPIC)
 ## Dependencies
 set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps;${CMAKE_PREFIX_PATH}")
 
-find_package(Threads REQUIRED)
 find_package(Eigen3 3.3.3 REQUIRED)
 find_package(emp-tool REQUIRED)
 find_package(emp-ot REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(SEAL 4.0.0 REQUIRED)
-include_directories(${EIGEN3_INCLUDE_DIR}
-                    ${EMP-OT_INCLUDE_DIRS}
-                    ${EMP-TOOL_INCLUDE_DIRS})
+# include_directories(${EIGEN3_INCLUDE_DIR}
+#                     ${EMP-OT_INCLUDE_DIRS}
+#                     ${EMP-TOOL_INCLUDE_DIRS})
 
 
 set(ALL_SOURCE_FILES "")
