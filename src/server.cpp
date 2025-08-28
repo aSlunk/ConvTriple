@@ -26,11 +26,12 @@ int main(int argc, char** argv) {
     int num_triples = 1;
 
     {
-        uint8_t* a = new uint8_t[num_triples];
-        uint8_t* b = new uint8_t[num_triples];
-        uint8_t* c = new uint8_t[num_triples];
+        int tmp = 20'000'000;
+        uint8_t* a = new uint8_t[tmp];
+        uint8_t* b = new uint8_t[tmp];
+        uint8_t* c = new uint8_t[tmp];
 
-        Iface::generateBoolTriplesCheetah(a, b, c, 1, num_triples, std::string(""), port, PARTY);
+        Iface::generateBoolTriplesCheetah(a, b, c, 1, tmp, std::string(""), port, PARTY);
 
         delete[] a;
         delete[] b;
@@ -47,7 +48,7 @@ int main(int argc, char** argv) {
                                            std::string(""), port, PARTY, threads);
     }
 
-    Iface::generateFCTriplesCheetah(10, PARTY, std::string(""), port);
+    // Iface::generateFCTriplesCheetah(10, PARTY, std::string(""), port);
     // HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, samples, true);
     // all.run_ot(20'000'000);
     // {

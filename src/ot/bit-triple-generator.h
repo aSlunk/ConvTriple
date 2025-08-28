@@ -274,8 +274,8 @@ class TripleGenerator {
                 b = bi;
                 c = ci;
             }
-            prg->random_bool((bool*)a, num_triples);
-            prg->random_bool((bool*)b, num_triples);
+            // prg->random_bool((bool*)a, num_triples);
+            // prg->random_bool((bool*)b, num_triples);
             switch (party) {
             case emp::ALICE: {
                 prg->random_bool((bool*)c, num_triples);
