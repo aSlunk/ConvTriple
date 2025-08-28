@@ -14,10 +14,6 @@ int main(int argc, char** argv) {
         return EXEC_FAILED;
     }
 
-    if (PROTO != 1 && PROTO != 2) {
-        Utils::log(Utils::Level::ERROR, "Unknown <PROTO>: ", PROTO);
-    }
-
     size_t port                       = strtoul(argv[1], NULL, 10);
     char* addr                        = argv[2];
     [[maybe_unused]] size_t samples   = strtoul(argv[3], NULL, 10);

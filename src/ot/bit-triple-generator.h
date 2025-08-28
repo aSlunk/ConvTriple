@@ -338,10 +338,10 @@ class TripleGenerator {
                 b = bi;
                 c = ci;
             }
-            // for (int i = 0; i < num_triples; i += 2 * offset) {
+            for (int i = 0; i < num_triples; i += 2 * offset) {
             //     prg->random_bool((bool*)a + i, offset);
-            //     memcpy(a + i + offset, a + i, offset);
-            // }
+                memcpy(a + i + offset, a + i, offset);
+            }
             // prg->random_bool((bool*)b, num_triples);
             switch (party) {
             case emp::ALICE: {

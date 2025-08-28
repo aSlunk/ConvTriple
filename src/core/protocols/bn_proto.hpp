@@ -28,12 +28,12 @@ Result Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server, const 
 template <class Channel>
 Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                      const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                     const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads);
+                     const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_elem(Channel** ios, const gemini::HomBNSS& bn, const gemini::HomBNSS::Meta& meta,
                     const Tensor<uint64_t>& A, const Tensor<uint64_t>& B, Tensor<uint64_t>& C,
-                    const size_t& threads);
+                    const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
 
 #ifdef VERIFY
 template <class T>
@@ -57,12 +57,12 @@ Result Protocol2_alt(Channel** client, const gemini::HomBNSS& bn, const gemini::
 template <class Channel>
 Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                      const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                     const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads);
+                     const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_elem(Channel** ios, const gemini::HomBNSS& bn, const gemini::HomBNSS::Meta& meta,
                     const Tensor<uint64_t>& A, const Tensor<uint64_t>& B, Tensor<uint64_t>& C,
-                    const size_t& threads);
+                    const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
 
 #ifdef VERIFY
 template <class T>
@@ -366,7 +366,7 @@ template <class Channel>
 Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                              const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                              const Tensor<uint64_t>& B, Tensor<uint64_t>& C,
-                             const size_t& threads) {
+                             const size_t& threads, Utils::PROTO proto) {
     Result res;
     Tensor<uint64_t> vec, scales;
     pack(A, B, vec, scales);
@@ -380,11 +380,14 @@ Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
 
     Tensor<uint64_t> tmp_C = Tensor<uint64_t>::Wrap(C.data(), tmp.vec_shape);
 
-#if PROTO == 1
-    res = Server::Protocol1_alt(tmp, ios, bn, vec, scales, tmp_C, threads);
-#elif PROTO == 2
-    res = Server::Protocol2_alt(tmp, ios, bn, vec, tmp_C, threads);
-#endif
+    switch (proto) {
+    case Utils::PROTO::AB:
+        res = Server::Protocol1_alt(tmp, ios, bn, vec, scales, tmp_C, threads);
+        break;
+    case Utils::PROTO::AB2:
+        res = Server::Protocol2_alt(tmp, ios, bn, vec, tmp_C, threads);
+        break;
+    }
 
     for (size_t i = 0; i < threads; ++i) ios[i]->counter = 0;
 
@@ -397,14 +400,17 @@ Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
 template <class Channel>
 Result Server::perform_elem(Channel** ios, const gemini::HomBNSS& bn,
                             const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                            const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads) {
+                            const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads, Utils::PROTO proto) {
     Result result;
 
-#if PROTO == 1
-    result = Protocol1_alt(meta, ios, bn, A, B, C, threads);
-#elif PROTO == 2
-    result = Protocol2_alt(meta, ios, bn, A, C, threads);
-#endif
+    switch (proto) {
+    case Utils::PROTO::AB:
+        result = Protocol1_alt(meta, ios, bn, A, B, C, threads);
+        break;
+    case Utils::PROTO::AB2:
+        result = Protocol2_alt(meta, ios, bn, A, C, threads);
+        break;
+    }
 
     for (size_t i = 0; i < threads; ++i) ios[i]->counter = 0;
 
@@ -422,7 +428,7 @@ template <class Channel>
 Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
                              const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                              const Tensor<uint64_t>& B, Tensor<uint64_t>& C,
-                             const size_t& threads) {
+                             const size_t& threads, Utils::PROTO proto) {
     Utils::log(Utils::Level::INFO, "Using alt BN");
     Result res;
     Tensor<uint64_t> vec, scales;
@@ -436,11 +442,15 @@ Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
 
     Tensor<uint64_t> tmp_C = Tensor<uint64_t>::Wrap(C.data(), tmp.vec_shape);
 
-#if PROTO == 1
-    res = Client::Protocol1_alt(ios, bn, tmp, vec, scales, tmp_C, threads);
-#elif PROTO == 2
-    res = Client::Protocol2_alt(ios, bn, tmp, vec, scales, tmp_C, threads);
-#endif
+
+    switch (proto) {
+    case Utils::PROTO::AB:
+        res = Client::Protocol1_alt(ios, bn, tmp, vec, scales, tmp_C, threads);
+        break;
+    case Utils::PROTO::AB2:
+        res = Client::Protocol2_alt(ios, bn, tmp, vec, scales, tmp_C, threads);
+        break;
+    }
 
     if (res.ret != Code::OK)
         return res;
@@ -451,14 +461,17 @@ Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const 
 template <class Channel>
 Result Client::perform_elem(Channel** ios, const gemini::HomBNSS& bn,
                             const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                            const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads) {
+                            const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads, Utils::PROTO proto) {
     Result result;
 
-#if PROTO == 1
-    result = Client::Protocol1_alt(ios, bn, meta, A, B, C, threads);
-#elif PROTO == 2
-    result = Client::Protocol2_alt(ios, bn, meta, A, B, C, threads);
-#endif
+    switch (proto) {
+    case Utils::PROTO::AB:
+        result = Client::Protocol1_alt(ios, bn, meta, A, B, C, threads);
+        break;
+    case Utils::PROTO::AB2:
+        result = Client::Protocol2_alt(ios, bn, meta, A, B, C, threads);
+        break;
+    }
 
     if (result.ret != Code::OK)
         return result;

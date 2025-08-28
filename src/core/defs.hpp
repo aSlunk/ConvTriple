@@ -30,7 +30,7 @@
 #endif
 
 #define EXEC_FAILED -1
-#define PROTO 1 // 1 or 2
+// #define PROTO 1 // 1 or 2
 
 using Unit    = std::chrono::microseconds;
 using measure = std::chrono::high_resolution_clock;
@@ -50,6 +50,11 @@ constexpr uint64_t moduloMask  = MOD - 1;
 constexpr uint64_t moduloMidPt = MOD / 2;
 
 namespace Utils {
+
+enum class PROTO {
+    AB,
+    AB2,
+};
 
 enum class Level {
     DEBUG,
@@ -309,4 +314,4 @@ void Utils::print_tensor(const gemini::Tensor<T>& t, const long& channel) {
     }
 }
 
-#endif // DEFS_HPP
+#endif // DEFS_HPP_

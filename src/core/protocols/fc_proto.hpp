@@ -33,11 +33,11 @@ template <class Channel>
 Result perform_proto(const HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
                      const HomFCSS& fc, const vector<Tensor<uint64_t>>& A1,
                      const vector<Tensor<uint64_t>>& B1, vector<Tensor<uint64_t>>& C1,
-                     const size_t& threads = 1, const size_t& batch = 1);
+                     const size_t& threads = 1, const size_t& batch = 1, Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_proto(const HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
-                     const HomFCSS& fc, const size_t& threads = 1, const size_t& batch = 1);
+                     const HomFCSS& fc, const size_t& threads = 1, const size_t& batch = 1, Utils::PROTO proto = Utils::PROTO::AB2);
 
 #ifdef VERIFY
 template <class T>
@@ -65,11 +65,11 @@ template <class Channel>
 Result perform_proto(const HomFCSS::Meta& meta, Channel** client, const seal::SEALContext& context,
                      const HomFCSS& fc, const vector<Tensor<uint64_t>>& A1,
                      const vector<Tensor<uint64_t>>& B1, vector<Tensor<uint64_t>>& C1,
-                     const size_t& threads, const size_t& batch = 1);
+                     const size_t& threads, const size_t& batch = 1, Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_proto(const HomFCSS::Meta& meta, Channel** client, const seal::SEALContext& context,
-                     const HomFCSS& fc, const size_t& threads, const size_t& batch = 1);
+                     const HomFCSS& fc, const size_t& threads, const size_t& batch = 1, Utils::PROTO proto = Utils::PROTO::AB2);
 
 #ifdef VERIFY
 template <class T>
@@ -410,15 +410,20 @@ Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
                              const seal::SEALContext& context, const HomFCSS& fc,
                              const vector<Tensor<uint64_t>>& A1, const vector<Tensor<uint64_t>>& B1,
                              vector<Tensor<uint64_t>>& C1, const size_t& threads,
-                             const size_t& batch) {
+                             const size_t& batch, Utils::PROTO proto) {
 
     assert(A1.size() == batch && B1.size() == batch && C1.size() == batch);
 
-#if PROTO == 1
-    auto measures = Server::Protocol1(meta, server, context, fc, A1, B1, C1, threads, batch);
-#else
-    auto measures = Server::Protocol2(meta, server, context, fc, A1, C1, threads, batch);
-#endif
+    Result measures;
+    switch (proto) {
+    case Utils::PROTO::AB:
+        measures = Server::Protocol1(meta, server, context, fc, A1, B1, C1, threads, batch);
+        break;
+    case Utils::PROTO::AB2:
+        measures = Server::Protocol2(meta, server, context, fc, A1, C1, threads, batch);
+        break;
+    }
+
     for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
 #ifdef VERIFY
@@ -432,7 +437,7 @@ Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
 template <class Channel>
 Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
                              const seal::SEALContext& context, const HomFCSS& fc,
-                             const size_t& threads, const size_t& batch) {
+                             const size_t& threads, const size_t& batch, Utils::PROTO proto) {
     vector<Tensor<uint64_t>> vecs(batch, Tensor<uint64_t>(meta.input_shape));
     for (auto& vec : vecs)
         for (long i = 0; i < vec.length(); i++) vec(i) = 2;
@@ -443,7 +448,7 @@ Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
 
     vector<Tensor<uint64_t>> C1(batch);
 
-    return perform_proto(meta, server, context, fc, vecs, weights, C1, threads, batch);
+    return perform_proto(meta, server, context, fc, vecs, weights, C1, threads, batch, proto);
 }
 
 template <class Channel>
@@ -451,12 +456,16 @@ Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client,
                              const seal::SEALContext& context, const HomFCSS& fc,
                              const vector<Tensor<uint64_t>>& A2, const vector<Tensor<uint64_t>>& B2,
                              vector<Tensor<uint64_t>>& C2, const size_t& threads,
-                             const size_t& batch) {
-#if PROTO == 1
-    auto measures = Client::Protocol1(client, context, fc, meta, A2, B2, C2, threads, batch);
-#else
-    auto measures = Client::Protocol2(client, context, fc, meta, A2, B2, C2, threads, batch);
-#endif
+                             const size_t& batch, Utils::PROTO proto) {
+    Result measures;
+    switch (proto) {
+    case Utils::PROTO::AB:
+        measures = Client::Protocol1(client, context, fc, meta, A2, B2, C2, threads, batch);
+        break;
+    case Utils::PROTO::AB2:
+        measures = Client::Protocol2(client, context, fc, meta, A2, B2, C2, threads, batch);
+        break;
+    }
 
     for (size_t i = 0; i < threads; ++i) client[i]->counter = 0;
 
@@ -471,7 +480,7 @@ Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client,
 template <class Channel>
 Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client,
                              const seal::SEALContext& context, const HomFCSS& fc,
-                             const size_t& threads, const size_t& batch) {
+                             const size_t& threads, const size_t& batch, Utils::PROTO proto) {
     vector<Tensor<uint64_t>> vecs(batch, Tensor<uint64_t>(meta.input_shape));
     for (auto& vec : vecs)
         for (long i = 0; i < vec.length(); i++) vec(i) = 2;

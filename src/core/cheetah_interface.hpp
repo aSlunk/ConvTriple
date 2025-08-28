@@ -22,6 +22,7 @@
 #include "defs.hpp"
 
 using Utils::Result;
+using Utils::PROTO;
 
 namespace HE_OT {
 
@@ -63,7 +64,7 @@ class HE {
      * Uses Random random values for inference.
      */
     template <class T>
-    void test_he(std::vector<class T::Meta>& layers, const T& cheetah, const size_t& batchSize = 1);
+    void test_he(std::vector<class T::Meta>& layers, const T& cheetah, const size_t& batchSize = 1, PROTO proto = PROTO::AB);
 
     /**
      * Computes 2D-Convolution
@@ -96,7 +97,7 @@ class HE {
      * @param batchSize
      */
     void run_elem_mult(const vector<Tensor<uint64_t>>& A, const vector<Tensor<uint64_t>>& B,
-                       vector<Tensor<uint64_t>>& C, const size_t& batchSize);
+                       vector<Tensor<uint64_t>>& C, const size_t& batchSize, PROTO proto = PROTO::AB);
 
     /**
      * Wrapper function to perform Conv/Batchnorm/FC
@@ -104,7 +105,7 @@ class HE {
     template <class T, class Bs>
     void run_he(const T& cheetah, const class T::Meta& meta, const std::vector<Tensor<uint64_t>>& A,
                 const std::vector<Bs>& B, std::vector<Tensor<uint64_t>>& C,
-                const size_t& batchSize = 1);
+                const size_t& batchSize = 1, PROTO proto = PROTO::AB);
 
     /**
      * Generates beaver boolean-triple
@@ -316,14 +317,13 @@ void HE<Channel>::run_ot(const size_t& numTriples, bool packed) {
 template <class Channel>
 template <class T>
 void HE<Channel>::test_he(std::vector<class T::Meta>& layers, const T& cheetah,
-                          const size_t& batchSize) {
+                          const size_t& batchSize, PROTO proto) {
     size_t batch_threads      = batchSize > 1 ? batchSize : 1;
     size_t threads_per_thread = threads_ / batch_threads;
 
     double total      = 0;
     double total_data = 0;
-    std::string proto("AB");
-    proto += PROTO > 1 ? std::to_string(PROTO) : "";
+    std::string proto_str("AB");
 
     std::vector<Result> results(samples_);          // all samples
     std::vector<Result> all_results(layers.size()); // averaged samples
@@ -338,8 +338,8 @@ void HE<Channel>::test_he(std::vector<class T::Meta>& layers, const T& cheetah,
             auto batch = [&](long wid, size_t start, size_t end) -> Code {
                 for (size_t cur = start; cur < end; ++cur) {
                     Result result;
-                    if ((PROTO == 2 && party_ == emp::ALICE)
-                        || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) {
+                    if ((proto == PROTO::AB2 && party_ == emp::ALICE)
+                        || (proto == PROTO::AB && (cur + party_ - 1) % 2 == 0)) {
                         result = Server::perform_proto(layers[i], ios_ + wid * threads_per_thread,
                                                        context_, cheetah, threads_per_thread);
                     } else {
@@ -376,12 +376,12 @@ void HE<Channel>::test_he(std::vector<class T::Meta>& layers, const T& cheetah,
     switch (party_) {
     case emp::ALICE:
         Utils::make_csv(all_results, batchSize, threads_,
-                        "party" + std::to_string(party_) + "_" + cheetah.get_str() + "_" + proto
+                        "party" + std::to_string(party_) + "_" + cheetah.get_str() + "_" + proto_str
                             + ".csv");
         break;
     case emp::BOB:
         Utils::make_csv(all_results, batchSize, threads_,
-                        "party" + std::to_string(party_) + "_" + cheetah.get_str() + "_" + proto
+                        "party" + std::to_string(party_) + "_" + cheetah.get_str() + "_" + proto_str
                             + ".csv");
         break;
     }
@@ -424,21 +424,21 @@ template <class Channel>
 template <class T, class Bs>
 void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta,
                          const std::vector<Tensor<uint64_t>>& A, const std::vector<Bs>& B,
-                         std::vector<Tensor<uint64_t>>& C, const size_t& batchSize) {
+                         std::vector<Tensor<uint64_t>>& C, const size_t& batchSize, PROTO proto) {
     size_t batch_threads      = batchSize > 1 ? batchSize : 1;
     size_t threads_per_thread = threads_ / batch_threads;
 
     double total      = 0;
     double total_data = 0;
-    std::string proto("AB");
-    proto += PROTO > 1 ? std::to_string(PROTO) : "";
+    std::string proto_str("AB");
+    proto_str += proto == PROTO::AB2 ? "2" : "";
 
     std::vector<Result> batches_results(batch_threads);
     auto batch = [&](long wid, size_t start, size_t end) -> Code {
         for (size_t cur = start; cur < end; ++cur) {
             Result result;
-            if ((PROTO == 2 && party_ == emp::ALICE)
-                || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) {
+            if ((PROTO::AB2 == proto && party_ == emp::ALICE)
+                || (PROTO::AB == proto && (cur + party_ - 1) % 2 == 0)) {
                 result = Server::perform_proto(meta, ios_ + wid * threads_per_thread, context_,
                                                cheetah, A[cur], B[cur], C[cur], threads_per_thread);
             } else {
@@ -492,7 +492,7 @@ void HE<Channel>::run_bn(const Tensor<uint64_t>& A, const Tensor<uint64_t>& B, T
 template <class Channel>
 void HE<Channel>::run_elem_mult(const vector<Tensor<uint64_t>>& A,
                                 const vector<Tensor<uint64_t>>& B, vector<Tensor<uint64_t>>& C,
-                                const size_t& batchSize) {
+                                const size_t& batchSize, PROTO proto) {
     gemini::HomBNSS::Meta meta;
     meta.vec_shape       = {A[0].NumElements()};
     meta.is_shared_input = true;
@@ -503,15 +503,15 @@ void HE<Channel>::run_elem_mult(const vector<Tensor<uint64_t>>& A,
 
     double total      = 0;
     double total_data = 0;
-    std::string proto("AB");
-    proto += PROTO > 1 ? std::to_string(PROTO) : "";
+    std::string proto_str("AB");
+    proto_str += proto == PROTO::AB2 ? "2" : "";
 
     std::vector<Result> batches_results(batch_threads);
     auto batch = [&](long wid, size_t start, size_t end) -> Code {
         for (size_t cur = start; cur < end; ++cur) {
             Result result;
-            if ((PROTO == 2 && party_ == emp::ALICE)
-                || (PROTO == 1 && (cur + party_ - 1) % 2 == 0)) { // for AB alternate parties
+            if ((PROTO::AB2 == proto && party_ == emp::ALICE)
+                || (PROTO::AB == proto && (cur + party_ - 1) % 2 == 0)) { // for AB alternate parties
                 result = Server::perform_elem(meta, ios_ + wid * threads_per_thread, context_, bn_,
                                               A[cur], B[cur], C[cur], threads_per_thread);
             } else {

@@ -32,12 +32,12 @@ template <class Channel>
 Result perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server,
                      const seal::SEALContext& context, const gemini::HomBNSS& bn,
                      const Tensor<uint64_t>& A1, const Tensor<uint64_t>& B1, Tensor<uint64_t>& C1,
-                     const size_t& threads = 1);
+                     const size_t& threads = 1, Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server,
                      const seal::SEALContext& context, const gemini::HomBNSS& bn,
-                     const size_t& threads = 1);
+                     const size_t& threads = 1, Utils::PROTO proto = Utils::PROTO::AB);
 
 #ifdef VERIFY
 template <class T>
@@ -63,12 +63,12 @@ template <class Channel>
 Result perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client,
                      const seal::SEALContext& context, const gemini::HomBNSS& bn,
                      const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2, Tensor<uint64_t>& C2,
-                     const size_t& threads);
+                     const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client,
                      const seal::SEALContext& context, const gemini::HomBNSS& bn,
-                     const size_t& threads);
+                     const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
 
 #ifdef VERIFY
 // template <class T>
@@ -319,7 +319,7 @@ template <class Channel>
 Result Server::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server,
                              const seal::SEALContext& context, const gemini::HomBNSS& bn,
                              const Tensor<uint64_t>& A1, const Tensor<uint64_t>& B1,
-                             Tensor<uint64_t>& C1, const size_t& threads) {
+                             Tensor<uint64_t>& C1, const size_t& threads, Utils::PROTO proto) {
     Result measures;
     auto s2                   = meta.ishape.height();
     auto s3                   = meta.ishape.width();
@@ -329,12 +329,14 @@ Result Server::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server
     if (n_ct_coeff_packing >= n_ct_bfv_packing)
         measures = Server::perform_proto(server, context, bn, meta, A1, B1, C1, threads);
     else {
-
-#if PROTO == 1
-        measures = Server::Protocol1(meta, server, context, bn, A1, B1, C1, threads);
-#else
-        measures = Server::Protocol2(meta, server, context, bn, A1, C1, threads);
-#endif
+        switch (proto) {
+        case Utils::PROTO::AB:
+                measures = Server::Protocol1(meta, server, context, bn, A1, B1, C1, threads);
+                break;
+        case Utils::PROTO::AB2:
+            measures = Server::Protocol2(meta, server, context, bn, A1, C1, threads);
+            break;
+        }
     }
     for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
@@ -347,7 +349,7 @@ Result Server::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server
 template <class Channel>
 Result Server::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server,
                              const seal::SEALContext& context, const gemini::HomBNSS& bn,
-                             const size_t& threads) {
+                             const size_t& threads, Utils::PROTO proto) {
     auto A1 = Utils::init_image(meta, 5);
     auto B1 = gemini::Tensor(meta.vec_shape);
 
@@ -356,14 +358,14 @@ Result Server::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server
     }
 
     Tensor<uint64_t> C1;
-    return perform_proto(meta, server, context, bn, A1, B1, C1, threads);
+    return perform_proto(meta, server, context, bn, A1, B1, C1, threads, proto);
 }
 
 template <class Channel>
 Result Client::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client,
                              const seal::SEALContext& context, const gemini::HomBNSS& bn,
                              const Tensor<uint64_t>& A2, const Tensor<uint64_t>& B2,
-                             Tensor<uint64_t>& C2, const size_t& threads) {
+                             Tensor<uint64_t>& C2, const size_t& threads, Utils::PROTO proto) {
     Result measures;
     auto s2                   = meta.ishape.height();
     auto s3                   = meta.ishape.width();
@@ -373,12 +375,14 @@ Result Client::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client
     if (n_ct_coeff_packing >= n_ct_bfv_packing)
         measures = Client::perform_proto(client, context, bn, meta, A2, B2, C2, threads);
     else {
-
-#if PROTO == 1
-        measures = Client::Protocol1(client, context, bn, meta, A2, B2, C2, threads);
-#else
-        measures = Client::Protocol2(client, context, bn, meta, A2, B2, C2, threads);
-#endif
+        switch (proto) {
+        case Utils::PROTO::AB:
+            measures = Client::Protocol1(client, context, bn, meta, A2, B2, C2, threads);
+            break;
+        case Utils::PROTO::AB2:
+            measures = Client::Protocol2(client, context, bn, meta, A2, B2, C2, threads);
+            break;
+        }
     }
 
     for (size_t i = 0; i < threads; ++i) client[i]->counter = 0;
@@ -392,7 +396,7 @@ Result Client::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client
 template <class Channel>
 Result Client::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client,
                              const seal::SEALContext& context, const gemini::HomBNSS& bn,
-                             const size_t& threads) {
+                             const size_t& threads, Utils::PROTO proto) {
     Tensor<uint64_t> A2 = Utils::init_image(meta, 5);
     Tensor<uint64_t> B2 = gemini::Tensor(meta.vec_shape);
 
@@ -402,7 +406,7 @@ Result Client::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client
 
     Result measures;
     Tensor<uint64_t> C2;
-    return perform_proto(meta, client, context, bn, A2, B2, C2, threads);
+    return perform_proto(meta, client, context, bn, A2, B2, C2, threads, proto);
 }
 
 #ifdef VERIFY
