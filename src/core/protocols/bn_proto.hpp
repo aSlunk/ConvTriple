@@ -26,10 +26,9 @@ Result Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server, const 
                      const size_t& threads = 1);
 
 template <class Channel>
-Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
-                     const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                     const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
-                     Utils::PROTO proto = Utils::PROTO::AB);
+Result perform_proto(Channel** ios, const gemini::HomBNSS& bn, const gemini::HomBNSS::Meta& meta,
+                     const Tensor<uint64_t>& A, const Tensor<uint64_t>& B, Tensor<uint64_t>& C,
+                     const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_elem(Channel** ios, const gemini::HomBNSS& bn, const gemini::HomBNSS::Meta& meta,
@@ -56,10 +55,9 @@ Result Protocol2_alt(Channel** client, const gemini::HomBNSS& bn, const gemini::
                      const size_t& threads = 1);
 
 template <class Channel>
-Result perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
-                     const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
-                     const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
-                     Utils::PROTO proto = Utils::PROTO::AB);
+Result perform_proto(Channel** ios, const gemini::HomBNSS& bn, const gemini::HomBNSS::Meta& meta,
+                     const Tensor<uint64_t>& A, const Tensor<uint64_t>& B, Tensor<uint64_t>& C,
+                     const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
 Result perform_elem(Channel** ios, const gemini::HomBNSS& bn, const gemini::HomBNSS::Meta& meta,
@@ -184,7 +182,6 @@ Result Client::Protocol1_alt(Channel** client, const gemini::HomBNSS& bn,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M1;
-    // measures.ret = IO::recv_send(context, client, enc_M2, enc_M1, threads);
     bn.recvEncryptVector(client[0], enc_M1, meta);
     bn.sendEncryptVector(client[0], enc_M2, meta);
 
@@ -284,7 +281,6 @@ Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_A2;
-    // IO::send_recv(context, server, enc_A1, enc_A2, threads);
     bn.sendEncryptVector(server[0], enc_A1, meta);
     bn.recvEncryptVector(server[0], enc_A2, meta);
 
@@ -365,7 +361,7 @@ void pack(const Tensor<uint64_t>& mat, const Tensor<uint64_t>& scales,
 } // namespace
 
 template <class Channel>
-Result Server::perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
+Result Server::perform_proto(Channel** ios, const gemini::HomBNSS& bn,
                              const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                              const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
                              Utils::PROTO proto) {
@@ -428,7 +424,7 @@ Result Server::perform_elem(Channel** ios, const gemini::HomBNSS& bn,
 }
 
 template <class Channel>
-Result Client::perform_proto(Channel** ios, const seal::SEALContext& ctx, const gemini::HomBNSS& bn,
+Result Client::perform_proto(Channel** ios, const gemini::HomBNSS& bn,
                              const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                              const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
                              Utils::PROTO proto) {

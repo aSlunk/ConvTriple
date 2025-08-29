@@ -173,6 +173,8 @@ class HomBNSS {
     Code idealFunctionality(const Tensor<uint64_t>& image, const Tensor<uint64_t>& scales,
                             const Meta& meta, Tensor<uint64_t>& out) const;
 
+    seal::SEALContext getContext() const { return *direct_context_; }
+
   protected:
     TensorShape getSplit(const Meta& meta) const;
 

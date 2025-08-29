@@ -19,26 +19,24 @@ using Utils::Result;
 namespace Server {
 
 template <class Channel>
-Result Protocol2(const HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
-                 const HomFCSS& fc, const vector<Tensor<uint64_t>>& A1,
-                 vector<Tensor<uint64_t>>& C1, const size_t& threads = 1, const size_t& batch = 1);
-
-template <class Channel>
-Result Protocol1(const HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
-                 const HomFCSS& fc, const vector<Tensor<uint64_t>>& A1,
-                 const vector<Tensor<uint64_t>>& B1, vector<Tensor<uint64_t>>& C1,
+Result Protocol2(const HomFCSS::Meta& meta, Channel** server, const HomFCSS& fc,
+                 const vector<Tensor<uint64_t>>& A1, vector<Tensor<uint64_t>>& C1,
                  const size_t& threads = 1, const size_t& batch = 1);
 
 template <class Channel>
-Result perform_proto(const HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
-                     const HomFCSS& fc, const vector<Tensor<uint64_t>>& A1,
-                     const vector<Tensor<uint64_t>>& B1, vector<Tensor<uint64_t>>& C1,
-                     const size_t& threads = 1, const size_t& batch = 1,
-                     Utils::PROTO proto = Utils::PROTO::AB);
+Result Protocol1(const HomFCSS::Meta& meta, Channel** server, const HomFCSS& fc,
+                 const vector<Tensor<uint64_t>>& A1, const vector<Tensor<uint64_t>>& B1,
+                 vector<Tensor<uint64_t>>& C1, const size_t& threads = 1, const size_t& batch = 1);
 
 template <class Channel>
-Result perform_proto(const HomFCSS::Meta& meta, Channel** server, const seal::SEALContext& context,
-                     const HomFCSS& fc, const size_t& threads = 1, const size_t& batch = 1,
+Result perform_proto(const HomFCSS::Meta& meta, Channel** server, const HomFCSS& fc,
+                     const vector<Tensor<uint64_t>>& A1, const vector<Tensor<uint64_t>>& B1,
+                     vector<Tensor<uint64_t>>& C1, const size_t& threads = 1,
+                     const size_t& batch = 1, Utils::PROTO proto = Utils::PROTO::AB);
+
+template <class Channel>
+Result perform_proto(const HomFCSS::Meta& meta, Channel** server, const HomFCSS& fc,
+                     const size_t& threads = 1, const size_t& batch = 1,
                      Utils::PROTO proto = Utils::PROTO::AB2);
 
 #ifdef VERIFY
@@ -52,27 +50,24 @@ void Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& fc, cons
 namespace Client {
 
 template <class Channel>
-Result Protocol1(Channel** client, const seal::SEALContext& context, const HomFCSS& fc,
-                 const HomFCSS::Meta& meta, const vector<Tensor<uint64_t>>& A2,
-                 const vector<Tensor<uint64_t>>& B2, vector<Tensor<uint64_t>>& C2,
-                 const size_t& threads = 1, const size_t& batch = 1);
+Result Protocol1(Channel** client, const HomFCSS& fc, const HomFCSS::Meta& meta,
+                 const vector<Tensor<uint64_t>>& A2, const vector<Tensor<uint64_t>>& B2,
+                 vector<Tensor<uint64_t>>& C2, const size_t& threads = 1, const size_t& batch = 1);
 
 template <class Channel>
-Result Protocol2(Channel** client, const seal::SEALContext& context, const HomFCSS& fc,
-                 const HomFCSS::Meta& meta, const vector<Tensor<uint64_t>>& A2,
-                 const vector<Tensor<uint64_t>>& B2, vector<Tensor<uint64_t>>& C2,
-                 const size_t& threads = 1, const size_t& batch = 1);
+Result Protocol2(Channel** client, const HomFCSS& fc, const HomFCSS::Meta& meta,
+                 const vector<Tensor<uint64_t>>& A2, const vector<Tensor<uint64_t>>& B2,
+                 vector<Tensor<uint64_t>>& C2, const size_t& threads = 1, const size_t& batch = 1);
 
 template <class Channel>
-Result perform_proto(const HomFCSS::Meta& meta, Channel** client, const seal::SEALContext& context,
-                     const HomFCSS& fc, const vector<Tensor<uint64_t>>& A1,
-                     const vector<Tensor<uint64_t>>& B1, vector<Tensor<uint64_t>>& C1,
-                     const size_t& threads, const size_t& batch = 1,
+Result perform_proto(const HomFCSS::Meta& meta, Channel** client, const HomFCSS& fc,
+                     const vector<Tensor<uint64_t>>& A1, const vector<Tensor<uint64_t>>& B1,
+                     vector<Tensor<uint64_t>>& C1, const size_t& threads, const size_t& batch = 1,
                      Utils::PROTO proto = Utils::PROTO::AB);
 
 template <class Channel>
-Result perform_proto(const HomFCSS::Meta& meta, Channel** client, const seal::SEALContext& context,
-                     const HomFCSS& fc, const size_t& threads, const size_t& batch = 1,
+Result perform_proto(const HomFCSS::Meta& meta, Channel** client, const HomFCSS& fc,
+                     const size_t& threads, const size_t& batch = 1,
                      Utils::PROTO proto = Utils::PROTO::AB2);
 
 #ifdef VERIFY
@@ -83,10 +78,9 @@ void Verify_FC(IO::NetIO& io, const Tensor<T>& A1, const Tensor<T>& B1, const Te
 } // namespace Client
 
 template <class Channel>
-Result Client::Protocol2(Channel** client, const seal::SEALContext& context, const HomFCSS& hom_fc,
-                         const HomFCSS::Meta& meta, const vector<Tensor<uint64_t>>& A2,
-                         const vector<Tensor<uint64_t>>& B2, vector<Tensor<uint64_t>>& C2,
-                         const size_t& threads, const size_t& batch) {
+Result Client::Protocol2(Channel** client, const HomFCSS& hom_fc, const HomFCSS::Meta& meta,
+                         const vector<Tensor<uint64_t>>& A2, const vector<Tensor<uint64_t>>& B2,
+                         vector<Tensor<uint64_t>>& C2, const size_t& threads, const size_t& batch) {
     size_t in_para            = batch > 1 ? threads : 1;
     size_t threads_per_thread = threads / in_para;
 
@@ -123,7 +117,8 @@ Result Client::Protocol2(Channel** client, const seal::SEALContext& context, con
 
         vector<vector<seal::Ciphertext>> enc_A1(ele);
         for (size_t i = 0; i < ele; ++i)
-            IO::recv_encrypted_vector(client + wid, context, enc_A1[i], threads_per_thread);
+            IO::recv_encrypted_vector(client + wid, hom_fc.getContext(), enc_A1[i],
+                                      threads_per_thread);
 
         measures.send_recv += Utils::time_diff(start);
         ////////////////////////////////////////////////////////////////////////////
@@ -161,10 +156,9 @@ Result Client::Protocol2(Channel** client, const seal::SEALContext& context, con
 }
 
 template <class Channel>
-Result Client::Protocol1(Channel** client, const seal::SEALContext& context, const HomFCSS& fc,
-                         const HomFCSS::Meta& meta, const vector<Tensor<uint64_t>>& A2,
-                         const vector<Tensor<uint64_t>>& B2, vector<Tensor<uint64_t>>& C2,
-                         const size_t& threads, const size_t& batch) {
+Result Client::Protocol1(Channel** client, const HomFCSS& fc, const HomFCSS::Meta& meta,
+                         const vector<Tensor<uint64_t>>& A2, const vector<Tensor<uint64_t>>& B2,
+                         vector<Tensor<uint64_t>>& C2, const size_t& threads, const size_t& batch) {
     size_t in_para            = batch > 1 ? threads : 1;
     size_t threads_per_thread = threads / in_para;
     gemini::ThreadPool tpool(in_para);
@@ -200,7 +194,7 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context, con
         mess                = measure::now();
 
         vector<vector<seal::Ciphertext>> enc_A1;
-        IO::recv_send(context, client + wid, enc_A2, enc_A1, threads_per_thread);
+        IO::recv_send(fc.getContext(), client + wid, enc_A2, enc_A1, threads_per_thread);
 
         measures.send_recv += Utils::time_diff(mess);
         ////////////////////////////////////////////////////////////////////////////
@@ -223,7 +217,8 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context, con
         mess = measure::now();
 
         vector<vector<seal::Ciphertext>> enc_M1(ele);
-        measures.ret = IO::recv_send(context, client + wid, enc_M2, enc_M1, threads_per_thread);
+        measures.ret
+            = IO::recv_send(fc.getContext(), client + wid, enc_M2, enc_M1, threads_per_thread);
 
         measures.send_recv += Utils::time_diff(mess);
         ////////////////////////////////////////////////////////////////////////////
@@ -254,8 +249,7 @@ Result Client::Protocol1(Channel** client, const seal::SEALContext& context, con
 }
 
 template <class Channel>
-Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server,
-                         const seal::SEALContext& context, const HomFCSS& fc,
+Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server, const HomFCSS& fc,
                          const vector<Tensor<uint64_t>>& A1, vector<Tensor<uint64_t>>& C1,
                          const size_t& threads, const size_t& batch) {
     size_t in_para            = batch > 1 ? threads : 1;
@@ -294,7 +288,7 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server,
 
         vector<vector<seal::Ciphertext>> enc_C1(ele);
         for (size_t i = 0; i < ele; ++i)
-            IO::recv_encrypted_vector(server + wid, context, enc_C1[i], threads_per_thread);
+            IO::recv_encrypted_vector(server + wid, fc.getContext(), enc_C1[i], threads_per_thread);
 
         measures.send_recv += Utils::time_diff(start);
         start = measure::now();
@@ -314,8 +308,7 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server,
 }
 
 template <class Channel>
-Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server,
-                         const seal::SEALContext& context, const HomFCSS& fc,
+Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server, const HomFCSS& fc,
                          const vector<Tensor<uint64_t>>& A1, const vector<Tensor<uint64_t>>& B1,
                          vector<Tensor<uint64_t>>& C1, const size_t& threads, const size_t& batch) {
     size_t in_para            = batch > 1 ? threads : 1;
@@ -354,7 +347,7 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server,
         start = measure::now();
 
         vector<vector<seal::Ciphertext>> enc_A2(ele);
-        IO::send_recv(context, server + wid, enc_A1, enc_A2, threads_per_thread);
+        IO::send_recv(fc.getContext(), server + wid, enc_A1, enc_A2, threads_per_thread);
 
         measures.send_recv = Utils::time_diff(start);
         ////////////////////////////////////////////////////////////////////////////
@@ -378,7 +371,7 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server,
         start = measure::now();
 
         vector<vector<seal::Ciphertext>> enc_M2(ele);
-        IO::send_recv(context, server + wid, M1, enc_M2, threads_per_thread);
+        IO::send_recv(fc.getContext(), server + wid, M1, enc_M2, threads_per_thread);
 
         measures.send_recv += Utils::time_diff(start);
         ////////////////////////////////////////////////////////////////////////////
@@ -410,8 +403,7 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server,
 }
 
 template <class Channel>
-Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
-                             const seal::SEALContext& context, const HomFCSS& fc,
+Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server, const HomFCSS& fc,
                              const vector<Tensor<uint64_t>>& A1, const vector<Tensor<uint64_t>>& B1,
                              vector<Tensor<uint64_t>>& C1, const size_t& threads,
                              const size_t& batch, Utils::PROTO proto) {
@@ -421,10 +413,10 @@ Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
     Result measures;
     switch (proto) {
     case Utils::PROTO::AB:
-        measures = Server::Protocol1(meta, server, context, fc, A1, B1, C1, threads, batch);
+        measures = Server::Protocol1(meta, server, fc, A1, B1, C1, threads, batch);
         break;
     case Utils::PROTO::AB2:
-        measures = Server::Protocol2(meta, server, context, fc, A1, C1, threads, batch);
+        measures = Server::Protocol2(meta, server, fc, A1, C1, threads, batch);
         break;
     }
 
@@ -439,8 +431,7 @@ Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
 }
 
 template <class Channel>
-Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
-                             const seal::SEALContext& context, const HomFCSS& fc,
+Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server, const HomFCSS& fc,
                              const size_t& threads, const size_t& batch, Utils::PROTO proto) {
     vector<Tensor<uint64_t>> vecs(batch, Tensor<uint64_t>(meta.input_shape));
     for (auto& vec : vecs)
@@ -452,22 +443,21 @@ Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server,
 
     vector<Tensor<uint64_t>> C1(batch);
 
-    return perform_proto(meta, server, context, fc, vecs, weights, C1, threads, batch, proto);
+    return perform_proto(meta, server, fc, vecs, weights, C1, threads, batch, proto);
 }
 
 template <class Channel>
-Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client,
-                             const seal::SEALContext& context, const HomFCSS& fc,
+Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client, const HomFCSS& fc,
                              const vector<Tensor<uint64_t>>& A2, const vector<Tensor<uint64_t>>& B2,
                              vector<Tensor<uint64_t>>& C2, const size_t& threads,
                              const size_t& batch, Utils::PROTO proto) {
     Result measures;
     switch (proto) {
     case Utils::PROTO::AB:
-        measures = Client::Protocol1(client, context, fc, meta, A2, B2, C2, threads, batch);
+        measures = Client::Protocol1(client, fc, meta, A2, B2, C2, threads, batch);
         break;
     case Utils::PROTO::AB2:
-        measures = Client::Protocol2(client, context, fc, meta, A2, B2, C2, threads, batch);
+        measures = Client::Protocol2(client, fc, meta, A2, B2, C2, threads, batch);
         break;
     }
 
@@ -482,8 +472,7 @@ Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client,
 }
 
 template <class Channel>
-Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client,
-                             const seal::SEALContext& context, const HomFCSS& fc,
+Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client, const HomFCSS& fc,
                              const size_t& threads, const size_t& batch, Utils::PROTO proto) {
     vector<Tensor<uint64_t>> vecs(batch, Tensor<uint64_t>(meta.input_shape));
     for (auto& vec : vecs)
@@ -495,7 +484,7 @@ Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client,
 
     std::vector<Tensor<uint64_t>> C2(batch);
 
-    auto measures = perform_proto(meta, client, context, fc, vecs, weights, C2, threads, batch);
+    auto measures = perform_proto(meta, client, fc, vecs, weights, C2, threads, batch);
 
     return measures;
 }

@@ -342,13 +342,11 @@ void HE<Channel>::test_he(std::vector<class T::Meta>& layers, const T& cheetah,
                     Result result;
                     if ((proto == PROTO::AB2 && party_ == emp::ALICE)
                         || (proto == PROTO::AB && (cur + party_ - 1) % 2 == 0)) {
-                        result
-                            = Server::perform_proto(layers[i], ios_ + wid * threads_per_thread,
-                                                    context_, cheetah, threads_per_thread, proto);
+                        result = Server::perform_proto(layers[i], ios_ + wid * threads_per_thread,
+                                                       cheetah, threads_per_thread, proto);
                     } else {
-                        result
-                            = Client::perform_proto(layers[i], ios_ + wid * threads_per_thread,
-                                                    context_, cheetah, threads_per_thread, proto);
+                        result = Client::perform_proto(layers[i], ios_ + wid * threads_per_thread,
+                                                       cheetah, threads_per_thread, proto);
                     }
 
                     if (result.ret != Code::OK)
@@ -408,13 +406,11 @@ double HE<Channel>::alt_bn(const gemini::HomBNSS::Meta& meta_bn) {
     switch (party_) {
     case emp::ALICE: {
         std::cerr << meta_bn.ishape.height() << " x " << meta_bn.vec_shape.num_elements() << "\n";
-        res = Server::perform_proto(meta, ios_, context_, fc_, threads_,
-                                    meta_bn.vec_shape.num_elements());
+        res = Server::perform_proto(meta, ios_, fc_, threads_, meta_bn.vec_shape.num_elements());
         break;
     }
     case emp::BOB: {
-        res = Client::perform_proto(meta, ios_, context_, fc_, threads_,
-                                    meta_bn.vec_shape.num_elements());
+        res = Client::perform_proto(meta, ios_, fc_, threads_, meta_bn.vec_shape.num_elements());
         break;
     }
     }
@@ -443,13 +439,11 @@ void HE<Channel>::run_he(const T& cheetah, const class T::Meta& meta,
             Result result;
             if ((PROTO::AB2 == proto && party_ == emp::ALICE)
                 || (PROTO::AB == proto && (cur + party_ - 1) % 2 == 0)) {
-                result = Server::perform_proto(meta, ios_ + wid * threads_per_thread, context_,
-                                               cheetah, A[cur], B[cur], C[cur], threads_per_thread,
-                                               proto);
+                result = Server::perform_proto(meta, ios_ + wid * threads_per_thread, cheetah,
+                                               A[cur], B[cur], C[cur], threads_per_thread, proto);
             } else {
-                result = Client::perform_proto(meta, ios_ + wid * threads_per_thread, context_,
-                                               cheetah, A[cur], B[cur], C[cur], threads_per_thread,
-                                               proto);
+                result = Client::perform_proto(meta, ios_ + wid * threads_per_thread, cheetah,
+                                               A[cur], B[cur], C[cur], threads_per_thread, proto);
             }
 
             if (result.ret != Code::OK)
@@ -519,11 +513,11 @@ void HE<Channel>::run_elem_mult(const vector<Tensor<uint64_t>>& A,
             if ((PROTO::AB2 == proto && party_ == emp::ALICE)
                 || (PROTO::AB == proto
                     && (cur + party_ - 1) % 2 == 0)) { // for AB alternate parties
-                result = Server::perform_elem(meta, ios_ + wid * threads_per_thread, context_, bn_,
-                                              A[cur], B[cur], C[cur], threads_per_thread, proto);
+                result = Server::perform_elem(meta, ios_ + wid * threads_per_thread, bn_, A[cur],
+                                              B[cur], C[cur], threads_per_thread, proto);
             } else {
-                result = Client::perform_elem(meta, ios_ + wid * threads_per_thread, context_, bn_,
-                                              A[cur], B[cur], C[cur], threads_per_thread, proto);
+                result = Client::perform_elem(meta, ios_ + wid * threads_per_thread, bn_, A[cur],
+                                              B[cur], C[cur], threads_per_thread, proto);
             }
 
             if (result.ret != Code::OK)

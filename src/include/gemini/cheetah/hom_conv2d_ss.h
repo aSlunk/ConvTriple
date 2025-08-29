@@ -105,6 +105,8 @@ class HomConv2DSS {
                             const std::vector<Tensor<uint64_t>>& filters, const Meta& meta,
                             Tensor<uint64_t>& out_tensor) const;
 
+    seal::SEALContext getContext() const { return *context_; }
+
   protected:
     size_t conv2DOneFilter(const std::vector<seal::Ciphertext>& enc_tensor,
                            const std::vector<seal::Plaintext>& filter, const Meta& meta,

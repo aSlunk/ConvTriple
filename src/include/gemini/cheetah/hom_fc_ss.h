@@ -81,6 +81,8 @@ class HomFCSS {
     Code idealFunctionality(const Tensor<uint64_t>& weight_matrix, const Tensor<uint64_t>& vector,
                             const Meta& meta, Tensor<uint64_t>& out) const;
 
+    seal::SEALContext getContext() const { return *context_; }
+
   protected:
     enum class Role {
         encryptor,

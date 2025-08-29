@@ -39,7 +39,10 @@ int main(int argc, char** argv) {
     }
 
     {
+        auto pool = seal::MemoryPoolHandle::New();
+        auto pg   = seal::MMProfGuard(std::make_unique<seal::MMProfFixed>(std::move(pool)));
         // num_triples = 48'168'448;
+        num_triples = 2'000'000;
         std::vector<uint32_t> a(num_triples, 0);
         std::vector<uint32_t> b(num_triples, 0);
         std::vector<uint32_t> c(num_triples, 0);
@@ -49,9 +52,6 @@ int main(int argc, char** argv) {
 
         Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 1, num_triples,
                                            std::string(""), port, PARTY, threads, Utils::PROTO::AB);
-        for (int i = 0; i < num_triples; ++i) {
-            std::cout << PARTY << ": " << a[i] << ", " << b[i] << ", " << c[i] << "\n";
-        }
     }
 
     Iface::generateFCTriplesCheetah(10, PARTY, std::string(""), port, Utils::PROTO::AB);

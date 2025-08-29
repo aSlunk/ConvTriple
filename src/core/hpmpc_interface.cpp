@@ -20,8 +20,8 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     auto start = measure::now();
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
-    sci::OTPack<IO::NetIO> ot_pack(ios, threads, party, true, false);
-    TripleGenerator<IO::NetIO> triple_gen(party, ios[0], &ot_pack);
+    static sci::OTPack<IO::NetIO> ot_pack(ios, threads, party, true, false);
+    static TripleGenerator<IO::NetIO> triple_gen(party, ios[0], &ot_pack);
 
     for (size_t total = 0; total < num_triples;) {
         int current = std::min(num_triples - total, MAX_BOOL);
@@ -121,10 +121,12 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
 
-    seal::SEALContext ctx = Utils::init_he_context();
-    gemini::HomBNSS bn;
-
-    setUpBn(ios, bn, ctx, party);
+    static gemini::HomBNSS bn = [&ios, &party] {
+        seal::SEALContext ctx = Utils::init_he_context();
+        gemini::HomBNSS bn;
+        setUpBn(ios, bn, ctx, party);
+        return bn;
+    }();
 
     Tensor<uint64_t> A({static_cast<long>(num_triples)});
     Tensor<uint64_t> B({static_cast<long>(num_triples)});
@@ -190,19 +192,22 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
 
-    auto meta = Utils::init_meta_fc(num_triples, 1);
-    gemini::HomFCSS fc;
-    seal::SEALContext ctx = Utils::init_he_context();
-    gemini::HomBNSS bn;
+    auto meta                 = Utils::init_meta_fc(num_triples, 1);
+    static gemini::HomFCSS fc = [&ios, &party] {
+        gemini::HomFCSS fc;
+        seal::SEALContext ctx = Utils::init_he_context();
+        gemini::HomBNSS bn;
 
-    seal::KeyGenerator keygen(ctx);
-    seal::SecretKey skey = keygen.secret_key();
-    auto pkey            = std::make_shared<seal::PublicKey>();
-    auto o_pkey          = std::make_shared<seal::PublicKey>();
-    keygen.create_public_key(*pkey);
-    exchange_keys(ios, *pkey, *o_pkey, ctx, party);
+        seal::KeyGenerator keygen(ctx);
+        seal::SecretKey skey = keygen.secret_key();
+        auto pkey            = std::make_shared<seal::PublicKey>();
+        auto o_pkey          = std::make_shared<seal::PublicKey>();
+        keygen.create_public_key(*pkey);
+        exchange_keys(ios, *pkey, *o_pkey, ctx, party);
 
-    fc.setUp(ctx, skey, o_pkey);
+        fc.setUp(ctx, skey, o_pkey);
+        return fc;
+    }();
 
     std::vector<Tensor<uint64_t>> A(batch, Tensor<uint64_t>(meta.input_shape));
     std::vector<Tensor<uint64_t>> B(batch, Tensor<uint64_t>(meta.weight_shape));
@@ -216,11 +221,11 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
 
     switch (party) {
     case emp::ALICE: {
-        Server::perform_proto(meta, ios, ctx, fc, A, B, C, 1ul, batch, proto);
+        Server::perform_proto(meta, ios, fc, A, B, C, 1ul, batch, proto);
         break;
     }
     case emp::BOB: {
-        Client::perform_proto(meta, ios, ctx, fc, A, B, C, 1ul, batch, proto);
+        Client::perform_proto(meta, ios, fc, A, B, C, 1ul, batch, proto);
         break;
     }
     }
