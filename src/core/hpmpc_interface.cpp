@@ -27,10 +27,10 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         int current = std::min(num_triples - total, MAX_BOOL);
         switch (party) {
         case emp::ALICE:
-            Server::triple_gen(triple_gen, a + total, b + total, c + total, current, false);
+            Server::triple_gen(triple_gen, a + total, b + total, c + total, current, true);
             break;
         case emp::BOB:
-            Client::triple_gen(triple_gen, a + total, b + total, c + total, current, false);
+            Client::triple_gen(triple_gen, a + total, b + total, c + total, current, true);
             break;
         }
         total += current;
@@ -136,13 +136,14 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
 
     auto start = measure::now();
 
+    gemini::HomBNSS::Meta meta;
+    meta.is_shared_input = true;
+    meta.target_base_mod = PLAIN_MOD;
+
     for (size_t total = 0; total < num_triples;) {
         size_t current = std::min(MAX_ARITH, num_triples - total);
 
-        gemini::HomBNSS::Meta meta;
-        meta.is_shared_input = true;
-        meta.vec_shape       = {static_cast<long>(current)};
-        meta.target_base_mod = PLAIN_MOD;
+        meta.vec_shape = {static_cast<long>(current)};
 
         Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(A.data() + total, meta.vec_shape);
         Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(B.data() + total, meta.vec_shape);

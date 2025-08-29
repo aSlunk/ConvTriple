@@ -266,9 +266,13 @@ class TripleGenerator {
             assert((num_triples & 1) == 0); // num_triples is even
             uint8_t *a, *b, *c;
             if (packed) {
+                num_triples *= 8;
                 a = new uint8_t[num_triples];
                 b = new uint8_t[num_triples];
                 c = new uint8_t[num_triples];
+
+                uint8_to_bool_arr(a, ai, num_triples / 8);
+                uint8_to_bool_arr(b, bi, num_triples / 8);
             } else {
                 a = ai;
                 b = bi;
@@ -316,8 +320,8 @@ class TripleGenerator {
             }
             if (packed) {
                 for (int i = 0; i < num_triples; i += 8) {
-                    ai[i / 8] = bool_to_uint8(a + i, 8);
-                    bi[i / 8] = bool_to_uint8(b + i, 8);
+                    ai[i / 8] = bool_to_uint8(c + i, 8);
+                    bi[i / 8] = bool_to_uint8(c + i, 8);
                     ci[i / 8] = bool_to_uint8(c + i, 8);
                 }
                 delete[] a;
@@ -424,8 +428,14 @@ class TripleGenerator {
 
     inline void uint8_to_bool(uint8_t* data, uint8_t input, int length) {
         for (int i = 0; i < length; ++i) {
-            data[i] = (input & 1) == 1;
+            data[i] = (input & 1);
             input >>= 1;
+        }
+    }
+
+    inline void uint8_to_bool_arr(uint8_t* data, uint8_t* input, int length) {
+        for (int i = 0; i < length; i++) {
+            uint8_to_bool(data + i * 8, input[i], 8);
         }
     }
 };

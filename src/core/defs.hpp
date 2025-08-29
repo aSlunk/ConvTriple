@@ -115,7 +115,7 @@ template <class T>
 inline double to_MB(const T& bytes, std::string& unit) {
     // return bytes / 1'000'000.0;
     unit = "MiB";
-    return bytes / static_cast<double>(1 << 20);
+    return static_cast<double>(bytes) / (1 << 20);
 }
 
 template <class Time>

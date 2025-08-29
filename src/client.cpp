@@ -24,10 +24,10 @@ int main(int argc, char** argv) {
     else
         threads = std::min(strtoul(argv[5], NULL, 10), (size_t)N_THREADS);
 
-    int num_triples = 1;
+    int num_triples = 10;
 
     {
-        int tmp    = 20'000'000;
+        int tmp    = 10;
         uint8_t* a = new uint8_t[tmp];
         uint8_t* b = new uint8_t[tmp];
         uint8_t* c = new uint8_t[tmp];
@@ -48,6 +48,9 @@ int main(int argc, char** argv) {
         Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples,
                                            std::string(addr), port, PARTY, threads,
                                            Utils::PROTO::AB);
+        for (int i = 0; i < num_triples; ++i) {
+            std::cout << PARTY << ": " << a[i] << ", " << b[i] << ", " << c[i] << "\n";
+        }
     }
 
     Iface::generateFCTriplesCheetah(10, PARTY, std::string(addr), port, Utils::PROTO::AB);

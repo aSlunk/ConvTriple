@@ -10,7 +10,7 @@
 
 #include "core/defs.hpp"
 
-static constexpr TripleGenMethod METHOD = TripleGenMethod::_8KKOT;
+static constexpr TripleGenMethod METHOD = TripleGenMethod::_16KKOT_to_4OT;
 
 static constexpr size_t LEN(const size_t& numTriple, const bool& packed) {
     return numTriple / (packed ? 8 : 1);
