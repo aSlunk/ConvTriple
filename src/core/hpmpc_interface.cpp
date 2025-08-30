@@ -10,6 +10,28 @@ constexpr uint64_t MAX_ARITH = 20'000'000;
 
 namespace Iface {
 
+class PROF : public seal::MMProf {
+    std::unique_ptr<seal::MemoryPoolHandle> handle;
+    std::shared_ptr<seal::util::MemoryPoolMT> pool;
+
+  public:
+    PROF() {
+        pool   = std::make_shared<seal::util::MemoryPoolMT>(true);
+        handle = std::make_unique<seal::MemoryPoolHandle>(pool);
+    }
+
+    ~PROF() noexcept {
+        handle.release();
+        if (pool.unique()) {
+            std::cout << "UNIQUE\n";
+        } else {
+            std::cout << "NOT UNIQUE: " << pool.use_count() << "\n";
+        }
+    }
+
+    seal::MemoryPoolHandle get_pool(uint64_t) { return *handle; }
+};
+
 void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
                                 int bitlength [[maybe_unused]], uint64_t num_triples,
                                 std::string ip, int port, int party, int threads) {
@@ -115,70 +137,78 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
                                  int bitlength [[maybe_unused]], uint64_t num_triples,
                                  std::string ip, int port, int party, int threads,
                                  Utils::PROTO proto) {
-    const char* addr = ip.c_str();
-    if (party == emp::ALICE)
-        addr = nullptr;
+    {
+        const char* addr = ip.c_str();
+        if (party == emp::ALICE)
+            addr = nullptr;
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
+        IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
 
-    static gemini::HomBNSS bn = [&ios, &party] {
-        seal::SEALContext ctx = Utils::init_he_context();
-        gemini::HomBNSS bn;
-        setUpBn(ios, bn, ctx, party);
-        return bn;
-    }();
+        // auto pg   = seal::MMProfGuard(std::make_unique<PROF>());
+        // return;
 
-    Tensor<uint64_t> A({static_cast<long>(num_triples)});
-    Tensor<uint64_t> B({static_cast<long>(num_triples)});
+        static gemini::HomBNSS bn = [&ios, &party] {
+            gemini::HomBNSS bn;
+            auto ctx = Utils::init_he_context();
+            setUpBn(ios, bn, ctx, party);
+            return bn;
+        }();
 
-    for (uint64_t i = 0; i < num_triples; ++i) {
-        A(i) = static_cast<uint64_t>(a[i]);
-        B(i) = static_cast<uint64_t>(b[i]);
+        auto pool = seal::MemoryPoolHandle::New();
+        auto pg   = seal::MMProfGuard(std::make_unique<seal::MMProfFixed>(std::move(pool)));
+
+        Tensor<uint64_t> A({static_cast<long>(num_triples)});
+        Tensor<uint64_t> B({static_cast<long>(num_triples)});
+
+        for (uint64_t i = 0; i < num_triples; ++i) {
+            A(i) = static_cast<uint64_t>(a[i]);
+            B(i) = static_cast<uint64_t>(b[i]);
+        }
+
+        auto start = measure::now();
+
+        gemini::HomBNSS::Meta meta;
+        meta.is_shared_input = true;
+        meta.target_base_mod = PLAIN_MOD;
+
+        for (size_t total = 0; total < num_triples;) {
+            size_t current = std::min(MAX_ARITH, num_triples - total);
+
+            meta.vec_shape = {static_cast<long>(current)};
+
+            Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(A.data() + total, meta.vec_shape);
+            Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(B.data() + total, meta.vec_shape);
+            Tensor<uint64_t> tmp_C(meta.vec_shape);
+
+            Result res;
+            switch (party) {
+            case emp::ALICE: {
+                res = Server::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
+                break;
+            }
+            case emp::BOB: {
+                res = Client::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
+                break;
+            }
+            default: {
+                Utils::log(Utils::Level::ERROR, "Unknown party: P", party);
+            }
+            }
+
+            for (uint64_t i = 0; i < current; ++i) c[i + total] = static_cast<uint32_t>(tmp_C(i));
+            total += current;
+        }
+
+        Utils::log(Utils::Level::INFO, "P", party,
+                   ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+        std::string unit;
+        uint64_t data = Utils::to_MB(ios[0]->counter, unit);
+        Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
+
+        for (int i = 0; i < threads; ++i) delete ios[i];
+
+        delete[] ios;
     }
-
-    auto start = measure::now();
-
-    gemini::HomBNSS::Meta meta;
-    meta.is_shared_input = true;
-    meta.target_base_mod = PLAIN_MOD;
-
-    for (size_t total = 0; total < num_triples;) {
-        size_t current = std::min(MAX_ARITH, num_triples - total);
-
-        meta.vec_shape = {static_cast<long>(current)};
-
-        Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(A.data() + total, meta.vec_shape);
-        Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(B.data() + total, meta.vec_shape);
-        Tensor<uint64_t> tmp_C(meta.vec_shape);
-
-        Result res;
-        switch (party) {
-        case emp::ALICE: {
-            res = Server::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
-            break;
-        }
-        case emp::BOB: {
-            res = Client::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
-            break;
-        }
-        default: {
-            Utils::log(Utils::Level::ERROR, "Unknown party: P", party);
-        }
-        }
-
-        for (uint64_t i = 0; i < current; ++i) c[i + total] = static_cast<uint32_t>(tmp_C(i));
-        total += current;
-    }
-
-    Utils::log(Utils::Level::INFO, "P", party,
-               ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
-    std::string unit;
-    uint64_t data = Utils::to_MB(ios[0]->counter, unit);
-    Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
-
-    for (int i = 0; i < threads; ++i) delete ios[i];
-
-    delete[] ios;
 }
 
 void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, int port,

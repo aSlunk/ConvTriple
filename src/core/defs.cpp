@@ -30,8 +30,7 @@ seal::SEALContext Utils::init_he_context() {
     params.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
     params.set_plain_modulus(PLAIN_MOD);
 
-    seal::SEALContext context(params, true, SEC_LEVEL);
-    return context;
+    return seal::SEALContext(params, true, SEC_LEVEL);
 }
 
 gemini::HomBNSS::Meta Utils::init_meta_bn(const long& rows, const long& cols) {
