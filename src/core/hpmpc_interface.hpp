@@ -2,7 +2,6 @@
 #define HPMPC_INTERFACE_HPP_
 
 #include "defs.hpp"
-#include "protocols/bn_direct_proto.hpp"
 
 #include <string>
 

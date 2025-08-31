@@ -322,6 +322,16 @@ void Utils::print_tensor(const gemini::Tensor<T>& t, const long& channel) {
 
 template <class T>
 bool Utils::save_to_file(const char* path, const T* a, const T* b, const T* c, const size_t& n) {
+    std::fstream file(path, std::ios_base::out | std::ios_base::binary);
+
+    if (!file.is_open())
+        return false;
+
+    file.write((char*)a, len * sizeof(T));
+    file.write((char*)b, len * sizeof(T));
+    file.write((char*)c, len * sizeof(T));
+
+    file.close();
     return true;
 }
 
