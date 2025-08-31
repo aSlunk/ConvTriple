@@ -57,9 +57,8 @@ struct ConvParm {
     size_t padding;
 };
 
-void generateConvTriplesCheetah(const ConvParm& parm, int batch,
-                                std::string ip, int port, int party,
-                                Utils::PROTO proto);
+void generateConvTriplesCheetah(const ConvParm& parm, int batch, std::string ip, int port,
+                                int party, Utils::PROTO proto);
 // void tmp(int party);
 
 } // namespace Iface

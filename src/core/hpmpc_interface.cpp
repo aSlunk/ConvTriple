@@ -2,8 +2,8 @@
 
 #include <algorithm>
 
-#include "protocols/fc_proto.hpp"
 #include "protocols/conv_proto.hpp"
+#include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
 
 constexpr uint64_t MAX_BOOL  = 20'000'000;
@@ -261,10 +261,9 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
     }
 }
 
-void generateConvTriplesCheetah(const ConvParm& parm, int batch,
-                                std::string ip, int port, int party,
-                                Utils::PROTO proto) {
-    int threads = 1;
+void generateConvTriplesCheetah(const ConvParm& parm, int batch, std::string ip, int port,
+                                int party, Utils::PROTO proto) {
+    int threads      = 1;
     const char* addr = ip.c_str();
 
     if (party == emp::ALICE) {
@@ -273,7 +272,8 @@ void generateConvTriplesCheetah(const ConvParm& parm, int batch,
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
 
-    auto meta                 = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw, parm.n_filters, parm.stride, parm.padding);
+    auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                      parm.n_filters, parm.stride, parm.padding);
     static gemini::HomConv2DSS conv = [&ios, &party] {
         gemini::HomConv2DSS conv;
         seal::SEALContext ctx = Utils::init_he_context();

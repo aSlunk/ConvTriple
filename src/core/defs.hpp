@@ -330,5 +330,4 @@ bool Utils::read_from_file(const char* path, const T* a, const T* b, const T* c,
     return true;
 }
 
-
 #endif // DEFS_HPP_

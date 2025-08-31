@@ -264,7 +264,8 @@ class TripleGenerator {
             break;
         }
         case _16KKOT_to_4OT: {
-            if (packed) num_triples *= 8;
+            if (packed)
+                num_triples *= 8;
             assert((num_triples & 1) == 0); // num_triples is even
             uint8_t *a, *b, *c;
             if (packed) {
