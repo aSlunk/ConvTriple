@@ -13,3 +13,5 @@ massif*
 
 data
 *.bak
+
+*.triple

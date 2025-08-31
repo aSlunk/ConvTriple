@@ -52,6 +52,33 @@ int main(int argc, char** argv) {
             Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 1, num_triples,
                                                std::string(""), port, PARTY, threads,
                                                Utils::PROTO::AB);
+
+            if (!Utils::save_to_file("arith.triple", a.data(), b.data(), c.data(), num_triples)) {
+                Utils::log(Utils::Level::FAILED, "Failed to save triples");
+            } else {
+                Utils::log(Utils::Level::PASSED, "Saved triples");
+            }
+
+            std::vector<uint32_t> a_cp(num_triples);
+            std::vector<uint32_t> b_cp(num_triples);
+            std::vector<uint32_t> c_cp(num_triples);
+
+            bool passed = true;
+            if (!Utils::read_from_file("arith.triple", a_cp.data(), b_cp.data(), c_cp.data(),
+                                       num_triples)) {
+                Utils::log(Utils::Level::FAILED, "Failed to read triples");
+            } else {
+                for (int i = 0; i < num_triples; ++i) {
+                    if (a_cp[i] != a[i] || b_cp[i] != b[i] || c_cp[i] != c[i]) {
+                        passed = false;
+                        break;
+                    }
+                }
+                if (passed)
+                    Utils::log(Utils::Level::PASSED, "Numbers match");
+                else
+                    Utils::log(Utils::Level::FAILED, "Read wrong numbers");
+            }
         }
     }
 

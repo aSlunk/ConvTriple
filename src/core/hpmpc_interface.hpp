@@ -2,13 +2,11 @@
 #define HPMPC_INTERFACE_HPP_
 
 #include "defs.hpp"
+#include "protocols/bn_direct_proto.hpp"
 
 #include <string>
 
 #include <io/net_io_channel.hpp>
-
-#include <ot/bit-triple-generator.h>
-#include <ot/cheetah-ot_pack.h>
 
 #include <gemini/cheetah/hom_bn_ss.h>
 

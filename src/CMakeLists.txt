@@ -68,6 +68,9 @@ target_compile_options(
     "$<$<CONFIG:Release>:-Wall;-Wextra>"
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
 )
+if(TRIPLE_COLOR)
+    target_compile_definitions(${server} PRIVATE COLOR)
+endif()
 
 set(client cheetah_client)
 add_executable(${client} client.cpp)
@@ -79,6 +82,9 @@ target_compile_options(
     "$<$<CONFIG:Release>:-Wall;-Wextra>"
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
 )
+if(TRIPLE_COLOR)
+    target_compile_definitions(${client} PRIVATE COLOR)
+endif()
 
 message(STATUS "TRIPLE_VERIFY: ${TRIPLE_VERIFY}")
 message(STATUS "TRIPLE_COLOR: ${TRIPLE_COLOR}")

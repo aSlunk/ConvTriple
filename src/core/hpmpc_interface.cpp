@@ -6,6 +6,9 @@
 #include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
 
+#include "ot/bit-triple-generator.h"
+#include "ot/cheetah-ot_pack.h"
+
 constexpr uint64_t MAX_BOOL  = 20'000'000;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
@@ -144,9 +147,6 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
             addr = nullptr;
 
         IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
-
-        // auto pg   = seal::MMProfGuard(std::make_unique<PROF>());
-        // return;
 
         static gemini::HomBNSS bn = [&ios, &party] {
             gemini::HomBNSS bn;

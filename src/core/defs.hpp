@@ -222,7 +222,7 @@ template <class T>
 bool save_to_file(const char* path, const T* a, const T* b, const T* c, const size_t& n);
 
 template <class T>
-bool read_from_file(const char* path, const T* a, const T* b, const T* c, const size_t& n);
+bool read_from_file(const char* path, T* a, T* b, T* c, const size_t& n);
 
 } // namespace Utils
 
@@ -327,16 +327,37 @@ bool Utils::save_to_file(const char* path, const T* a, const T* b, const T* c, c
     if (!file.is_open())
         return false;
 
-    file.write((char*)a, len * sizeof(T));
-    file.write((char*)b, len * sizeof(T));
-    file.write((char*)c, len * sizeof(T));
+    file.write((char*)a, n * sizeof(T));
+    file.write((char*)b, n * sizeof(T));
+    file.write((char*)c, n * sizeof(T));
 
     file.close();
     return true;
 }
 
 template <class T>
-bool Utils::read_from_file(const char* path, const T* a, const T* b, const T* c, const size_t& n) {
+bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n) {
+    std::ifstream file{path, std::ios_base::ate | std::ios_base::binary};
+    if (!file.is_open()) {
+        log(Level::FAILED, "Couldn't open: ", path);
+        return false;
+    }
+
+    std::cout << "SIZE: " << file.tellg() << "\n";
+    std::cout << "n: " << n << "\n";
+    if (static_cast<long>(n * sizeof(T) * 3) > file.tellg()) {
+        file.close();
+        return false;
+    }
+
+    file.seekg(0, std::ios::beg);
+
+    file.read((char*)a, n * sizeof(T));
+    file.read((char*)b, n * sizeof(T));
+    file.read((char*)c, n * sizeof(T));
+
+    file.close();
+
     return true;
 }
 
