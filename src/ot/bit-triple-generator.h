@@ -169,6 +169,7 @@ class TripleGenerator {
         case _2ROT: {
             uint8_t *a, *b, *c;
             if (packed) {
+                num_triples *= 8;
                 a = new uint8_t[num_triples];
                 b = new uint8_t[num_triples];
                 c = new uint8_t[num_triples];
@@ -263,10 +264,10 @@ class TripleGenerator {
             break;
         }
         case _16KKOT_to_4OT: {
+            if (packed) num_triples *= 8;
             assert((num_triples & 1) == 0); // num_triples is even
             uint8_t *a, *b, *c;
             if (packed) {
-                num_triples *= 8;
                 a = new uint8_t[num_triples];
                 b = new uint8_t[num_triples];
                 c = new uint8_t[num_triples];
@@ -320,8 +321,6 @@ class TripleGenerator {
             }
             if (packed) {
                 for (int i = 0; i < num_triples; i += 8) {
-                    ai[i / 8] = bool_to_uint8(c + i, 8);
-                    bi[i / 8] = bool_to_uint8(c + i, 8);
                     ci[i / 8] = bool_to_uint8(c + i, 8);
                 }
                 delete[] a;
