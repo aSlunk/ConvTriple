@@ -43,6 +43,23 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int b
 void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, int port,
                               Utils::PROTO proto);
 
+struct ConvParm {
+    size_t ic;
+    size_t iw;
+    size_t ih;
+
+    size_t fc;
+    size_t fw;
+    size_t fh;
+    size_t n_filters;
+
+    size_t stride;
+    size_t padding;
+};
+
+void generateConvTriplesCheetah(const ConvParm& parm, int batch,
+                                std::string ip, int port, int party,
+                                Utils::PROTO proto);
 // void tmp(int party);
 
 } // namespace Iface

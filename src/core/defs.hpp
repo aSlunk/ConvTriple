@@ -218,6 +218,12 @@ std::vector<gemini::Tensor<uint64_t>> to_tensor64(T* buf, const gemini::TensorSh
     return res;
 }
 
+template <class T>
+bool save_to_file(const char* path, const T* a, const T* b, const T* c, const size_t& n);
+
+template <class T>
+bool read_from_file(const char* path, const T* a, const T* b, const T* c, const size_t& n);
+
 } // namespace Utils
 
 template <class Meta>
@@ -313,5 +319,16 @@ void Utils::print_tensor(const gemini::Tensor<T>& t, const long& channel) {
         break;
     }
 }
+
+template <class T>
+bool Utils::save_to_file(const char* path, const T* a, const T* b, const T* c, const size_t& n) {
+    return true;
+}
+
+template <class T>
+bool Utils::read_from_file(const char* path, const T* a, const T* b, const T* c, const size_t& n) {
+    return true;
+}
+
 
 #endif // DEFS_HPP_

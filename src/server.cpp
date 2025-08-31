@@ -57,6 +57,21 @@ int main(int argc, char** argv) {
 
     Iface::generateFCTriplesCheetah(10, PARTY, std::string(""), port, Utils::PROTO::AB);
 
+    {
+        Iface::ConvParm conv {
+            .ic = 3,
+            .iw = 224,
+            .ih = 224,
+            .fc = 3,
+            .fw = 7,
+            .fh = 7,
+            .n_filters = 64,
+            .stride = 2,
+            .padding = 3,
+        };
+        Iface::generateConvTriplesCheetah(conv, 1, std::string(""), port, PARTY, Utils::PROTO::AB);
+    }
+
     // HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, samples, true);
     // all.run_ot(20'000'000);
     // {

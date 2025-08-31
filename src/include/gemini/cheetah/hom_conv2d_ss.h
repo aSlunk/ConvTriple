@@ -134,5 +134,7 @@ class HomConv2DSS {
     std::optional<seal::SecretKey> sk_{std::nullopt};
 };
 
+TensorShape GetConv2DOutShape(const HomConv2DSS::Meta& meta);
+
 }; // namespace gemini
 #endif // GEMINI_CHEETAH_HOMCONVSS_H_

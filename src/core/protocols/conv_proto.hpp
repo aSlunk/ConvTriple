@@ -262,8 +262,6 @@ Result Server::Protocol2(const gemini::HomConv2DSS::Meta& meta, Channel** server
     measures.ret        = conv.decryptToTensor(enc_C1, meta, C1, threads);
     measures.decryption = Utils::time_diff(start);
 
-    Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
-
     for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     return measures;
 }
@@ -343,8 +341,6 @@ Result Server::Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel** server
 
     measures.plain_op = Utils::time_diff(start);
 
-    Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
-
     for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     measures.ret = Code::OK;
     return measures;
@@ -355,8 +351,6 @@ Result Server::perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** se
                              const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1,
                              const std::vector<Tensor<uint64_t>> B1, Tensor<uint64_t>& C1,
                              const size_t& threads, Utils::PROTO proto) {
-    server[0]->sync();
-
     Result measures;
 
     switch (proto) {
@@ -418,8 +412,6 @@ Result Client::perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** cl
     auto A2 = Utils::init_image(meta, 5);
     auto B2 = Utils::init_filter(meta, 2.0);
 
-    client[0]->sync();
-
     Tensor<uint64_t> C2;
 
     return perform_proto(meta, client, conv, A2, B2, C2, threads, proto);
@@ -431,7 +423,9 @@ void Server::Verify_Conv(IO::NetIO& io, const gemini::HomConv2DSS::Meta& meta,
                          const gemini::HomConv2DSS& conv, const Tensor<T>& A1,
                          const std::vector<Tensor<T>>& B1, const Tensor<T>& C1,
                          Utils::PROTO proto) {
-    Utils::log(Utils::Level::INFO, "VERIFYING CONV");
+    Utils::log(Utils::Level::DEBUG, "VERIFYING CONV");
+    Utils::log(Utils::Level::DEBUG, A1.shape(), " x ", meta.fshape, " = ", C1.shape());
+
     Tensor<T> A2(A1.shape());
     std::vector<Tensor<T>> B2(meta.n_filters, Tensor<T>(meta.fshape));
     Tensor<T> C2(C1.shape());
@@ -470,7 +464,7 @@ end:
 template <class T>
 void Client::Verify_Conv(IO::NetIO& io, const Tensor<T>& A2, const std::vector<Tensor<T>>& B2,
                          const Tensor<T>& C2) {
-    log(Utils::Level::INFO, "SENDING");
+    log(Utils::Level::DEBUG, "SENDING");
     io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);
     for (auto& filter : B2) io.send_data(filter.data(), filter.NumElements() * sizeof(T), false);
     io.send_data(C2.data(), C2.NumElements() * sizeof(T), false);

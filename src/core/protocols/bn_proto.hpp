@@ -325,9 +325,6 @@ Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server
 
     measures.plain_op = Utils::time_diff(start);
 
-    // Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
-    Utils::log(Utils::Level::DEBUG, C1.NumElements());
-
     for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     measures.ret = Code::OK;
     return measures;
@@ -487,7 +484,9 @@ template <class T>
 void Server::Verify_BN(IO::NetIO* io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& bn,
                        const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1,
                        Utils::PROTO proto) {
-    Utils::log(Utils::Level::INFO, "VERIFYING Elem. Mult");
+    Utils::log(Utils::Level::DEBUG, "VERIFYING Elem. Mult");
+    Utils::log(Utils::Level::DEBUG, "num_elements: ", meta.vec_shape.num_elements());
+
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.vec_shape);
     Tensor<T> C2(C1.shape());

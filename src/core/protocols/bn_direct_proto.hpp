@@ -231,8 +231,6 @@ Result Server::Protocol2(const gemini::HomBNSS::Meta& meta, Channel** server,
     measures.ret        = bn.decryptToTensor(enc_C1, meta, C1, threads);
     measures.decryption = Utils::time_diff(start);
 
-    Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
-
     for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     return measures;
 }
@@ -299,8 +297,6 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
     Utils::op_inplace<uint64_t>(C1, R1, [](uint64_t a, uint64_t b) { return Utils::add(a, b); });
 
     measures.plain_op = Utils::time_diff(start);
-
-    Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
 
     for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     measures.ret = Code::OK;
@@ -405,6 +401,8 @@ void Server::Verify_BN_DIRECT(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
                               const gemini::HomBNSS& bn, const Tensor<T>& A1, const Tensor<T>& B1,
                               const Tensor<T>& C1, Utils::PROTO proto) {
     Utils::log(Utils::Level::INFO, "VERIFYING BN");
+    Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
+
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.vec_shape);
     Tensor<T> C2(C1.shape());

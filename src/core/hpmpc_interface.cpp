@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "protocols/fc_proto.hpp"
+#include "protocols/conv_proto.hpp"
 #include "protocols/ot_proto.hpp"
 
 constexpr uint64_t MAX_BOOL  = 20'000'000;
@@ -226,7 +227,6 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
     static gemini::HomFCSS fc = [&ios, &party] {
         gemini::HomFCSS fc;
         seal::SEALContext ctx = Utils::init_he_context();
-        gemini::HomBNSS bn;
 
         seal::KeyGenerator keygen(ctx);
         seal::SecretKey skey = keygen.secret_key();
@@ -242,10 +242,10 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
     std::vector<Tensor<uint64_t>> A(batch, Tensor<uint64_t>(meta.input_shape));
     std::vector<Tensor<uint64_t>> B(batch, Tensor<uint64_t>(meta.weight_shape));
 
-    for (int i = 0; i < batch; ++i) {
-        // A[i].Randomize(PLAIN_MOD);
-        // B[i].Randomize(PLAIN_MOD);
-    }
+    // for (int i = 0; i < batch; ++i) {
+    //     A[i].Randomize(PLAIN_MOD);
+    //     B[i].Randomize(PLAIN_MOD);
+    // }
 
     std::vector<Tensor<uint64_t>> C(batch);
 
@@ -256,6 +256,51 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
     }
     case emp::BOB: {
         Client::perform_proto(meta, ios, fc, A, B, C, 1ul, batch, proto);
+        break;
+    }
+    }
+}
+
+void generateConvTriplesCheetah(const ConvParm& parm, int batch,
+                                std::string ip, int port, int party,
+                                Utils::PROTO proto) {
+    int threads = 1;
+    const char* addr = ip.c_str();
+
+    if (party == emp::ALICE) {
+        addr = nullptr;
+    }
+
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
+
+    auto meta                 = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw, parm.n_filters, parm.stride, parm.padding);
+    static gemini::HomConv2DSS conv = [&ios, &party] {
+        gemini::HomConv2DSS conv;
+        seal::SEALContext ctx = Utils::init_he_context();
+
+        seal::KeyGenerator keygen(ctx);
+        seal::SecretKey skey = keygen.secret_key();
+        auto pkey            = std::make_shared<seal::PublicKey>();
+        auto o_pkey          = std::make_shared<seal::PublicKey>();
+        keygen.create_public_key(*pkey);
+        exchange_keys(ios, *pkey, *o_pkey, ctx, party);
+
+        conv.setUp(ctx, skey, o_pkey);
+        return conv;
+    }();
+
+    Tensor<uint64_t> A(meta.ishape);
+    std::vector<Tensor<uint64_t>> B(meta.n_filters, Tensor<uint64_t>(meta.fshape));
+
+    Tensor<uint64_t> C(gemini::GetConv2DOutShape(meta));
+
+    switch (party) {
+    case emp::ALICE: {
+        Server::perform_proto(meta, ios, conv, A, B, C, threads, proto);
+        break;
+    }
+    case emp::BOB: {
+        Client::perform_proto(meta, ios, conv, A, B, C, threads, proto);
         break;
     }
     }

@@ -55,7 +55,9 @@ void Server::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b
 
 #ifdef VERIFY
     size_t len = LEN(numTriple, packed);
-    Utils::log(Utils::Level::INFO, "VERIFYING OT");
+    Utils::log(Utils::Level::DEBUG, "VERIFYING OT");
+    Utils::log(Utils::Level::DEBUG, numTriple);
+
     uint8_t* a2 = new uint8_t[len];
     uint8_t* b2 = new uint8_t[len];
     uint8_t* c2 = new uint8_t[len];

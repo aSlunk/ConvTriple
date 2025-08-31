@@ -494,7 +494,9 @@ template <class T>
 void Server::Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& fc,
                        const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1,
                        Utils::PROTO proto) {
-    Utils::log(Utils::Level::INFO, "VERIFYING FC");
+    Utils::log(Utils::Level::DEBUG, "VERIFYING FC");
+    Utils::log(Utils::Level::DEBUG, meta.weight_shape, " x ", meta.input_shape, " = ", C1.shape());
+
     Tensor<T> A2(A1.shape());
     Tensor<T> B2(meta.weight_shape);
     Tensor<T> C2(C1.shape());
@@ -531,7 +533,7 @@ void Server::Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& 
 template <class T>
 void Client::Verify_FC(IO::NetIO& io, const Tensor<T>& A2, const Tensor<T>& B2,
                        const Tensor<T>& C2) {
-    log(Utils::Level::INFO, "SENDING");
+    log(Utils::Level::DEBUG, "SENDING");
     io.send_data(A2.data(), A2.NumElements() * sizeof(T), false);
     io.send_data(B2.data(), B2.NumElements() * sizeof(T), false);
     io.send_data(C2.data(), C2.NumElements() * sizeof(T), false);

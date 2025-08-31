@@ -19,7 +19,7 @@
 
 namespace gemini {
 
-static TensorShape GetConv2DOutShape(const HomConv2DSS::Meta& meta) {
+TensorShape GetConv2DOutShape(const HomConv2DSS::Meta& meta) {
     auto o = shape_inference::Conv2D(meta.ishape, meta.fshape, meta.padding, meta.stride);
     if (!o) {
         LOG(WARNING) << "GetConv2DOutShape failed";
@@ -656,9 +656,12 @@ size_t HomConv2DSS::conv2DOneFilter(const std::vector<seal::Ciphertext>& image,
     for (size_t c = 0; c < accum_cnt; ++c) {
         // filter on the margin might be all-zero
         seal::Plaintext _filter = filter[c];
+
+#ifndef ZERO
         if (_filter.is_zero()) {
             continue;
         }
+#endif
 
         if (fill_ntt) {
             evaluator_->transform_to_ntt_inplace(_filter,
@@ -840,7 +843,9 @@ Code HomConv2DSS::addRandomMask(std::vector<seal::Ciphertext>& enc_tensor,
         return Code::ERR_INTERNAL;
     }
 
-    mask_tensor.Reshape(GetConv2DOutShape(meta));
+    auto out_shape = GetConv2DOutShape(meta);
+    if (mask_tensor.shape() != out_shape)
+        mask_tensor.Reshape(out_shape);
     auto mask_program = [&](long wid, size_t start, size_t end) {
         seal::Plaintext mask;
         TensorShape slice_shape;
@@ -972,7 +977,8 @@ Code HomConv2DSS::decryptToTensor(const std::vector<seal::Ciphertext>& enc_tenso
         return Code::ERR_INTERNAL;
     }
 
-    out_tensor.Reshape(out_shape);
+    if (out_tensor.shape() != out_shape)
+        out_tensor.Reshape(out_shape);
     const bool need_ntt_form_ct = scheme() == seal::scheme_type::ckks;
     seal::Decryptor decryptor(*context_, *sk_);
     auto decrypt_program = [&](long wid, size_t start, size_t end) {
