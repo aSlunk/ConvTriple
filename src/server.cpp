@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
     int num_triples = 10;
 
     {
-        int tmp    = 10;
+        int tmp    = 256;
         uint8_t* a = new uint8_t[tmp];
         uint8_t* b = new uint8_t[tmp];
         uint8_t* c = new uint8_t[tmp];

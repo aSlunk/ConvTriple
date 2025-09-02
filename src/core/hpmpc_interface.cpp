@@ -141,75 +141,74 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
                                  int bitlength [[maybe_unused]], uint64_t num_triples,
                                  std::string ip, int port, int party, int threads,
                                  Utils::PROTO proto) {
-    {
-        const char* addr = ip.c_str();
-        if (party == emp::ALICE)
-            addr = nullptr;
+    const char* addr = ip.c_str();
+    if (party == emp::ALICE)
+        addr = nullptr;
 
-        IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
+    std::cout << ip << ", " << port << "\n";
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
 
-        static gemini::HomBNSS bn = [&ios, &party] {
-            gemini::HomBNSS bn;
-            auto ctx = Utils::init_he_context();
-            setUpBn(ios, bn, ctx, party);
-            return bn;
-        }();
+    static gemini::HomBNSS bn = [&ios, &party] {
+        gemini::HomBNSS bn;
+        auto ctx = Utils::init_he_context();
+        setUpBn(ios, bn, ctx, party);
+        return bn;
+    }();
 
-        auto pool = seal::MemoryPoolHandle::New();
-        auto pg   = seal::MMProfGuard(std::make_unique<seal::MMProfFixed>(std::move(pool)));
+    auto pool = seal::MemoryPoolHandle::New();
+    auto pg   = seal::MMProfGuard(std::make_unique<seal::MMProfFixed>(std::move(pool)));
 
-        Tensor<uint64_t> A({static_cast<long>(num_triples)});
-        Tensor<uint64_t> B({static_cast<long>(num_triples)});
+    Tensor<uint64_t> A({static_cast<long>(num_triples)});
+    Tensor<uint64_t> B({static_cast<long>(num_triples)});
 
-        for (uint64_t i = 0; i < num_triples; ++i) {
-            A(i) = static_cast<uint64_t>(a[i]);
+    for (uint64_t i = 0; i < num_triples; ++i) {
+        A(i) = static_cast<uint64_t>(a[i]);
+        if (b)
             B(i) = static_cast<uint64_t>(b[i]);
-        }
-
-        auto start = measure::now();
-
-        gemini::HomBNSS::Meta meta;
-        meta.is_shared_input = true;
-        meta.target_base_mod = PLAIN_MOD;
-
-        for (size_t total = 0; total < num_triples;) {
-            size_t current = std::min(MAX_ARITH, num_triples - total);
-
-            meta.vec_shape = {static_cast<long>(current)};
-
-            Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(A.data() + total, meta.vec_shape);
-            Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(B.data() + total, meta.vec_shape);
-            Tensor<uint64_t> tmp_C(meta.vec_shape);
-
-            Result res;
-            switch (party) {
-            case emp::ALICE: {
-                res = Server::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
-                break;
-            }
-            case emp::BOB: {
-                res = Client::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
-                break;
-            }
-            default: {
-                Utils::log(Utils::Level::ERROR, "Unknown party: P", party);
-            }
-            }
-
-            for (uint64_t i = 0; i < current; ++i) c[i + total] = static_cast<uint32_t>(tmp_C(i));
-            total += current;
-        }
-
-        Utils::log(Utils::Level::INFO, "P", party,
-                   ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
-        std::string unit;
-        uint64_t data = Utils::to_MB(ios[0]->counter, unit);
-        Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
-
-        for (int i = 0; i < threads; ++i) delete ios[i];
-
-        delete[] ios;
     }
+
+    auto start = measure::now();
+
+    gemini::HomBNSS::Meta meta;
+    meta.is_shared_input = true;
+    meta.target_base_mod = PLAIN_MOD;
+
+    for (size_t total = 0; total < num_triples;) {
+        size_t current = std::min(MAX_ARITH, num_triples - total);
+
+        meta.vec_shape = {static_cast<long>(current)};
+
+        Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(A.data() + total, meta.vec_shape);
+        Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(B.data() + total, meta.vec_shape);
+        Tensor<uint64_t> tmp_C(meta.vec_shape);
+
+        Result res;
+        switch (party) {
+        case emp::ALICE: {
+            res = Server::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
+            break;
+        }
+        case emp::BOB: {
+            res = Client::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
+            break;
+        }
+        default: {
+            Utils::log(Utils::Level::ERROR, "Unknown party: P", party);
+        }
+        }
+
+        for (uint64_t i = 0; i < current; ++i) c[i + total] = static_cast<uint32_t>(tmp_C(i));
+        total += current;
+    }
+
+    Utils::log(Utils::Level::INFO, "P", party,
+                ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    std::string unit;
+    uint64_t data = Utils::to_MB(ios[0]->counter, unit);
+    Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
+
+    for (int i = 0; i < threads; ++i) delete ios[i];
+    delete[] ios;
 }
 
 void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, int port,

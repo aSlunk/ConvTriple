@@ -322,6 +322,8 @@ class TripleGenerator {
             }
             if (packed) {
                 for (int i = 0; i < num_triples; i += 8) {
+                    ai[i / 8] = bool_to_uint8(a + i, 8);
+                    bi[i / 8] = bool_to_uint8(b + i, 8);
                     ci[i / 8] = bool_to_uint8(c + i, 8);
                 }
                 delete[] a;

@@ -13,4 +13,4 @@ if [[ -n $1 ]]; then
 fi
 
 
-cmake --build build --parallel $THREADS
+cmake --build build -j

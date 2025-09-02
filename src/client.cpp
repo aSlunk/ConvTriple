@@ -8,6 +8,11 @@
 
 #define PARTY 2
 
+void print_m128i(__m128i var) {
+    int32_t* vals = (int32_t*)&var;
+    for (int i = 0; i < 4; ++i) std::cout << "Element " << i << ": " << vals[i] << "\n";
+}
+
 int main(int argc, char** argv) {
     if (argc != 5 && argc != 6) {
         std::cout << argv[0] << " <port> <host> <samples> <batchSize> (<threads>)\n";
@@ -27,12 +32,18 @@ int main(int argc, char** argv) {
     int num_triples = 10;
 
     {
-        int tmp    = 10;
-        uint8_t* a = new uint8_t[tmp];
-        uint8_t* b = new uint8_t[tmp];
-        uint8_t* c = new uint8_t[tmp];
+        int tmp    = 16;
+        __m128i* a = new __m128i[tmp];
+        __m128i* b = new __m128i[tmp];
+        __m128i* c = new __m128i[tmp];
 
-        Iface::generateBoolTriplesCheetah(a, b, c, 1, tmp, std::string(addr), port, PARTY, threads);
+        a[15] = _mm_set_epi32(-1, -2, -3, -4);
+
+        Iface::generateBoolTriplesCheetah((uint8_t*)a, (uint8_t*)b, (uint8_t*)c, 1,
+                                          tmp * sizeof(*a), std::string(addr), port, PARTY,
+                                          threads);
+
+        print_m128i(a[15]);
 
         delete[] a;
         delete[] b;
