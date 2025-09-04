@@ -375,7 +375,7 @@ Result Client::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client
     for (size_t i = 0; i < threads; ++i) client[i]->counter = 0;
 
 #ifdef VERIFY
-    Verify_BN(*(client[0]), A2, B2, C2);
+    Verify_BN(client[0], A2, B2, C2);
 #endif
     return measures;
 }
@@ -400,7 +400,7 @@ template <class T>
 void Server::Verify_BN_DIRECT(IO::NetIO& io, const gemini::HomBNSS::Meta& meta,
                               const gemini::HomBNSS& bn, const Tensor<T>& A1, const Tensor<T>& B1,
                               const Tensor<T>& C1, Utils::PROTO proto) {
-    Utils::log(Utils::Level::INFO, "VERIFYING BN");
+    Utils::log(Utils::Level::INFO, "VERIFYING BN for ", proto == Utils::PROTO::AB ? "AB" : "AB2");
     Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
 
     Tensor<T> A2(A1.shape());

@@ -484,7 +484,8 @@ template <class T>
 void Server::Verify_BN(IO::NetIO* io, const gemini::HomBNSS::Meta& meta, const gemini::HomBNSS& bn,
                        const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1,
                        Utils::PROTO proto) {
-    Utils::log(Utils::Level::DEBUG, "VERIFYING Elem. Mult");
+    Utils::log(Utils::Level::DEBUG, "VERIFYING Elem. Mult with ",
+               proto == Utils::PROTO::AB ? "AB" : "AB2");
     Utils::log(Utils::Level::DEBUG, "num_elements: ", meta.vec_shape.num_elements());
 
     Tensor<T> A2(A1.shape());

@@ -98,6 +98,17 @@ int main(int argc, char** argv) {
         };
         Iface::generateConvTriplesCheetah(conv, 1, std::string(""), port, PARTY, Utils::PROTO::AB);
     }
+    {
+        int rows = 2;
+        int cols = 4;
+        std::vector<uint32_t> A(rows * cols, 3);
+        std::vector<uint32_t> B(rows, 1);
+        std::vector<uint32_t> C(rows * cols);
+
+        Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), rows, cols, 1,
+                                        std::string(""), port, PARTY, Utils::PROTO::AB);
+        for (auto& ele : C) std::cout << "P" << PARTY << ": " << ele << "\n";
+    }
 
     // HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, samples, true);
     // all.run_ot(20'000'000);

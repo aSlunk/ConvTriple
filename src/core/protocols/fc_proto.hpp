@@ -494,7 +494,7 @@ template <class T>
 void Server::Verify_FC(IO::NetIO& io, const HomFCSS::Meta& meta, const HomFCSS& fc,
                        const Tensor<T>& A1, const Tensor<T>& B1, const Tensor<T>& C1,
                        Utils::PROTO proto) {
-    Utils::log(Utils::Level::DEBUG, "VERIFYING FC");
+    Utils::log(Utils::Level::DEBUG, "VERIFYING FC with ", proto == Utils::PROTO::AB ? "AB" : "AB2");
     Utils::log(Utils::Level::DEBUG, meta.weight_shape, " x ", meta.input_shape, " = ", C1.shape());
 
     Tensor<T> A2(A1.shape());

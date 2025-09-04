@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "protocols/bn_direct_proto.hpp"
 #include "protocols/conv_proto.hpp"
 #include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
@@ -72,7 +73,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     delete[] ios;
 }
 
-void setUpBn(IO::NetIO** ios, gemini::HomBNSS& bn, const seal::SEALContext& ctx, const int& party) {
+void setupBn(IO::NetIO** ios, gemini::HomBNSS& bn, const seal::SEALContext& ctx, const int& party) {
     using namespace seal;
     KeyGenerator keygen(ctx);
     SecretKey skey = keygen.secret_key();
@@ -145,13 +146,12 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
     if (party == emp::ALICE)
         addr = nullptr;
 
-    std::cout << ip << ", " << port << "\n";
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
 
     static gemini::HomBNSS bn = [&ios, &party] {
         gemini::HomBNSS bn;
         auto ctx = Utils::init_he_context();
-        setUpBn(ios, bn, ctx, party);
+        setupBn(ios, bn, ctx, party);
         return bn;
     }();
 
@@ -202,7 +202,7 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
     }
 
     Utils::log(Utils::Level::INFO, "P", party,
-                ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+               ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     uint64_t data = Utils::to_MB(ios[0]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
@@ -303,6 +303,54 @@ void generateConvTriplesCheetah(const ConvParm& parm, int batch, std::string ip,
         break;
     }
     }
+}
+
+void generateBNTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, size_t num_ele,
+                              size_t num_scales, int batch, std::string ip, int port, int party,
+                              Utils::PROTO proto) {
+    int threads      = 1;
+    const char* addr = ip.c_str();
+
+    if (party == emp::ALICE) {
+        addr = nullptr;
+    }
+
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
+
+    auto meta                 = Utils::init_meta_bn(num_ele, num_scales);
+    static gemini::HomBNSS bn = [&ios, &party] {
+        gemini::HomBNSS bn;
+        seal::SEALContext ctx = Utils::init_he_context();
+        setupBn(ios, bn, ctx, party);
+        return bn;
+    }();
+
+    Tensor<uint64_t> A(meta.ishape);
+    for (long i = 0; i < A.channels(); i++)
+        for (long j = 0; j < A.height(); j++)
+            for (long k = 0; k < A.width(); k++)
+                A(i, j, k) = a[i * A.height() * A.width() + j * A.width() + k];
+
+    Tensor<uint64_t> B(meta.vec_shape);
+    for (long i = 0; i < B.NumElements(); i++) B(i) = b[i];
+
+    Tensor<uint64_t> C;
+
+    switch (party) {
+    case emp::ALICE: {
+        Server::perform_proto(meta, ios, bn, A, B, C, threads, Utils::PROTO::AB);
+        break;
+    }
+    case emp::BOB: {
+        Client::perform_proto(meta, ios, bn, A, B, C, threads, Utils::PROTO::AB);
+        break;
+    }
+    }
+
+    for (long i = 0; i < C.channels(); i++)
+        for (long j = 0; j < C.height(); j++)
+            for (long k = 0; k < C.width(); k++)
+                c[i * C.height() * C.width() + j * C.width() + k] = C(i, j, k);
 }
 
 // void tmp(int party) {
