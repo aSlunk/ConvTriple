@@ -82,21 +82,54 @@ int main(int argc, char** argv) {
         }
     }
 
-    Iface::generateFCTriplesCheetah(10, PARTY, std::string(""), port, Utils::PROTO::AB);
+    {
+        int n       = 3;
+        int batch   = 1;
+        uint32_t* a = new uint32_t[n];
+        uint32_t* b = new uint32_t[n];
+        uint32_t* c = new uint32_t[1];
+
+        for (int i = 0; i < n; ++i) {
+            a[i] = 0;
+            b[i] = 0;
+        }
+
+        Iface::generateFCTriplesCheetah(a, b, c, batch, n, PARTY, std::string(""), port,
+                                        Utils::PROTO::AB);
+
+        std::cout << c[0] << "\n";
+
+        delete[] a;
+        delete[] b;
+        delete[] c;
+    }
 
     {
         Iface::ConvParm conv{
-            .ic        = 3,
-            .iw        = 224,
-            .ih        = 224,
-            .fc        = 3,
-            .fw        = 7,
-            .fh        = 7,
-            .n_filters = 64,
-            .stride    = 2,
-            .padding   = 3,
+            .ic        = 1,
+            .iw        = 7,
+            .ih        = 7,
+            .fc        = 1,
+            .fw        = 3,
+            .fh        = 3,
+            .n_filters = 1,
+            .stride    = 1,
+            .padding   = 0,
         };
-        Iface::generateConvTriplesCheetah(conv, 1, std::string(""), port, PARTY, Utils::PROTO::AB);
+
+        auto meta   = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
+                                            conv.n_filters, conv.stride, conv.padding);
+        uint32_t* a = new uint32_t[meta.ishape.num_elements()];
+        memset(a, 0, meta.ishape.num_elements() * 4);
+        uint32_t* b = new uint32_t[meta.n_filters * meta.fshape.num_elements()];
+        memset(b, 0, meta.n_filters * meta.fshape.num_elements() * 4);
+        uint32_t* c = new uint32_t[gemini::GetConv2DOutShape(meta).num_elements()];
+
+        Iface::generateConvTriplesCheetah(a, b, c, conv, 1, std::string(""), port, PARTY,
+                                          Utils::PROTO::AB);
+        delete[] a;
+        delete[] b;
+        delete[] c;
     }
     {
         int rows = 2;
@@ -107,7 +140,6 @@ int main(int argc, char** argv) {
 
         Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), rows, cols, 1,
                                         std::string(""), port, PARTY, Utils::PROTO::AB);
-        for (auto& ele : C) std::cout << "P" << PARTY << ": " << ele << "\n";
     }
 
     // HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, samples, true);

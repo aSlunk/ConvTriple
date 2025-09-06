@@ -37,7 +37,8 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int b
                                  uint64_t num_triples, std::string ip, int port, int party,
                                  int threads = 1, Utils::PROTO proto = Utils::PROTO::AB);
 
-void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, int port,
+void generateFCTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch,
+                              uint64_t num_triples, int party, std::string ip, int port,
                               Utils::PROTO proto);
 
 struct ConvParm {
@@ -54,8 +55,8 @@ struct ConvParm {
     size_t padding;
 };
 
-void generateConvTriplesCheetah(const ConvParm& parm, int batch, std::string ip, int port,
-                                int party, Utils::PROTO proto);
+void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const ConvParm& parm,
+                                int batch, std::string ip, int port, int party, Utils::PROTO proto);
 
 void generateBNTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, size_t num_ele,
                               size_t num_scales, int batch, std::string ip, int port, int party,

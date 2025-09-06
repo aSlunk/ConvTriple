@@ -155,7 +155,7 @@ std::vector<gemini::HomFCSS::Meta> init_layers_fc();
  * @return The created channels
  */
 template <class Channel>
-Channel** init_ios(const char* addr, const int& port, const size_t& threads);
+Channel** init_ios(const char* addr, const int& port, const size_t& threads, const int& offset = 1);
 
 template <class T>
 gemini::Tensor<uint64_t> convert_fix_point(const gemini::Tensor<T>& in);
@@ -272,10 +272,11 @@ void Utils::op_inplace(gemini::Tensor<T>& A, const gemini::Tensor<T>& B,
 }
 
 template <class Channel>
-Channel** Utils::init_ios(const char* addr, const int& port, const size_t& threads) {
+Channel** Utils::init_ios(const char* addr, const int& port, const size_t& threads,
+                          const int& offset) {
     Channel** res = new Channel*[threads];
     for (size_t wid = 0; wid < threads; ++wid) {
-        res[wid] = new Channel(addr, port + wid, true);
+        res[wid] = new Channel(addr, port + wid * offset, true);
     }
     return res;
 }

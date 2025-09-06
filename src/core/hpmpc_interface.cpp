@@ -211,9 +211,9 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
     delete[] ios;
 }
 
-void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, int port,
+void generateFCTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch,
+                              uint64_t num_triples, int party, std::string ip, int port,
                               Utils::PROTO proto) {
-    int batch        = 1;
     const char* addr = ip.c_str();
 
     if (party == emp::ALICE) {
@@ -238,13 +238,16 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
         return fc;
     }();
 
-    std::vector<Tensor<uint64_t>> A(batch, Tensor<uint64_t>(meta.input_shape));
-    std::vector<Tensor<uint64_t>> B(batch, Tensor<uint64_t>(meta.weight_shape));
+    uint64_t* ai = new uint64_t[meta.input_shape.num_elements() * batch];
+    for (uint i = 0; i < meta.input_shape.num_elements() * batch; ++i) ai[i] = a[i];
+    std::vector<Tensor<uint64_t>> A(batch);
+    for (size_t i = 0; i < A.size(); ++i) A[i] = Tensor<uint64_t>::Wrap(ai, meta.input_shape);
 
-    // for (int i = 0; i < batch; ++i) {
-    //     A[i].Randomize(PLAIN_MOD);
-    //     B[i].Randomize(PLAIN_MOD);
-    // }
+    uint64_t* bi = new uint64_t[meta.weight_shape.num_elements() * batch];
+    for (uint i = 0; i < meta.weight_shape.num_elements() * batch; ++i) bi[i] = b[i];
+
+    std::vector<Tensor<uint64_t>> B(batch);
+    for (size_t i = 0; i < B.size(); ++i) B[i] = Tensor<uint64_t>::Wrap(bi, meta.weight_shape);
 
     std::vector<Tensor<uint64_t>> C(batch);
 
@@ -258,10 +261,18 @@ void generateFCTriplesCheetah(uint64_t num_triples, int party, std::string ip, i
         break;
     }
     }
+
+    for (size_t i = 0; i < C.size(); ++i)
+        for (long j = 0; j < C[i].NumElements(); ++j)
+            c[i * C[i].NumElements() + j] = C[i].data()[j];
+
+    delete[] ai;
+    delete[] bi;
 }
 
-void generateConvTriplesCheetah(const ConvParm& parm, int batch, std::string ip, int port,
-                                int party, Utils::PROTO proto) {
+void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const ConvParm& parm,
+                                int batch, std::string ip, int port, int party,
+                                Utils::PROTO proto) {
     int threads      = 1;
     const char* addr = ip.c_str();
 
@@ -288,8 +299,15 @@ void generateConvTriplesCheetah(const ConvParm& parm, int batch, std::string ip,
         return conv;
     }();
 
-    Tensor<uint64_t> A(meta.ishape);
-    std::vector<Tensor<uint64_t>> B(meta.n_filters, Tensor<uint64_t>(meta.fshape));
+    uint64_t* ai = new uint64_t[meta.ishape.num_elements()];
+    for (long i = 0; i < meta.ishape.num_elements(); ++i) ai[i] = a[i];
+    Tensor<uint64_t> A = Tensor<uint64_t>::Wrap(ai, meta.ishape);
+
+    uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters];
+    for (size_t i = 0; i < meta.fshape.num_elements() * meta.n_filters; ++i) bi[i] = b[i];
+    std::vector<Tensor<uint64_t>> B(meta.n_filters);
+    for (size_t i = 0; i < meta.n_filters; ++i)
+        B[i] = Tensor<uint64_t>::Wrap(bi + meta.fshape.num_elements() * i, meta.fshape);
 
     Tensor<uint64_t> C(gemini::GetConv2DOutShape(meta));
 
@@ -303,6 +321,10 @@ void generateConvTriplesCheetah(const ConvParm& parm, int batch, std::string ip,
         break;
     }
     }
+
+    delete[] ai;
+    delete[] bi;
+    for (long i = 0; i < C.NumElements(); ++i) c[i] = C.data()[i];
 }
 
 void generateBNTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, size_t num_ele,
@@ -338,11 +360,11 @@ void generateBNTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, size_t num_
 
     switch (party) {
     case emp::ALICE: {
-        Server::perform_proto(meta, ios, bn, A, B, C, threads, Utils::PROTO::AB);
+        Server::perform_proto(meta, ios, bn, A, B, C, threads, proto);
         break;
     }
     case emp::BOB: {
-        Client::perform_proto(meta, ios, bn, A, B, C, threads, Utils::PROTO::AB);
+        Client::perform_proto(meta, ios, bn, A, B, C, threads, proto);
         break;
     }
     }
