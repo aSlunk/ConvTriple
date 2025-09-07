@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
     }
     {
         int rows = 2;
-        int cols = 4;
+        int cols = 3;
         std::vector<uint32_t> A(rows * cols, 3);
         std::vector<uint32_t> B(rows, 1);
         std::vector<uint32_t> C(rows * cols);

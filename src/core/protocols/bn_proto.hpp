@@ -128,7 +128,7 @@ Result Client::Protocol2_alt(Channel** client, const gemini::HomBNSS& bn,
 
     measures.send_recv += Utils::time_diff(start);
 
-    for (size_t i = 0; i < threads; ++i) measures.bytes += client[i]->counter;
+    for (size_t i = 0; i < 1; ++i) measures.bytes += client[i]->counter;
     return measures;
 }
 
@@ -202,7 +202,7 @@ Result Client::Protocol1_alt(Channel** client, const gemini::HomBNSS& bn,
 
     measures.plain_op = Utils::time_diff(start);
 
-    for (size_t i = 0; i < threads; ++i) measures.bytes += client[i]->counter;
+    for (size_t i = 0; i < 1; ++i) measures.bytes += client[i]->counter;
     measures.ret = Code::OK;
 
     return measures;
@@ -251,7 +251,7 @@ Result Server::Protocol2_alt(const gemini::HomBNSS::Meta& meta, Channel** server
     // Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
     Utils::log(Utils::Level::DEBUG, C1.NumElements());
 
-    for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
+    for (size_t i = 0; i < 1; ++i) measures.bytes += server[i]->counter;
     return measures;
 }
 
@@ -325,7 +325,7 @@ Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server
 
     measures.plain_op = Utils::time_diff(start);
 
-    for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
+    for (size_t i = 0; i < 1; ++i) measures.bytes += server[i]->counter;
     measures.ret = Code::OK;
     return measures;
 }
@@ -384,8 +384,6 @@ Result Server::perform_proto(Channel** ios, const gemini::HomBNSS& bn,
         break;
     }
 
-    for (size_t i = 0; i < threads; ++i) ios[i]->counter = 0;
-
     if (res.ret != Code::OK)
         return res;
 
@@ -408,8 +406,6 @@ Result Server::perform_elem(Channel** ios, const gemini::HomBNSS& bn,
         break;
     }
 
-    for (size_t i = 0; i < threads; ++i) ios[i]->counter = 0;
-
     if (result.ret != Code::OK)
         return result;
 
@@ -425,7 +421,9 @@ Result Client::perform_proto(Channel** ios, const gemini::HomBNSS& bn,
                              const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                              const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
                              Utils::PROTO proto) {
-    Utils::log(Utils::Level::INFO, "Using alt BN");
+#ifndef NDEBUG
+    Utils::log(Utils::Level::DEBUG, "Using alternative BN");
+#endif
     Result res;
     Tensor<uint64_t> vec, scales;
     pack(A, B, vec, scales);

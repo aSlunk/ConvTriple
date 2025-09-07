@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
     }
     {
         int rows = 2;
-        int cols = 4;
+        int cols = 3;
         std::vector<uint32_t> A(rows * cols);
         for (size_t i = 0; i < A.size(); ++i) A[i] = i;
         std::vector<uint32_t> B(rows, 1);
