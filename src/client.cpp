@@ -66,21 +66,25 @@ int main(int argc, char** argv) {
 
     {
         int n       = 3;
-        int batch   = 1;
-        uint32_t* a = new uint32_t[n];
-        uint32_t* b = new uint32_t[n];
+        int batch   = 2;
+        uint32_t* a = new uint32_t[n * batch];
+        uint32_t* b = new uint32_t[n * batch];
 
-        for (int i = 0; i < n; ++i) {
-            a[i] = 1;
-            b[i] = i;
+        for (int j = 0; j < batch; ++j) {
+            for (int i = 0; i < n; ++i) {
+                a[i + n * j] = 1;
+                b[i + n * j] = i + j;
+            }
         }
 
-        uint32_t* c = new uint32_t[1];
+        uint32_t* c = new uint32_t[1 * batch];
 
         Iface::generateFCTriplesCheetah(a, b, c, batch, n, PARTY, std::string(addr), port,
                                         Utils::PROTO::AB);
 
-        std::cout << c[0] << "\n";
+        for (int j = 0; j < batch; ++j) {
+            std::cout << j << " " << c[j] << "\n";
+        }
 
         delete[] a;
         delete[] b;
@@ -123,8 +127,8 @@ int main(int argc, char** argv) {
         std::vector<uint32_t> B(rows, 1);
         std::vector<uint32_t> C(rows * cols);
 
-        Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), rows, cols, 1,
-                                        std::string(addr), port, PARTY, Utils::PROTO::AB);
+        Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), 1, rows, cols,
+                                        std::string(addr), port, PARTY, threads, Utils::PROTO::AB);
     }
     // HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, samples, true);
     // all.run_ot(20'000'000);

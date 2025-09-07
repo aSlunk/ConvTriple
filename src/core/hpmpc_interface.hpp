@@ -59,8 +59,8 @@ void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const Con
                                 int batch, std::string ip, int port, int party, int threads,
                                 Utils::PROTO proto);
 
-void generateBNTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, size_t num_ele,
-                              size_t num_scales, int batch, std::string ip, int port, int party,
+void generateBNTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch, size_t num_ele,
+                              size_t num_scales, std::string ip, int port, int party, int threads,
                               Utils::PROTO proto);
 // void tmp(int party);
 

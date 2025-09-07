@@ -94,7 +94,7 @@ Result Client::Protocol2(Channel** client, const gemini::HomBNSS& bn,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_A1;
-    IO::recv_encrypted_vector(client, bn.getContext(), enc_A1, threads);
+    IO::recv_encrypted_vector(client, bn.getContext(), enc_A1, 1);
 
     measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -114,11 +114,11 @@ Result Client::Protocol2(Channel** client, const gemini::HomBNSS& bn,
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    IO::send_encrypted_vector(client, M2, threads);
+    IO::send_encrypted_vector(client, M2, 1);
 
     measures.send_recv += Utils::time_diff(start);
 
-    for (size_t i = 0; i < threads; ++i) measures.bytes += client[i]->counter;
+    for (size_t i = 0; i < 1; ++i) measures.bytes += client[i]->counter;
     return measures;
 }
 
@@ -143,7 +143,7 @@ Result Client::Protocol1(Channel** client, const gemini::HomBNSS& bn,
     start               = measure::now();
 
     std::vector<seal::Ciphertext> enc_A1;
-    measures.ret = IO::recv_send(bn.getContext(), client, enc_A2, enc_A1, threads);
+    measures.ret = IO::recv_send(bn.getContext(), client, enc_A2, enc_A1, 1);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -166,7 +166,7 @@ Result Client::Protocol1(Channel** client, const gemini::HomBNSS& bn,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M1;
-    measures.ret = IO::recv_send(bn.getContext(), client, enc_M2, enc_M1, threads);
+    measures.ret = IO::recv_send(bn.getContext(), client, enc_M2, enc_M1, 1);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -187,7 +187,7 @@ Result Client::Protocol1(Channel** client, const gemini::HomBNSS& bn,
 
     measures.plain_op = Utils::time_diff(start);
 
-    for (size_t i = 0; i < threads; ++i) measures.bytes += client[i]->counter;
+    for (size_t i = 0; i < 1; ++i) measures.bytes += client[i]->counter;
     measures.ret = Code::OK;
 
     return measures;
@@ -214,7 +214,7 @@ Result Server::Protocol2(const gemini::HomBNSS::Meta& meta, Channel** server,
 
     start = measure::now();
 
-    IO::send_encrypted_vector(server, enc_A1, threads);
+    IO::send_encrypted_vector(server, enc_A1, 1);
 
     measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -223,7 +223,7 @@ Result Server::Protocol2(const gemini::HomBNSS::Meta& meta, Channel** server,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_C1;
-    IO::recv_encrypted_vector(server, bn.getContext(), enc_C1, threads);
+    IO::recv_encrypted_vector(server, bn.getContext(), enc_C1, 1);
 
     measures.send_recv += Utils::time_diff(start);
     start = measure::now();
@@ -231,7 +231,7 @@ Result Server::Protocol2(const gemini::HomBNSS::Meta& meta, Channel** server,
     measures.ret        = bn.decryptToTensor(enc_C1, meta, C1, threads);
     measures.decryption = Utils::time_diff(start);
 
-    for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
+    for (size_t i = 0; i < 1; ++i) measures.bytes += server[i]->counter;
     return measures;
 }
 
@@ -257,7 +257,7 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_A2;
-    IO::send_recv(bn.getContext(), server, enc_A1, enc_A2, threads);
+    IO::send_recv(bn.getContext(), server, enc_A1, enc_A2, 1);
 
     measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -279,7 +279,7 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M2;
-    IO::send_recv(bn.getContext(), server, M1, enc_M2, threads);
+    IO::send_recv(bn.getContext(), server, M1, enc_M2, 1);
 
     measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -298,7 +298,7 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
 
     measures.plain_op = Utils::time_diff(start);
 
-    for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
+    for (size_t i = 0; i < 1; ++i) measures.bytes += server[i]->counter;
     measures.ret = Code::OK;
     return measures;
 }
@@ -326,7 +326,6 @@ Result Server::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server
             break;
         }
     }
-    for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
 #ifdef VERIFY
     Verify_BN_DIRECT(*(server[0]), meta, bn, A1, B1, C1, proto);
@@ -371,8 +370,6 @@ Result Client::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client
             break;
         }
     }
-
-    for (size_t i = 0; i < threads; ++i) client[i]->counter = 0;
 
 #ifdef VERIFY
     Verify_BN(client[0], A2, B2, C2);
