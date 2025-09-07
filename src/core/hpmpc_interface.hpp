@@ -56,7 +56,8 @@ struct ConvParm {
 };
 
 void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const ConvParm& parm,
-                                int batch, std::string ip, int port, int party, Utils::PROTO proto);
+                                int batch, std::string ip, int port, int party, int threads,
+                                Utils::PROTO proto);
 
 void generateBNTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, size_t num_ele,
                               size_t num_scales, int batch, std::string ip, int port, int party,

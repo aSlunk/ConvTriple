@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
         memset(b, 0, meta.n_filters * meta.fshape.num_elements() * 4);
         uint32_t* c = new uint32_t[gemini::GetConv2DOutShape(meta).num_elements()];
 
-        Iface::generateConvTriplesCheetah(a, b, c, conv, 1, std::string(addr), port, PARTY,
+        Iface::generateConvTriplesCheetah(a, b, c, conv, 1, std::string(addr), port, PARTY, threads,
                                           Utils::PROTO::AB);
 
         delete[] a;
