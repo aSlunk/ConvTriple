@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include <core/cheetah_interface.hpp>
+#include <core/benching.hpp>
 #include <core/hpmpc_interface.hpp>
 #include <core/networks/resnet50.hpp>
 
@@ -120,14 +120,15 @@ int main(int argc, char** argv) {
         delete[] c;
     }
     {
+        int batch = 2;
         int rows = 2;
         int cols = 3;
-        std::vector<uint32_t> A(rows * cols);
+        std::vector<uint32_t> A(rows * cols * batch);
         for (size_t i = 0; i < A.size(); ++i) A[i] = i;
-        std::vector<uint32_t> B(rows, 1);
-        std::vector<uint32_t> C(rows * cols);
+        std::vector<uint32_t> B(rows * batch, 1);
+        std::vector<uint32_t> C(rows * cols * batch);
 
-        Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), 1, rows, cols,
+        Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), batch, rows, cols,
                                         std::string(addr), port, PARTY, threads, Utils::PROTO::AB);
     }
     // HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, samples, true);

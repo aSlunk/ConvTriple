@@ -1,5 +1,5 @@
-#ifndef CHEETAH_INTERFACE_HPP_
-#define CHEETAH_INTERFACE_HPP_
+#ifndef BENCHING_HPP_
+#define BENCHING_HPP_
 
 #include <memory>
 
