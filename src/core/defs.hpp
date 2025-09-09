@@ -338,7 +338,8 @@ bool Utils::save_to_file(const char* path, const T* a, const T* b, const T* c, c
 
 template <class T>
 bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, bool trunc) {
-    std::ifstream file{path, std::ios_base::ate | std::ios_base::binary};
+    std::fstream file;
+    file.open(path, std::ios_base::in | std::ios_base::ate | std::ios_base::binary);
     if (!file.is_open()) {
         log(Level::FAILED, "Couldn't open: ", path);
         return false;
@@ -357,7 +358,7 @@ bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, 
         return false;
     }
 
-    file.seekg(-(n * 3 * sizeof(T)), std::ios::end);
+    file.seekg(0, std::ios::beg);
 
     file.read((char*)a, n * sizeof(T));
     file.read((char*)b, n * sizeof(T));
@@ -366,12 +367,24 @@ bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, 
     file.close();
 
     if (trunc) {
-        if (size == n * 3 * sizeof(T)) {
+        size_t to_trunc = n * 3 * sizeof(T);
+
+        file.open(path, std::ios::in | std::ios::out | std::ios::binary);
+        if (file.is_open()) {
+            std::vector<char> buffer(size - to_trunc);
+            file.seekg(to_trunc, std::ios::beg);
+            file.read(buffer.data(), buffer.size());
+            file.seekg(0, std::ios::beg);
+            file.write(buffer.data(), buffer.size());
+            file.close();
+        }
+
+        if (size == to_trunc) {
             if (remove(path) != 0) {
                 std::perror("Truncation failed");
             }
         } else if (size > n * 3 * sizeof(T)) {
-            int res = truncate(path, size - (n * 3 * sizeof(T)));
+            int res = truncate(path, size - to_trunc);
             if (res != 0)
                 std::perror("Truncation failed");
         }

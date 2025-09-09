@@ -99,8 +99,8 @@ int main(int argc, char** argv) {
             .fw        = 7,
             .fh        = 7,
             .n_filters = 64,
-            .stride    = 3,
-            .padding   = 2,
+            .stride    = 2,
+            .padding   = 3,
         };
 
         auto meta   = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,

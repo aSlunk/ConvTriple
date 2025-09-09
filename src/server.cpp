@@ -38,10 +38,14 @@ int main(int argc, char** argv) {
         delete[] c;
     }
 
-    for (int i = 0; i < 2; ++i) {
-        {
+    {
+        num_triples = 22;
+        std::vector<uint32_t> a_cp(num_triples * 2);
+        std::vector<uint32_t> b_cp(num_triples * 2);
+        std::vector<uint32_t> c_cp(num_triples * 2);
+
+        for (int i = 0; i < 2; ++i) {
             // num_triples = 48'168'448;
-            num_triples = 22;
             std::vector<uint32_t> a(num_triples, 0);
             std::vector<uint32_t> b(num_triples, 0);
             std::vector<uint32_t> c(num_triples, 0);
@@ -50,34 +54,38 @@ int main(int argc, char** argv) {
             b[2] = 2;
 
             Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 1, num_triples,
-                                               std::string(""), port, PARTY, threads,
-                                               Utils::PROTO::AB);
+                                                std::string(""), port, PARTY, threads,
+                                                Utils::PROTO::AB);
 
             if (!Utils::save_to_file("arith.triple", a.data(), b.data(), c.data(), num_triples)) {
                 Utils::log(Utils::Level::FAILED, "Failed to save triples");
             } else {
                 Utils::log(Utils::Level::PASSED, "Saved triples");
             }
+            std::memcpy(a_cp.data() + num_triples * i, a.data(), num_triples * sizeof(uint32_t));
+            std::memcpy(b_cp.data() + num_triples * i, b.data(), num_triples * sizeof(uint32_t));
+            std::memcpy(c_cp.data() + num_triples * i, c.data(), num_triples * sizeof(uint32_t));
+        }
 
-            std::vector<uint32_t> a_cp(num_triples);
-            std::vector<uint32_t> b_cp(num_triples);
-            std::vector<uint32_t> c_cp(num_triples);
+        for (size_t round = 0; round < 2; ++round) {
+            std::vector<uint32_t> a(num_triples);
+            std::vector<uint32_t> b(num_triples);
+            std::vector<uint32_t> c(num_triples);
+            if (Utils::read_from_file("arith.triple", a.data(), b.data(), c.data(), num_triples, true)) {
+                Utils::log(Utils::Level::PASSED, "Read triples");
 
-            bool passed = true;
-            if (!Utils::read_from_file("arith.triple", a_cp.data(), b_cp.data(), c_cp.data(),
-                                       num_triples)) {
-                Utils::log(Utils::Level::FAILED, "Failed to read triples");
-            } else {
+                bool passed = true;
                 for (int i = 0; i < num_triples; ++i) {
-                    if (a_cp[i] != a[i] || b_cp[i] != b[i] || c_cp[i] != c[i]) {
+                    if (a[i] != a_cp[i + round * num_triples] || b[i] != b_cp[i + round * num_triples] || c[i] != c_cp[i + round * num_triples]) {
                         passed = false;
                         break;
                     }
                 }
                 if (passed)
-                    Utils::log(Utils::Level::PASSED, "Numbers match");
+                    Utils::log(Utils::Level::PASSED, "Read CORRECT triples");
                 else
-                    Utils::log(Utils::Level::FAILED, "Read wrong numbers");
+                    Utils::log(Utils::Level::FAILED, "Triples mismatch");
+
             }
         }
     }
@@ -116,8 +124,8 @@ int main(int argc, char** argv) {
             .fw        = 7,
             .fh        = 7,
             .n_filters = 64,
-            .stride    = 3,
-            .padding   = 2,
+            .stride    = 2,
+            .padding   = 3,
         };
 
         auto meta   = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
