@@ -222,7 +222,7 @@ template <class T>
 bool save_to_file(const char* path, const T* a, const T* b, const T* c, const size_t& n);
 
 template <class T>
-bool read_from_file(const char* path, T* a, T* b, T* c, const size_t& n);
+bool read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, bool trunc = true);
 
 } // namespace Utils
 
@@ -323,7 +323,7 @@ void Utils::print_tensor(const gemini::Tensor<T>& t, const long& channel) {
 
 template <class T>
 bool Utils::save_to_file(const char* path, const T* a, const T* b, const T* c, const size_t& n) {
-    std::fstream file(path, std::ios_base::out | std::ios_base::binary);
+    std::fstream file(path, std::ios_base::out | std::ios_base::app | std::ios_base::binary);
 
     if (!file.is_open())
         return false;
@@ -333,25 +333,31 @@ bool Utils::save_to_file(const char* path, const T* a, const T* b, const T* c, c
     file.write((char*)c, n * sizeof(T));
 
     file.close();
-    return true;
+    return !file.fail();
 }
 
 template <class T>
-bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n) {
+bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, bool trunc) {
     std::ifstream file{path, std::ios_base::ate | std::ios_base::binary};
     if (!file.is_open()) {
         log(Level::FAILED, "Couldn't open: ", path);
         return false;
     }
 
-    std::cout << "SIZE: " << file.tellg() << "\n";
+    size_t size = file.tellg();
+    if (file.fail()) {
+        log(Level::ERROR, "Couln't read file size");
+    }
+
+    std::cout << "SIZE: " << size << "\n";
     std::cout << "n: " << n << "\n";
-    if (static_cast<long>(n * sizeof(T) * 3) > file.tellg()) {
+    if (n * sizeof(T) * 3 > size) {
         file.close();
+        log(Level::ERROR, "file too small");
         return false;
     }
 
-    file.seekg(0, std::ios::beg);
+    file.seekg(-(n * 3 * sizeof(T)), std::ios::end);
 
     file.read((char*)a, n * sizeof(T));
     file.read((char*)b, n * sizeof(T));
@@ -359,7 +365,19 @@ bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n) 
 
     file.close();
 
-    return true;
+    if (trunc) {
+        if (size == n * 3 * sizeof(T)) {
+            if (remove(path) != 0) {
+                std::perror("Truncation failed");
+            }
+        } else if (size > n * 3 * sizeof(T)) {
+            int res = truncate(path, size - (n * 3 * sizeof(T)));
+            if (res != 0)
+                std::perror("Truncation failed");
+        }
+    }
+
+    return !file.fail();
 }
 
 #endif // DEFS_HPP_

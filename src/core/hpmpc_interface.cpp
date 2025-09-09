@@ -286,11 +286,6 @@ void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const Con
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding);
 
-    if (parm.padding != 0
-        && meta.ishape.width()
-               != static_cast<long>(gemini::GetConv2DOutShape(meta).width() * parm.stride)) {
-        Utils::log(Utils::Level::DEBUG, "Unsupported Padding");
-    }
     static gemini::HomConv2DSS conv = [&ios, &party] {
         gemini::HomConv2DSS conv;
         seal::SEALContext ctx = Utils::init_he_context();
@@ -306,11 +301,11 @@ void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const Con
         return conv;
     }();
 
-    uint64_t* ai = new uint64_t[meta.ishape.num_elements()];
-    for (long i = 0; i < meta.ishape.num_elements(); ++i) ai[i] = a[i];
+    uint64_t* ai = new uint64_t[meta.ishape.num_elements() * batch];
+    for (long i = 0; i < meta.ishape.num_elements() * batch; ++i) ai[i] = a[i];
 
-    uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters];
-    for (size_t i = 0; i < meta.fshape.num_elements() * meta.n_filters; ++i) bi[i] = b[i];
+    uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters * batch];
+    for (size_t i = 0; i < meta.fshape.num_elements() * meta.n_filters * batch; ++i) bi[i] = b[i];
 
     for (int cur_batch = 0; cur_batch < batch; ++cur_batch) {
         Tensor<uint64_t> A

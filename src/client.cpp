@@ -19,10 +19,10 @@ int main(int argc, char** argv) {
         return EXEC_FAILED;
     }
 
-    size_t port                       = strtoul(argv[1], NULL, 10);
-    char* addr                        = argv[2];
-    [[maybe_unused]] size_t samples   = strtoul(argv[3], NULL, 10);
-    [[maybe_unused]] size_t batchSize = strtoul(argv[4], NULL, 10);
+    size_t port                     = strtoul(argv[1], NULL, 10);
+    char* addr                      = argv[2];
+    [[maybe_unused]] size_t samples = strtoul(argv[3], NULL, 10);
+    size_t batchSize                = strtoul(argv[4], NULL, 10);
     size_t threads;
     if (argc == 5)
         threads = N_THREADS;
@@ -66,23 +66,22 @@ int main(int argc, char** argv) {
 
     {
         int n       = 3;
-        int batch   = 2;
-        uint32_t* a = new uint32_t[n * batch];
-        uint32_t* b = new uint32_t[n * batch];
+        uint32_t* a = new uint32_t[n * batchSize];
+        uint32_t* b = new uint32_t[n * batchSize];
 
-        for (int j = 0; j < batch; ++j) {
+        for (size_t j = 0; j < batchSize; ++j) {
             for (int i = 0; i < n; ++i) {
-                a[i + n * j] = 1;
+                a[i + n * j] = 0;
                 b[i + n * j] = i + j;
             }
         }
 
-        uint32_t* c = new uint32_t[1 * batch];
+        uint32_t* c = new uint32_t[1 * batchSize];
 
-        Iface::generateFCTriplesCheetah(a, b, c, batch, n, PARTY, std::string(addr), port,
+        Iface::generateFCTriplesCheetah(a, b, c, batchSize, n, PARTY, std::string(addr), port,
                                         Utils::PROTO::AB);
 
-        for (int j = 0; j < batch; ++j) {
+        for (size_t j = 0; j < batchSize; ++j) {
             std::cout << j << " " << c[j] << "\n";
         }
 
@@ -93,42 +92,44 @@ int main(int argc, char** argv) {
 
     {
         Iface::ConvParm conv{
-            .ic        = 1,
-            .iw        = 7,
-            .ih        = 7,
-            .fc        = 1,
-            .fw        = 3,
-            .fh        = 3,
-            .n_filters = 1,
-            .stride    = 1,
-            .padding   = 0,
+            .ic        = 3,
+            .iw        = 224,
+            .ih        = 224,
+            .fc        = 3,
+            .fw        = 7,
+            .fh        = 7,
+            .n_filters = 64,
+            .stride    = 3,
+            .padding   = 2,
         };
 
         auto meta   = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
                                             conv.n_filters, conv.stride, conv.padding);
-        uint32_t* a = new uint32_t[meta.ishape.num_elements()];
-        memset(a, 0, meta.ishape.num_elements() * 4);
-        uint32_t* b = new uint32_t[meta.n_filters * meta.fshape.num_elements()];
-        memset(b, 0, meta.n_filters * meta.fshape.num_elements() * 4);
-        uint32_t* c = new uint32_t[gemini::GetConv2DOutShape(meta).num_elements()];
+        uint32_t* a = new uint32_t[meta.ishape.num_elements() * batchSize];
+        for (size_t i = 0; i < meta.ishape.num_elements() * batchSize; ++i) a[i] = i;
+        uint32_t* b = new uint32_t[meta.n_filters * meta.fshape.num_elements() * batchSize];
+        for (size_t i = 0; i < meta.n_filters; ++i)
+            for (size_t j = 0; j < meta.fshape.num_elements() * batchSize; ++j)
+                b[i * meta.fshape.num_elements() + j] = 3;
 
-        Iface::generateConvTriplesCheetah(a, b, c, conv, 1, std::string(addr), port, PARTY, threads,
-                                          Utils::PROTO::AB);
+        uint32_t* c = new uint32_t[gemini::GetConv2DOutShape(meta).num_elements() * batchSize];
+
+        Iface::generateConvTriplesCheetah(a, b, c, conv, batchSize, std::string(addr), port, PARTY,
+                                          threads, Utils::PROTO::AB);
 
         delete[] a;
         delete[] b;
         delete[] c;
     }
     {
-        int batch = 2;
         int rows = 2;
         int cols = 3;
-        std::vector<uint32_t> A(rows * cols * batch);
+        std::vector<uint32_t> A(rows * cols * batchSize);
         for (size_t i = 0; i < A.size(); ++i) A[i] = i;
-        std::vector<uint32_t> B(rows * batch, 1);
-        std::vector<uint32_t> C(rows * cols * batch);
+        std::vector<uint32_t> B(rows * batchSize, 1);
+        std::vector<uint32_t> C(rows * cols * batchSize);
 
-        Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), batch, rows, cols,
+        Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), batchSize, rows, cols,
                                         std::string(addr), port, PARTY, threads, Utils::PROTO::AB);
     }
     // HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, samples, true);

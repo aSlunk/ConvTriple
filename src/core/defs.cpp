@@ -68,6 +68,9 @@ gemini::HomConv2DSS::Meta Utils::init_meta_conv(const long& ic, const long& ih, 
                                                 const long& fc, const long& fh, const long& fw,
                                                 const size_t& n_filter, const size_t& stride,
                                                 const size_t& padding) {
+    if (ic != fc) {
+        Utils::log(Level::ERROR, "Filter Channel and Image Channel must match");
+    }
     gemini::HomConv2DSS::Meta meta;
 
     meta.ishape          = {ic, ih, iw};
