@@ -42,7 +42,7 @@ void generateFCTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch,
                               Utils::PROTO proto);
 
 
-void generateConvTriplesCheetahWrapper(uint32_t* a, uint32_t* b, uint32_t* c, Utils::ConvParm& parm,
+void generateConvTriplesCheetahWrapper(uint32_t* a, uint32_t* b, uint32_t* c, Utils::ConvParm parm,
                                        int batch, std::string ip, int port, int party, int threads,
                                        Utils::PROTO proto);
 

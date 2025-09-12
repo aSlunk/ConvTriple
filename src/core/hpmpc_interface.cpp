@@ -272,7 +272,7 @@ void generateFCTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch,
     delete[] bi;
 }
 
-void generateConvTriplesCheetahWrapper(uint32_t* a, uint32_t* b, uint32_t* c, Utils::ConvParm& parm,
+void generateConvTriplesCheetahWrapper(uint32_t* a, uint32_t* b, uint32_t* c, Utils::ConvParm parm,
                                        int batch, std::string ip, int port, int party, int threads,
                                        Utils::PROTO proto) {
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
@@ -281,18 +281,15 @@ void generateConvTriplesCheetahWrapper(uint32_t* a, uint32_t* b, uint32_t* c, Ut
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
         generateConvTriplesCheetah(a, b, c, meta, batch, ip, port, party, threads, proto);
     } else {
-        Utils::log(Utils::Level::DEBUG, "Adding padding manually to support any padding");
+        Utils::log(Utils::Level::DEBUG, "Adding padding manually");
 
         std::vector<uint32_t> ai;
         std::tuple<int, int> dim;
 
         for (int b = 0; b < batch; ++b) {
-            std::vector<uint32_t> aii(parm.ic * parm.ih * parm.iw);
-            for (size_t i = 0; i < aii.size(); ++i) {
-                aii[i] = a[i];
-            }
-            dim = Utils::pad_zero(aii, parm.ic, parm.ih, parm.iw, parm.padding);
-            ai.insert(ai.end(), aii.begin(), aii.end());
+            std::vector<uint32_t> tmp;
+            dim = Utils::pad_zero(a + meta.ishape.num_elements() * b, tmp, parm.ic, parm.ih, parm.iw, parm.padding);
+            ai.insert(ai.end(), tmp.begin(), tmp.end());
         }
 
         parm.ih      = std::get<0>(dim);

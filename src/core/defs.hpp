@@ -239,7 +239,7 @@ template <class T>
 bool read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, bool trunc = true);
 
 template <class T>
-std::tuple<int, int> pad_zero(std::vector<T>& vec, const int& channels, const int& height,
+std::tuple<int, int> pad_zero(T* src, std::vector<uint32_t>& dest, const int& channels, const int& height,
                               const int& width, const size_t& padding);
 
 gemini::TensorShape getOutDim(const ConvParm& parm);
@@ -414,23 +414,21 @@ bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, 
 }
 
 template <class T>
-std::tuple<int, int> Utils::pad_zero(std::vector<T>& vec, const int& channels, const int& height,
+std::tuple<int, int> Utils::pad_zero(T* src, std::vector<uint32_t>& dest, const int& channels, const int& height,
                                      const int& width, const size_t& padding) {
     size_t new_h   = height + padding * 2;
     size_t new_w   = width + padding * 2;
     size_t new_dim = new_h * new_w;
 
-    std::vector<T> old = vec;
-
-    vec.clear();
-    vec.resize(new_dim * channels, 0);
+    dest.clear();
+    dest.resize(new_dim * channels, 0);
 
     size_t old_dim = width * height;
     for (int c = 0; c < channels; ++c) {
         for (int h = 0; h < height; ++h) {
             for (int w = 0; w < width; ++w) {
-                vec[c * new_dim + padding * new_w + h * new_w + padding + w]
-                    = old[c * old_dim + h * width + w];
+                dest[c * new_dim + padding * new_w + h * new_w + padding + w]
+                    = src[c * old_dim + h * width + w];
             }
         }
     }
