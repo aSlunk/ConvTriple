@@ -224,6 +224,10 @@ bool save_to_file(const char* path, const T* a, const T* b, const T* c, const si
 template <class T>
 bool read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, bool trunc = true);
 
+template <class T>
+std::tuple<int, int> pad_zero(std::vector<T>& vec, const int& channels, const int& height,
+                              const int& width, const size_t& padding);
+
 } // namespace Utils
 
 template <class Meta>
@@ -391,6 +395,30 @@ bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, 
     }
 
     return !file.fail();
+}
+
+template <class T>
+std::tuple<int, int> Utils::pad_zero(std::vector<T>& vec, const int& channels, const int& height,
+                                     const int& width, const size_t& padding) {
+    size_t new_h   = height + padding * 2;
+    size_t new_w   = width + padding * 2;
+    size_t new_dim = new_h * new_w;
+
+    std::vector<T> old = vec;
+
+    vec.clear();
+    vec.resize(new_dim * channels, 0);
+
+    size_t old_dim = width * height;
+    for (int c = 0; c < channels; ++c) {
+        for (int h = 0; h < height; ++h) {
+            for (int w = 0; w < width; ++w) {
+                vec[c * new_dim + padding * new_w + h * new_w + padding + w]
+                    = old[c * old_dim + h * width + w];
+            }
+        }
+    }
+    return std::make_tuple(new_h, new_w);
 }
 
 #endif // DEFS_HPP_

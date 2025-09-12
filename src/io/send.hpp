@@ -43,8 +43,7 @@ Code send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec& send
  */
 template <class EncVec>
 Code send_recv2(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec& send,
-               vector<seal::Ciphertext>& recv, const size_t& threads = 1);
-
+                vector<seal::Ciphertext>& recv, const size_t& threads = 1);
 
 template <class Vec>
 Code recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const vector<Vec>& send,
@@ -56,12 +55,11 @@ Code recv_send(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, const Vec& 
 
 template <class Vec>
 Code recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const Vec& send,
-            vector<seal::Ciphertext>& recv, const size_t& threads = 1);
+               vector<seal::Ciphertext>& recv, const size_t& threads = 1);
 
 template <class Vec>
 Code recv_send2(const seal::SEALContext& ctx, IO::NetIO** ios, const Vec& send,
-               vector<seal::Ciphertext>& recv, const size_t& threads = 1);
-
+                vector<seal::Ciphertext>& recv, const size_t& threads = 1);
 
 template <class CtType>
 void send_ciphertext(IO::NetIO& io, const CtType& ct);
@@ -276,7 +274,7 @@ Code IO::send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec& 
 
 template <class EncVec>
 Code IO::send_recv2(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec& send,
-                   vector<seal::Ciphertext>& recv, const size_t& threads) {
+                    vector<seal::Ciphertext>& recv, const size_t& threads) {
     vector<std::tuple<std::stringstream, size_t>> is_th(threads);
 
     auto serialize = [&is_th, &send](long wid, size_t start, size_t end) -> Code {
@@ -292,7 +290,6 @@ Code IO::send_recv2(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec&
         for (size_t cur = start; cur < end; ++cur) {
             send.at(cur).save(ct);
         }
-
 
         return Code::OK;
     };
@@ -310,7 +307,7 @@ Code IO::send_recv2(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec&
         len = IO::recv_encrypted_vector(*ios[0], stream);
         total += len;
     }
-    
+
     if (total != send.size()) {
         Utils::log(Utils::Level::ERROR, "send_recv: Input lengths mismatch");
     }
@@ -416,7 +413,7 @@ Code IO::recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const Vec& sen
 
 template <class EncVec>
 Code IO::recv_send2(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec& send,
-               vector<seal::Ciphertext>& recv, const size_t& threads) {
+                    vector<seal::Ciphertext>& recv, const size_t& threads) {
     vector<std::tuple<std::stringstream, size_t>> is_th_r(threads);
     vector<std::tuple<std::stringstream, size_t>> is_th_s(threads);
 
@@ -433,7 +430,6 @@ Code IO::recv_send2(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec&
         for (size_t cur = start; cur < end; ++cur) {
             send.at(cur).save(ct);
         }
-
 
         return Code::OK;
     };
@@ -453,7 +449,6 @@ Code IO::recv_send2(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec&
 
     is_th_s.clear();
 
-    
     if (total != send.size()) {
         Utils::log(Utils::Level::ERROR, "send_recv: Input lengths mismatch");
     }

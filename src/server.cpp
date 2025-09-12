@@ -54,8 +54,8 @@ int main(int argc, char** argv) {
             b[2] = 2;
 
             Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 1, num_triples,
-                                                std::string(""), port, PARTY, threads,
-                                                Utils::PROTO::AB);
+                                               std::string(""), port, PARTY, threads,
+                                               Utils::PROTO::AB);
 
             if (!Utils::save_to_file("arith.triple", a.data(), b.data(), c.data(), num_triples)) {
                 Utils::log(Utils::Level::FAILED, "Failed to save triples");
@@ -71,12 +71,15 @@ int main(int argc, char** argv) {
             std::vector<uint32_t> a(num_triples);
             std::vector<uint32_t> b(num_triples);
             std::vector<uint32_t> c(num_triples);
-            if (Utils::read_from_file("arith.triple", a.data(), b.data(), c.data(), num_triples, true)) {
+            if (Utils::read_from_file("arith.triple", a.data(), b.data(), c.data(), num_triples,
+                                      true)) {
                 Utils::log(Utils::Level::PASSED, "Read triples");
 
                 bool passed = true;
                 for (int i = 0; i < num_triples; ++i) {
-                    if (a[i] != a_cp[i + round * num_triples] || b[i] != b_cp[i + round * num_triples] || c[i] != c_cp[i + round * num_triples]) {
+                    if (a[i] != a_cp[i + round * num_triples]
+                        || b[i] != b_cp[i + round * num_triples]
+                        || c[i] != c_cp[i + round * num_triples]) {
                         passed = false;
                         break;
                     }
@@ -85,7 +88,6 @@ int main(int argc, char** argv) {
                     Utils::log(Utils::Level::PASSED, "Read CORRECT triples");
                 else
                     Utils::log(Utils::Level::FAILED, "Triples mismatch");
-
             }
         }
     }
