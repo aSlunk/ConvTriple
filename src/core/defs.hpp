@@ -239,8 +239,9 @@ template <class T>
 bool read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, bool trunc = true);
 
 template <class T>
-std::tuple<int, int> pad_zero(T* src, std::vector<uint32_t>& dest, const int& channels, const int& height,
-                              const int& width, const size_t& padding);
+std::tuple<int, int> pad_zero(T* src, std::vector<uint32_t>& dest, const int& channels,
+                              const int& height, const int& width, const size_t& padding,
+                              const int& batchsize);
 
 gemini::TensorShape getOutDim(const ConvParm& parm);
 
@@ -414,21 +415,25 @@ bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, 
 }
 
 template <class T>
-std::tuple<int, int> Utils::pad_zero(T* src, std::vector<uint32_t>& dest, const int& channels, const int& height,
-                                     const int& width, const size_t& padding) {
+std::tuple<int, int> Utils::pad_zero(T* src, std::vector<uint32_t>& dest, const int& channels,
+                                     const int& height, const int& width, const size_t& padding,
+                                     const int& batchsize) {
     size_t new_h   = height + padding * 2;
     size_t new_w   = width + padding * 2;
     size_t new_dim = new_h * new_w;
 
     dest.clear();
-    dest.resize(new_dim * channels, 0);
+    dest.resize(new_dim * channels * batchsize, 0);
 
     size_t old_dim = width * height;
-    for (int c = 0; c < channels; ++c) {
-        for (int h = 0; h < height; ++h) {
-            for (int w = 0; w < width; ++w) {
-                dest[c * new_dim + padding * new_w + h * new_w + padding + w]
-                    = src[c * old_dim + h * width + w];
+    for (int b = 0; b < batchsize; ++b) {
+        for (int c = 0; c < channels; ++c) {
+            for (int h = 0; h < height; ++h) {
+                for (int w = 0; w < width; ++w) {
+                    dest[b * new_dim * channels + c * new_dim + padding * new_w + h * new_w
+                         + padding + w]
+                        = src[b * old_dim * channels + c * old_dim + h * width + w];
+                }
             }
         }
     }

@@ -286,25 +286,21 @@ void generateConvTriplesCheetahWrapper(uint32_t* a, uint32_t* b, uint32_t* c, Ut
         std::vector<uint32_t> ai;
         std::tuple<int, int> dim;
 
-        for (int b = 0; b < batch; ++b) {
-            std::vector<uint32_t> tmp;
-            dim = Utils::pad_zero(a + meta.ishape.num_elements() * b, tmp, parm.ic, parm.ih, parm.iw, parm.padding);
-            ai.insert(ai.end(), tmp.begin(), tmp.end());
-        }
+        dim = Utils::pad_zero(a, ai, parm.ic, parm.ih, parm.iw, parm.padding, batch);
 
         parm.ih      = std::get<0>(dim);
         parm.iw      = std::get<1>(dim);
         parm.padding = 0;
 
         meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
-                                      parm.n_filters, parm.stride, parm.padding);
+                                     parm.n_filters, parm.stride, parm.padding);
         generateConvTriplesCheetah(ai.data(), b, c, meta, batch, ip, port, party, threads, proto);
     }
 }
 
-void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const gemini::HomConv2DSS::Meta& meta,
-                                int batch, std::string ip, int port, int party, int threads,
-                                Utils::PROTO proto) {
+void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c,
+                                const gemini::HomConv2DSS::Meta& meta, int batch, std::string ip,
+                                int port, int party, int threads, Utils::PROTO proto) {
     const char* addr = ip.c_str();
 
     if (party == emp::ALICE) {

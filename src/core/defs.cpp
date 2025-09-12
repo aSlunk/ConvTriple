@@ -215,4 +215,3 @@ gemini::TensorShape Utils::getOutDim(const ConvParm& parm) {
     long h = ((parm.ih + 2 * parm.padding - parm.fh) / parm.stride) + 1;
     return {static_cast<long>(parm.n_filters), h, w};
 }
-

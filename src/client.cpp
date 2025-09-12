@@ -103,8 +103,8 @@ int main(int argc, char** argv) {
             .padding   = 2,
         };
 
-        auto meta   = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
-                                            conv.n_filters, conv.stride, conv.padding);
+        auto meta = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
+                                          conv.n_filters, conv.stride, conv.padding);
 
         uint32_t* a = new uint32_t[meta.ishape.num_elements() * batchSize];
         for (size_t i = 0; i < meta.ishape.num_elements() * batchSize; ++i) a[i] = i;
@@ -115,8 +115,8 @@ int main(int argc, char** argv) {
 
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(a, b, c, conv, batchSize, std::string(addr), port, PARTY,
-                                          threads, Utils::PROTO::AB);
+        Iface::generateConvTriplesCheetahWrapper(a, b, c, conv, batchSize, std::string(addr), port,
+                                                 PARTY, threads, Utils::PROTO::AB);
 
         delete[] a;
         delete[] b;
