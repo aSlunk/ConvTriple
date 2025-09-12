@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
     }
 
     {
-        Iface::ConvParm conv{
+        Utils::ConvParm conv{
             .ic        = 3,
             .iw        = 224,
             .ih        = 224,
@@ -100,11 +100,12 @@ int main(int argc, char** argv) {
             .fh        = 7,
             .n_filters = 64,
             .stride    = 2,
-            .padding   = 3,
+            .padding   = 2,
         };
 
         auto meta   = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
                                             conv.n_filters, conv.stride, conv.padding);
+
         uint32_t* a = new uint32_t[meta.ishape.num_elements() * batchSize];
         for (size_t i = 0; i < meta.ishape.num_elements() * batchSize; ++i) a[i] = i;
         uint32_t* b = new uint32_t[meta.n_filters * meta.fshape.num_elements() * batchSize];
@@ -112,9 +113,9 @@ int main(int argc, char** argv) {
             for (size_t j = 0; j < meta.fshape.num_elements() * batchSize; ++j)
                 b[i * meta.fshape.num_elements() + j] = 3;
 
-        uint32_t* c = new uint32_t[gemini::GetConv2DOutShape(meta).num_elements() * batchSize];
+        uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetah(a, b, c, conv, batchSize, std::string(addr), port, PARTY,
+        Iface::generateConvTriplesCheetahWrapper(a, b, c, conv, batchSize, std::string(addr), port, PARTY,
                                           threads, Utils::PROTO::AB);
 
         delete[] a;

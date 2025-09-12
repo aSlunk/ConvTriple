@@ -41,21 +41,12 @@ void generateFCTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch,
                               uint64_t num_triples, int party, std::string ip, int port,
                               Utils::PROTO proto);
 
-struct ConvParm {
-    size_t ic;
-    size_t iw;
-    size_t ih;
 
-    size_t fc;
-    size_t fw;
-    size_t fh;
-    size_t n_filters;
+void generateConvTriplesCheetahWrapper(uint32_t* a, uint32_t* b, uint32_t* c, Utils::ConvParm& parm,
+                                       int batch, std::string ip, int port, int party, int threads,
+                                       Utils::PROTO proto);
 
-    size_t stride;
-    size_t padding;
-};
-
-void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const ConvParm& parm,
+void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const gemini::HomConv2DSS::Meta& meta,
                                 int batch, std::string ip, int port, int party, int threads,
                                 Utils::PROTO proto);
 

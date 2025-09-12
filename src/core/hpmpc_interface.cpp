@@ -272,7 +272,40 @@ void generateFCTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch,
     delete[] bi;
 }
 
-void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const ConvParm& parm,
+void generateConvTriplesCheetahWrapper(uint32_t* a, uint32_t* b, uint32_t* c, Utils::ConvParm& parm,
+                                       int batch, std::string ip, int port, int party, int threads,
+                                       Utils::PROTO proto) {
+    auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                      parm.n_filters, parm.stride, parm.padding);
+
+    if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
+        generateConvTriplesCheetah(a, b, c, meta, batch, ip, port, party, threads, proto);
+    } else {
+        Utils::log(Utils::Level::DEBUG, "Adding padding manually to support any padding");
+
+        std::vector<uint32_t> ai;
+        std::tuple<int, int> dim;
+
+        for (int b = 0; b < batch; ++b) {
+            std::vector<uint32_t> aii(parm.ic * parm.ih * parm.iw);
+            for (size_t i = 0; i < aii.size(); ++i) {
+                aii[i] = a[i];
+            }
+            dim = Utils::pad_zero(aii, parm.ic, parm.ih, parm.iw, parm.padding);
+            ai.insert(ai.end(), aii.begin(), aii.end());
+        }
+
+        parm.ih      = std::get<0>(dim);
+        parm.iw      = std::get<1>(dim);
+        parm.padding = 0;
+
+        meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                      parm.n_filters, parm.stride, parm.padding);
+        generateConvTriplesCheetah(ai.data(), b, c, meta, batch, ip, port, party, threads, proto);
+    }
+}
+
+void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const gemini::HomConv2DSS::Meta& meta,
                                 int batch, std::string ip, int port, int party, int threads,
                                 Utils::PROTO proto) {
     const char* addr = ip.c_str();
@@ -282,9 +315,6 @@ void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, const Con
     }
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
-
-    auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
-                                      parm.n_filters, parm.stride, parm.padding);
 
     static gemini::HomConv2DSS conv = [&ios, &party] {
         gemini::HomConv2DSS conv;

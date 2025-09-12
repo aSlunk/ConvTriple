@@ -51,6 +51,20 @@ constexpr uint64_t moduloMidPt = MOD / 2;
 
 namespace Utils {
 
+struct ConvParm {
+    size_t ic;
+    size_t iw;
+    size_t ih;
+
+    size_t fc;
+    size_t fw;
+    size_t fh;
+    size_t n_filters;
+
+    size_t stride;
+    size_t padding;
+};
+
 enum class PROTO {
     AB,
     AB2,
@@ -227,6 +241,8 @@ bool read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, bool tr
 template <class T>
 std::tuple<int, int> pad_zero(std::vector<T>& vec, const int& channels, const int& height,
                               const int& width, const size_t& padding);
+
+gemini::TensorShape getOutDim(const ConvParm& parm);
 
 } // namespace Utils
 

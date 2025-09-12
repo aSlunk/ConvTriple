@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
     }
 
     {
-        Iface::ConvParm conv{
+        Utils::ConvParm conv{
             .ic        = 3,
             .iw        = 224,
             .ih        = 224,
@@ -127,8 +127,9 @@ int main(int argc, char** argv) {
             .fh        = 7,
             .n_filters = 64,
             .stride    = 2,
-            .padding   = 3,
+            .padding   = 2,
         };
+        Utils::log(Utils::Level::DEBUG, Utils::getOutDim(conv));
 
         auto meta   = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
                                             conv.n_filters, conv.stride, conv.padding);
@@ -136,9 +137,9 @@ int main(int argc, char** argv) {
         memset(a, 0, meta.ishape.num_elements() * sizeof(uint32_t) * batchSize);
         uint32_t* b = new uint32_t[meta.n_filters * meta.fshape.num_elements() * batchSize];
         memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t) * batchSize);
-        uint32_t* c = new uint32_t[gemini::GetConv2DOutShape(meta).num_elements() * batchSize];
+        uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetah(a, b, c, conv, batchSize, std::string(""), port, PARTY,
+        Iface::generateConvTriplesCheetahWrapper(a, b, c, conv, batchSize, std::string(""), port, PARTY,
                                           threads, Utils::PROTO::AB);
 
         delete[] a;
