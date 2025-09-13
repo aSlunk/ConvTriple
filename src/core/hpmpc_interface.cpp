@@ -138,7 +138,7 @@ void setupBn(IO::NetIO** ios, gemini::HomBNSS& bn, const seal::SEALContext& ctx,
         Utils::log(Utils::Level::ERROR, "P", std::to_string(party), ": ", CodeMessage(code));
 }
 
-void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
+void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],
                                  int bitlength [[maybe_unused]], uint64_t num_triples,
                                  std::string ip, int port, int party, int threads,
                                  Utils::PROTO proto) {
@@ -211,9 +211,9 @@ void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[],
     delete[] ios;
 }
 
-void generateFCTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch,
+void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
                               uint64_t num_triples, int party, std::string ip, int port,
-                              Utils::PROTO proto) {
+                              int threads, Utils::PROTO proto) {
     const char* addr = ip.c_str();
 
     if (party == emp::ALICE) {
@@ -255,11 +255,11 @@ void generateFCTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch,
 
     switch (party) {
     case emp::ALICE: {
-        Server::perform_proto(meta, ios, fc, A, B, C, 1ul, batch, proto);
+        Server::perform_proto(meta, ios, fc, A, B, C, threads, batch, proto);
         break;
     }
     case emp::BOB: {
-        Client::perform_proto(meta, ios, fc, A, B, C, 1ul, batch, proto);
+        Client::perform_proto(meta, ios, fc, A, B, C, threads, batch, proto);
         break;
     }
     }
@@ -272,16 +272,16 @@ void generateFCTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch,
     delete[] bi;
 }
 
-void generateConvTriplesCheetahWrapper(uint32_t* a, uint32_t* b, uint32_t* c, Utils::ConvParm parm,
-                                       int batch, std::string ip, int port, int party, int threads,
-                                       Utils::PROTO proto) {
+void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uint32_t* c,
+                                       Utils::ConvParm parm, int batch, std::string ip, int port,
+                                       int party, int threads, Utils::PROTO proto) {
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding);
 
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
         generateConvTriplesCheetah(a, b, c, meta, batch, ip, port, party, threads, proto);
     } else {
-        Utils::log(Utils::Level::DEBUG, "Adding padding manually");
+        Utils::log(Utils::Level::INFO, "Adding padding manually");
 
         std::vector<uint32_t> ai;
         std::tuple<int, int> dim;
@@ -298,7 +298,7 @@ void generateConvTriplesCheetahWrapper(uint32_t* a, uint32_t* b, uint32_t* c, Ut
     }
 }
 
-void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c,
+void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, std::string ip,
                                 int port, int party, int threads, Utils::PROTO proto) {
     const char* addr = ip.c_str();
@@ -360,9 +360,9 @@ void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c,
     delete[] bi;
 }
 
-void generateBNTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch, size_t num_ele,
-                              size_t num_scales, std::string ip, int port, int party, int threads,
-                              Utils::PROTO proto) {
+void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
+                              size_t num_ele, size_t num_scales, std::string ip, int port,
+                              int party, int threads, Utils::PROTO proto) {
     const char* addr = ip.c_str();
 
     if (party == emp::ALICE) {

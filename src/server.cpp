@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
         }
 
         Iface::generateFCTriplesCheetah(a, b, c, batchSize, n, PARTY, std::string(""), port,
-                                        Utils::PROTO::AB);
+                                        threads, Utils::PROTO::AB);
 
         for (size_t j = 0; j < batchSize; ++j) {
             std::cout << j << " " << c[j] << "\n";

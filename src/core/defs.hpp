@@ -239,7 +239,7 @@ template <class T>
 bool read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, bool trunc = true);
 
 template <class T>
-std::tuple<int, int> pad_zero(T* src, std::vector<uint32_t>& dest, const int& channels,
+std::tuple<int, int> pad_zero(const T* src, std::vector<uint32_t>& dest, const int& channels,
                               const int& height, const int& width, const size_t& padding,
                               const int& batchsize);
 
@@ -415,7 +415,7 @@ bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, 
 }
 
 template <class T>
-std::tuple<int, int> Utils::pad_zero(T* src, std::vector<uint32_t>& dest, const int& channels,
+std::tuple<int, int> Utils::pad_zero(const T* src, std::vector<uint32_t>& dest, const int& channels,
                                      const int& height, const int& width, const size_t& padding,
                                      const int& batchsize) {
     size_t new_h   = height + padding * 2;

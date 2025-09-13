@@ -33,25 +33,25 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[], int bitle
                                 uint64_t num_triples, std::string ip, int port, int party,
                                 int threads = 1);
 
-void generateArithTriplesCheetah(uint32_t a[], uint32_t b[], uint32_t c[], int bitlength,
-                                 uint64_t num_triples, std::string ip, int port, int party,
-                                 int threads = 1, Utils::PROTO proto = Utils::PROTO::AB);
+void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],
+                                 int bitlength, uint64_t num_triples, std::string ip, int port,
+                                 int party, int threads = 1, Utils::PROTO proto = Utils::PROTO::AB);
 
-void generateFCTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch,
+void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
                               uint64_t num_triples, int party, std::string ip, int port,
-                              Utils::PROTO proto);
+                              int threads, Utils::PROTO proto);
 
-void generateConvTriplesCheetahWrapper(uint32_t* a, uint32_t* b, uint32_t* c, Utils::ConvParm parm,
-                                       int batch, std::string ip, int port, int party, int threads,
-                                       Utils::PROTO proto);
+void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uint32_t* c,
+                                       Utils::ConvParm parm, int batch, std::string ip, int port,
+                                       int party, int threads, Utils::PROTO proto);
 
-void generateConvTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c,
+void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, std::string ip,
                                 int port, int party, int threads, Utils::PROTO proto);
 
-void generateBNTriplesCheetah(uint32_t* a, uint32_t* b, uint32_t* c, int batch, size_t num_ele,
-                              size_t num_scales, std::string ip, int port, int party, int threads,
-                              Utils::PROTO proto);
+void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
+                              size_t num_ele, size_t num_scales, std::string ip, int port,
+                              int party, int threads, Utils::PROTO proto);
 // void tmp(int party);
 
 } // namespace Iface

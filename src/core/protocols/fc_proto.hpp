@@ -81,7 +81,7 @@ template <class Channel>
 Result Client::Protocol2(Channel** client, const HomFCSS& hom_fc, const HomFCSS::Meta& meta,
                          const vector<Tensor<uint64_t>>& A2, const vector<Tensor<uint64_t>>& B2,
                          vector<Tensor<uint64_t>>& C2, const size_t& threads, const size_t& batch) {
-    size_t in_para            = batch > 1 ? threads : 1;
+    size_t in_para            = 1;
     size_t threads_per_thread = threads / in_para;
 
     auto prog = [&](long wid, size_t first, size_t end) {
@@ -117,8 +117,7 @@ Result Client::Protocol2(Channel** client, const HomFCSS& hom_fc, const HomFCSS:
 
         vector<vector<seal::Ciphertext>> enc_A1(ele);
         for (size_t i = 0; i < ele; ++i)
-            IO::recv_encrypted_vector(client + wid, hom_fc.getContext(), enc_A1[i],
-                                      threads_per_thread);
+            IO::recv_encrypted_vector(client + wid, hom_fc.getContext(), enc_A1[i], 1);
 
         measures.send_recv += Utils::time_diff(start);
         ////////////////////////////////////////////////////////////////////////////
@@ -140,8 +139,7 @@ Result Client::Protocol2(Channel** client, const HomFCSS& hom_fc, const HomFCSS:
         ////////////////////////////////////////////////////////////////////////////
         start = measure::now();
 
-        for (size_t i = 0; i < ele; ++i)
-            IO::send_encrypted_vector(client + wid, M2[i], threads_per_thread);
+        for (size_t i = 0; i < ele; ++i) IO::send_encrypted_vector(client + wid, M2[i], 1);
 
         measures.send_recv += Utils::time_diff(start);
         return Code::OK;
@@ -151,7 +149,7 @@ Result Client::Protocol2(Channel** client, const HomFCSS& hom_fc, const HomFCSS:
     gemini::LaunchWorks(tpool, batch, prog);
 
     Result final;
-    for (size_t i = 0; i < threads; ++i) final.bytes += client[i]->counter;
+    for (size_t i = 0; i < 1; ++i) final.bytes += client[i]->counter;
     return final;
 }
 
@@ -159,7 +157,7 @@ template <class Channel>
 Result Client::Protocol1(Channel** client, const HomFCSS& fc, const HomFCSS::Meta& meta,
                          const vector<Tensor<uint64_t>>& A2, const vector<Tensor<uint64_t>>& B2,
                          vector<Tensor<uint64_t>>& C2, const size_t& threads, const size_t& batch) {
-    size_t in_para            = batch > 1 ? threads : 1;
+    size_t in_para            = 1;
     size_t threads_per_thread = threads / in_para;
     gemini::ThreadPool tpool(in_para);
     Result fin_measures;
@@ -243,7 +241,7 @@ Result Client::Protocol1(Channel** client, const HomFCSS& fc, const HomFCSS::Met
     };
 
     fin_measures.ret = gemini::LaunchWorks(tpool, batch, prog);
-    for (size_t i = 0; i < threads; ++i) fin_measures.bytes += client[i]->counter;
+    for (size_t i = 0; i < 1; ++i) fin_measures.bytes += client[i]->counter;
 
     return fin_measures;
 }
@@ -252,7 +250,7 @@ template <class Channel>
 Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server, const HomFCSS& fc,
                          const vector<Tensor<uint64_t>>& A1, vector<Tensor<uint64_t>>& C1,
                          const size_t& threads, const size_t& batch) {
-    size_t in_para            = batch > 1 ? threads : 1;
+    size_t in_para            = 1;
     size_t threads_per_thread = threads / in_para;
 
     auto prog = [&](long wid, size_t first, size_t end) {
@@ -277,8 +275,7 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server, const HomF
 
         start = measure::now();
 
-        for (size_t i = 0; i < ele; ++i)
-            IO::send_encrypted_vector(server + wid, enc_A1[i], threads_per_thread);
+        for (size_t i = 0; i < ele; ++i) IO::send_encrypted_vector(server + wid, enc_A1[i], 1);
 
         measures.send_recv = Utils::time_diff(start);
         ////////////////////////////////////////////////////////////////////////////
@@ -288,7 +285,7 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server, const HomF
 
         vector<vector<seal::Ciphertext>> enc_C1(ele);
         for (size_t i = 0; i < ele; ++i)
-            IO::recv_encrypted_vector(server + wid, fc.getContext(), enc_C1[i], threads_per_thread);
+            IO::recv_encrypted_vector(server + wid, fc.getContext(), enc_C1[i], 1);
 
         measures.send_recv += Utils::time_diff(start);
         start = measure::now();
@@ -303,7 +300,7 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server, const HomF
     gemini::LaunchWorks(tpool, batch, prog);
 
     Result final;
-    for (size_t i = 0; i < threads; ++i) final.bytes += server[i]->counter;
+    for (size_t i = 0; i < 1; ++i) final.bytes += server[i]->counter;
     return final;
 }
 
@@ -311,7 +308,7 @@ template <class Channel>
 Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server, const HomFCSS& fc,
                          const vector<Tensor<uint64_t>>& A1, const vector<Tensor<uint64_t>>& B1,
                          vector<Tensor<uint64_t>>& C1, const size_t& threads, const size_t& batch) {
-    size_t in_para            = batch > 1 ? threads : 1;
+    size_t in_para            = 1;
     size_t threads_per_thread = threads / in_para;
     gemini::ThreadPool tpool(in_para);
     auto prog = [&](long wid, size_t first, size_t end) {
@@ -398,7 +395,7 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server, const HomF
     Result final;
     final.ret = gemini::LaunchWorks(tpool, batch, prog);
 
-    for (size_t i = 0; i < threads; ++i) final.bytes += server[i]->counter;
+    for (size_t i = 0; i < 1; ++i) final.bytes += server[i]->counter;
     return final;
 }
 
@@ -419,8 +416,6 @@ Result Server::perform_proto(const HomFCSS::Meta& meta, Channel** server, const 
         measures = Server::Protocol2(meta, server, fc, A1, C1, threads, batch);
         break;
     }
-
-    for (size_t i = 0; i < threads; ++i) server[i]->counter = 0;
 
 #ifdef VERIFY
     for (size_t i = 0; i < batch; ++i) {
@@ -460,8 +455,6 @@ Result Client::perform_proto(const HomFCSS::Meta& meta, Channel** client, const 
         measures = Client::Protocol2(client, fc, meta, A2, B2, C2, threads, batch);
         break;
     }
-
-    for (size_t i = 0; i < threads; ++i) client[i]->counter = 0;
 
 #ifdef VERIFY
     for (size_t i = 0; i < batch; ++i) {

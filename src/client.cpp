@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
         uint32_t* c = new uint32_t[1 * batchSize];
 
         Iface::generateFCTriplesCheetah(a, b, c, batchSize, n, PARTY, std::string(addr), port,
-                                        Utils::PROTO::AB);
+                                        threads, Utils::PROTO::AB);
 
         for (size_t j = 0; j < batchSize; ++j) {
             std::cout << j << " " << c[j] << "\n";

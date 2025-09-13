@@ -2,10 +2,12 @@
 
 void IO::send_encrypted_vector(IO::NetIO& io, std::stringstream& ct, const uint32_t& ncts) {
     io.send_data(&ncts, sizeof(uint32_t));
-    uint64_t ct_size = ct.tellp();
-    string ct_ser    = ct.str();
-    io.send_data(&ct_size, sizeof(uint64_t));
-    io.send_data(ct_ser.c_str(), ct_ser.size());
+    if (ncts > 0) {
+        uint64_t ct_size = ct.tellp();
+        string ct_ser    = ct.str();
+        io.send_data(&ct_size, sizeof(uint64_t));
+        io.send_data(ct_ser.c_str(), ct_ser.size());
+    }
     io.flush();
 }
 
