@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
             .fh        = 7,
             .n_filters = 64,
             .stride    = 2,
-            .padding   = 2,
+            .padding   = 3,
         };
 
         auto meta = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
     }
     {
         int rows = 2;
-        int cols = 3;
+        int cols = 4;
         std::vector<uint32_t> A(rows * cols * batchSize);
         for (size_t i = 0; i < A.size(); ++i) A[i] = i;
         std::vector<uint32_t> B(rows * batchSize, 1);

@@ -43,10 +43,6 @@ gemini::HomBNSS::Meta Utils::init_meta_bn(const long& rows, const long& cols) {
         tmp_h = cols / tmp_w;
     }
 
-#ifndef NDEBUG
-    log(Level::DEBUG, tmp_h, " x ", tmp_w, " = ", cols);
-#endif
-
     meta.ishape          = {rows, tmp_h, tmp_w};
     meta.vec_shape       = {rows};
     meta.target_base_mod = PLAIN_MOD;

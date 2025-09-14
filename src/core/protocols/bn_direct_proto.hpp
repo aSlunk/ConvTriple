@@ -143,7 +143,7 @@ Result Client::Protocol1(Channel** client, const gemini::HomBNSS& bn,
     start               = measure::now();
 
     std::vector<seal::Ciphertext> enc_A1;
-    measures.ret = IO::recv_send(bn.getContext(), client, enc_A2, enc_A1, 1);
+    measures.ret = IO::recv_send2(bn.getContext(), client, enc_A2, enc_A1, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -166,7 +166,7 @@ Result Client::Protocol1(Channel** client, const gemini::HomBNSS& bn,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M1;
-    measures.ret = IO::recv_send(bn.getContext(), client, enc_M2, enc_M1, 1);
+    measures.ret = IO::recv_send2(bn.getContext(), client, enc_M2, enc_M1, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -257,7 +257,7 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_A2;
-    IO::send_recv(bn.getContext(), server, enc_A1, enc_A2, 1);
+    IO::send_recv2(bn.getContext(), server, enc_A1, enc_A2, threads);
 
     measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -279,7 +279,7 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M2;
-    IO::send_recv(bn.getContext(), server, M1, enc_M2, 1);
+    IO::send_recv2(bn.getContext(), server, M1, enc_M2, threads);
 
     measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////

@@ -304,7 +304,6 @@ Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M2;
-    // IO::send_recv(context, server, M1, enc_M2, threads);
     bn.sendEncryptVector(server[0], M1, meta);
     bn.recvEncryptVector(server[0], enc_M2, meta);
 

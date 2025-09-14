@@ -127,9 +127,8 @@ int main(int argc, char** argv) {
             .fh        = 7,
             .n_filters = 64,
             .stride    = 2,
-            .padding   = 2,
+            .padding   = 3,
         };
-        Utils::log(Utils::Level::DEBUG, Utils::getOutDim(conv));
 
         auto meta   = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
                                             conv.n_filters, conv.stride, conv.padding);
@@ -148,7 +147,7 @@ int main(int argc, char** argv) {
     }
     {
         int rows = 2;
-        int cols = 3;
+        int cols = 4;
 
         std::vector<uint32_t> A(rows * cols * batchSize, 3);
         std::vector<uint32_t> B(rows * batchSize, 1);
