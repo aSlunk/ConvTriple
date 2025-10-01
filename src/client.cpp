@@ -66,23 +66,27 @@ int main(int argc, char** argv) {
 
     {
         int n       = 3;
+        int out = 2;
         uint32_t* a = new uint32_t[n * batchSize];
-        uint32_t* b = new uint32_t[n * batchSize];
+        uint32_t* b = new uint32_t[n * batchSize * out];
 
         for (size_t j = 0; j < batchSize; ++j) {
-            for (int i = 0; i < n; ++i) {
-                a[i + n * j] = 0;
-                b[i + n * j] = i + j;
+            for (int i = 0; i < n * out; ++i) {
+                a[i % n + n * j] = 0;
+                b[i + n * out * j] = i + j;
+                std::cout << b[i + n * out * j] << "\n";
             }
         }
 
-        uint32_t* c = new uint32_t[1 * batchSize];
+        uint32_t* c = new uint32_t[out * batchSize];
 
-        Iface::generateFCTriplesCheetah(a, b, c, batchSize, n, PARTY, std::string(addr), port,
-                                        threads, Utils::PROTO::AB);
+        Iface::generateFCTriplesCheetah(a, b, c, batchSize, n, out, PARTY, std::string(addr), port,
+                                        threads, Utils::PROTO::AB2);
 
-        for (size_t j = 0; j < batchSize; ++j) {
-            std::cout << j << " " << c[j] << "\n";
+        for (size_t i = 0; i < batchSize; ++i) {
+            for (int j = 0; j < out; ++j) {
+                std::cout << "P" << PARTY << ": " << j << " " << c[i * out + j] << "\n";
+            }
         }
 
         delete[] a;

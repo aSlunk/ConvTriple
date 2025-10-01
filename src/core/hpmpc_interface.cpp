@@ -212,7 +212,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
 }
 
 void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
-                              uint64_t num_triples, int party, std::string ip, int port,
+                              uint64_t com_dim, uint64_t dim2, int party, std::string ip, int port,
                               int threads, Utils::PROTO proto) {
     const char* addr = ip.c_str();
 
@@ -222,7 +222,7 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
 
-    auto meta                 = Utils::init_meta_fc(num_triples, 1);
+    auto meta                 = Utils::init_meta_fc(com_dim, dim2);
     static gemini::HomFCSS fc = [&ios, &party] {
         gemini::HomFCSS fc;
         seal::SEALContext ctx = Utils::init_he_context();
@@ -245,7 +245,8 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
         A[i] = Tensor<uint64_t>::Wrap(ai + meta.input_shape.num_elements() * i, meta.input_shape);
 
     uint64_t* bi = new uint64_t[meta.weight_shape.num_elements() * batch];
-    for (uint i = 0; i < meta.weight_shape.num_elements() * batch; ++i) bi[i] = b[i];
+    if (party == emp::BOB || proto == Utils::PROTO::AB)
+        for (uint i = 0; i < meta.weight_shape.num_elements() * batch; ++i) bi[i] = b[i];
 
     std::vector<Tensor<uint64_t>> B(batch);
     for (size_t i = 0; i < B.size(); ++i)
@@ -265,8 +266,9 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
     }
 
     for (size_t i = 0; i < C.size(); ++i)
-        for (long j = 0; j < C[i].NumElements(); ++j)
-            c[i * C[i].NumElements() + j] = C[i].data()[j];
+        for (size_t j = 0; j < dim2; ++j) {
+            c[i * dim2 + j] = C[i](j);
+        }
 
     delete[] ai;
     delete[] bi;
@@ -328,7 +330,8 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
     for (long i = 0; i < meta.ishape.num_elements() * batch; ++i) ai[i] = a[i];
 
     uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters * batch];
-    for (size_t i = 0; i < meta.fshape.num_elements() * meta.n_filters * batch; ++i) bi[i] = b[i];
+    if (party == emp::BOB || proto == Utils::PROTO::AB)
+        for (size_t i = 0; i < meta.fshape.num_elements() * meta.n_filters * batch; ++i) bi[i] = b[i];
 
     for (int cur_batch = 0; cur_batch < batch; ++cur_batch) {
         Tensor<uint64_t> A
