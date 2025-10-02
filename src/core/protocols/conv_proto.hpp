@@ -423,7 +423,7 @@ void Server::Verify_Conv(IO::NetIO& io, const gemini::HomConv2DSS::Meta& meta,
                proto == Utils::PROTO::AB ? "AB" : "AB2");
     Utils::log(Utils::Level::DEBUG, A1.shape(), " x ", meta.fshape, " = ", C1.shape());
 
-    Tensor<T> A2(A1.shape());
+    Tensor<T> A2(meta.ishape);
     std::vector<Tensor<T>> B2(meta.n_filters, Tensor<T>(meta.fshape));
     Tensor<T> C2(C1.shape());
 

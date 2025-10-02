@@ -95,15 +95,15 @@ int main(int argc, char** argv) {
 
     {
         Utils::ConvParm conv{
-            .ic        = 3,
-            .iw        = 224,
-            .ih        = 224,
-            .fc        = 3,
-            .fw        = 7,
-            .fh        = 7,
-            .n_filters = 64,
-            .stride    = 2,
-            .padding   = 3,
+            .ic        = 1,
+            .iw        = 2,
+            .ih        = 2,
+            .fc        = 1,
+            .fw        = 3,
+            .fh        = 3,
+            .n_filters = 1,
+            .stride    = 1,
+            .padding   = 1,
         };
 
         auto meta = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
 
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(a, b, c, conv, batchSize, std::string(addr), port,
+        Iface::generateConvTriplesCheetahWrapper(a, nullptr, c, conv, batchSize, std::string(addr), port,
                                                  PARTY, threads, Utils::PROTO::AB);
 
         delete[] a;

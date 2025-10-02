@@ -281,6 +281,7 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding);
 
+    std::cout << Utils::getOutDim(parm) << "\n";
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
         generateConvTriplesCheetah(a, b, c, meta, batch, ip, port, party, threads, proto);
     } else {
@@ -328,11 +329,11 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
     }();
 
     uint64_t* ai = new uint64_t[meta.ishape.num_elements() * batch];
-    for (long i = 0; i < meta.ishape.num_elements() * batch; ++i) ai[i] = a[i];
+    for (long i = 0; i < meta.ishape.num_elements() * batch; ++i) ai[i] = a != nullptr ? a[i] : 0;
 
-    uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters * batch];
-    if (party == emp::BOB || proto == Utils::PROTO::AB)
-        for (size_t i = 0; i < meta.fshape.num_elements() * meta.n_filters * batch; ++i) bi[i] = b[i];
+    uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters];
+    if (b)
+        for (size_t i = 0; i < meta.fshape.num_elements() * meta.n_filters; ++i) bi[i] = b[i];
 
     for (int cur_batch = 0; cur_batch < batch; ++cur_batch) {
         Tensor<uint64_t> A
@@ -341,19 +342,18 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
         std::vector<Tensor<uint64_t>> B(meta.n_filters);
         for (size_t i = 0; i < meta.n_filters; ++i)
             B[i] = Tensor<uint64_t>::Wrap(
-                bi + meta.fshape.num_elements() * meta.n_filters * cur_batch
-                    + meta.fshape.num_elements() * i,
+                bi + meta.fshape.num_elements() * i,
                 meta.fshape);
 
-        Tensor<uint64_t> C(gemini::GetConv2DOutShape(meta));
+        Tensor<uint64_t> C;
 
         switch (party) {
         case emp::ALICE: {
-            Server::perform_proto(meta, ios, conv, A, B, C, threads, proto);
+            Client::perform_proto(meta, ios, conv, A, B, C, threads, proto);
             break;
         }
         case emp::BOB: {
-            Client::perform_proto(meta, ios, conv, A, B, C, threads, proto);
+            Server::perform_proto(meta, ios, conv, A, B, C, threads, proto);
             break;
         }
         }
@@ -388,22 +388,22 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
         for (long i = 0; i < A.channels(); i++)
             for (long j = 0; j < A.height(); j++)
                 for (long k = 0; k < A.width(); k++)
-                    A(i, j, k) = a[meta.ishape.num_elements() * cur_batch
-                                   + i * A.height() * A.width() + j * A.width() + k];
+                    A(i, j, k) = a != nullptr ? a[meta.ishape.num_elements() * cur_batch
+                                   + i * A.height() * A.width() + j * A.width() + k] : 0;
 
         Tensor<uint64_t> B(meta.vec_shape);
         for (long i = 0; i < B.NumElements(); i++)
-            B(i) = b[meta.vec_shape.num_elements() * cur_batch + i];
+            B(i) = b != nullptr ? b[i] : 0;
 
         Tensor<uint64_t> C;
 
         switch (party) {
         case emp::ALICE: {
-            Server::perform_proto(meta, ios, bn, A, B, C, threads, proto);
+            Client::perform_proto(meta, ios, bn, A, B, C, threads, proto);
             break;
         }
         case emp::BOB: {
-            Client::perform_proto(meta, ios, bn, A, B, C, threads, proto);
+            Server::perform_proto(meta, ios, bn, A, B, C, threads, proto);
             break;
         }
         }

@@ -280,8 +280,8 @@ class Tensor {
         ENSURE_OR_RETURN(dims() == 3 && filter.dims() == 3, Code::ERR_INVALID_ARG);
         ENSURE_OR_RETURN(stride > 0, Code::ERR_INVALID_ARG);
         ENSURE_OR_RETURN(dim_size(0) == filter.dim_size(0), Code::ERR_DIM_MISMATCH);
-        ENSURE_OR_RETURN(dim_size(1) >= filter.dim_size(1), Code::ERR_DIM_MISMATCH);
-        ENSURE_OR_RETURN(dim_size(2) >= filter.dim_size(2), Code::ERR_DIM_MISMATCH);
+        // ENSURE_OR_RETURN(dim_size(1) >= filter.dim_size(1), Code::ERR_DIM_MISMATCH);
+        // ENSURE_OR_RETURN(dim_size(2) >= filter.dim_size(2), Code::ERR_DIM_MISMATCH);
 
         TensorShape oshape;
         const TensorShape fshape = filter.shape();
