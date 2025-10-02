@@ -162,7 +162,8 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     Tensor<uint64_t> B({static_cast<long>(num_triples)});
 
     for (uint64_t i = 0; i < num_triples; ++i) {
-        A(i) = static_cast<uint64_t>(a[i]);
+        if (a)
+            A(i) = static_cast<uint64_t>(a[i]);
         if (b)
             B(i) = static_cast<uint64_t>(b[i]);
     }
@@ -170,7 +171,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     auto start = measure::now();
 
     gemini::HomBNSS::Meta meta;
-    meta.is_shared_input = true;
+    meta.is_shared_input = proto == Utils::PROTO::AB;
     meta.target_base_mod = PLAIN_MOD;
 
     for (size_t total = 0; total < num_triples;) {
@@ -223,6 +224,7 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
 
     auto meta                 = Utils::init_meta_fc(com_dim, dim2);
+    // meta.is_shared_input = proto == Utils::PROTO::AB;
     static gemini::HomFCSS fc = [&ios, &party] {
         gemini::HomFCSS fc;
         seal::SEALContext ctx = Utils::init_he_context();
@@ -239,28 +241,27 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
     }();
 
     uint64_t* ai = new uint64_t[meta.input_shape.num_elements() * batch];
-    for (uint i = 0; i < meta.input_shape.num_elements() * batch; ++i) ai[i] = a[i];
+    for (uint i = 0; i < meta.input_shape.num_elements() * batch; ++i) ai[i] = a != nullptr ? a[i] : 0;
     std::vector<Tensor<uint64_t>> A(batch);
     for (size_t i = 0; i < A.size(); ++i)
         A[i] = Tensor<uint64_t>::Wrap(ai + meta.input_shape.num_elements() * i, meta.input_shape);
 
-    uint64_t* bi = new uint64_t[meta.weight_shape.num_elements() * batch];
-    if (party == emp::BOB || proto == Utils::PROTO::AB)
-        for (uint i = 0; i < meta.weight_shape.num_elements() * batch; ++i) bi[i] = b[i];
+    uint64_t* bi = new uint64_t[meta.weight_shape.num_elements()];
+    for (uint i = 0; i < meta.weight_shape.num_elements(); ++i) bi[i] = b == nullptr ? 0 : b[i];
 
     std::vector<Tensor<uint64_t>> B(batch);
     for (size_t i = 0; i < B.size(); ++i)
-        B[i] = Tensor<uint64_t>::Wrap(bi + meta.weight_shape.num_elements() * i, meta.weight_shape);
+        B[i] = Tensor<uint64_t>::Wrap(bi, meta.weight_shape);
 
     std::vector<Tensor<uint64_t>> C(batch);
 
     switch (party) {
     case emp::ALICE: {
-        Server::perform_proto(meta, ios, fc, A, B, C, threads, batch, proto);
+        Client::perform_proto(meta, ios, fc, A, B, C, threads, batch, proto);
         break;
     }
     case emp::BOB: {
-        Client::perform_proto(meta, ios, fc, A, B, C, threads, batch, proto);
+        Server::perform_proto(meta, ios, fc, A, B, C, threads, batch, proto);
         break;
     }
     }

@@ -101,12 +101,12 @@ int main(int argc, char** argv) {
 
         for (size_t j = 0; j < batchSize; ++j) {
             for (int i = 0; i < n * out; ++i) {
-                a[i % n + n * j] = 1;
-                b[i + n * out * j] = 0;
+                a[i % n + n * j] = 0;
+                b[i + n * out * j] = i + j;
             }
         }
 
-        Iface::generateFCTriplesCheetah(a, b, c, batchSize, n, out, PARTY, std::string(""), port,
+        Iface::generateFCTriplesCheetah(nullptr, b, c, batchSize, n, out, PARTY, std::string(""), port,
                                         threads, Utils::PROTO::AB2);
 
         for (size_t i = 0; i < batchSize; ++i) {

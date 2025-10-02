@@ -245,6 +245,15 @@ std::tuple<int, int> pad_zero(const T* src, std::vector<uint32_t>& dest, const i
 
 gemini::TensorShape getOutDim(const ConvParm& parm);
 
+template <class T>
+void transpose(T* mat, uint64_t* mat_t, int h, int w) {
+    for (int i = 0; i < h; ++i) {
+        for (int j = 0; j < w; ++j) {
+            mat_t[j * h + i] = mat[i * w + j];
+        }
+    }
+}
+
 } // namespace Utils
 
 template <class Meta>

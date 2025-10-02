@@ -72,15 +72,14 @@ int main(int argc, char** argv) {
 
         for (size_t j = 0; j < batchSize; ++j) {
             for (int i = 0; i < n * out; ++i) {
-                a[i % n + n * j] = 0;
-                b[i + n * out * j] = i + j;
-                std::cout << b[i + n * out * j] << "\n";
+                a[i % n + n * j] = 1;
+                b[i + n * out * j] = 0;
             }
         }
 
         uint32_t* c = new uint32_t[out * batchSize];
 
-        Iface::generateFCTriplesCheetah(a, b, c, batchSize, n, out, PARTY, std::string(addr), port,
+        Iface::generateFCTriplesCheetah(a, nullptr, c, batchSize, n, out, PARTY, std::string(addr), port,
                                         threads, Utils::PROTO::AB2);
 
         for (size_t i = 0; i < batchSize; ++i) {
