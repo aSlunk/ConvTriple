@@ -214,7 +214,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
 
 void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
                               uint64_t com_dim, uint64_t dim2, int party, std::string ip, int port,
-                              int threads, Utils::PROTO proto) {
+                              int threads, Utils::PROTO proto, int factor) {
     const char* addr = ip.c_str();
 
     if (party == emp::ALICE) {
@@ -246,12 +246,14 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
     for (size_t i = 0; i < A.size(); ++i)
         A[i] = Tensor<uint64_t>::Wrap(ai + meta.input_shape.num_elements() * i, meta.input_shape);
 
-    uint64_t* bi = new uint64_t[meta.weight_shape.num_elements()];
-    for (uint i = 0; i < meta.weight_shape.num_elements(); ++i) bi[i] = b == nullptr ? 0 : b[i];
+    uint64_t* bi = new uint64_t[meta.weight_shape.num_elements() * factor];
+    for (uint i = 0; i < meta.weight_shape.num_elements() * factor; ++i) bi[i] = b == nullptr ? 0 : b[i];
 
+    size_t tmp = batch / factor;
     std::vector<Tensor<uint64_t>> B(batch);
-    for (size_t i = 0; i < B.size(); ++i)
-        B[i] = Tensor<uint64_t>::Wrap(bi, meta.weight_shape);
+    for (int i = 0; i < factor; ++i)
+        for (size_t j = 0; j < tmp; ++j)
+            B[i * tmp + j] = Tensor<uint64_t>::Wrap(bi + meta.weight_shape.num_elements() * (i % factor), meta.weight_shape);
 
     std::vector<Tensor<uint64_t>> C(batch);
 
@@ -281,6 +283,7 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding);
 
+    meta.is_shared_input = proto == Utils::PROTO::AB;
     std::cout << Utils::getOutDim(parm) << "\n";
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
         generateConvTriplesCheetah(a, b, c, meta, batch, ip, port, party, threads, proto);
@@ -376,6 +379,7 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
 
     auto meta                 = Utils::init_meta_bn(num_ele, num_scales);
+    meta.is_shared_input = proto == Utils::PROTO::AB;
     static gemini::HomBNSS bn = [&ios, &party] {
         gemini::HomBNSS bn;
         seal::SEALContext ctx = Utils::init_he_context();
