@@ -43,15 +43,15 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
 
 void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uint32_t* c,
                                        Utils::ConvParm parm, int batch, std::string ip, int port,
-                                       int party, int threads, Utils::PROTO proto);
+                                       int party, int threads, Utils::PROTO proto, int factor = 1);
 
 void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, std::string ip,
-                                int port, int party, int threads, Utils::PROTO proto);
+                                int port, int party, int threads, Utils::PROTO proto, int factor);
 
 void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
-                              size_t num_ele, size_t num_scales, std::string ip, int port,
-                              int party, int threads, Utils::PROTO proto);
+                              size_t num_ele, size_t h, size_t w, std::string ip, int port,
+                              int party, int threads, Utils::PROTO proto, int factor = 1);
 // void tmp(int party);
 
 } // namespace Iface

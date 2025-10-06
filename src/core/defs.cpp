@@ -35,6 +35,15 @@ seal::SEALContext Utils::init_he_context() {
     return seal::SEALContext(params, true, SEC_LEVEL);
 }
 
+gemini::HomBNSS::Meta Utils::init_meta_bn(const long& rows, const long& h, const long& w) {
+    gemini::HomBNSS::Meta meta;
+    meta.ishape          = {rows, h, w};
+    meta.vec_shape       = {rows};
+    meta.target_base_mod = PLAIN_MOD;
+    meta.is_shared_input = true;
+    return meta;
+}
+
 gemini::HomBNSS::Meta Utils::init_meta_bn(const long& rows, const long& cols) {
     gemini::HomBNSS::Meta meta;
     long tmp_w = sqrt(cols);

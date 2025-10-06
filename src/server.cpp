@@ -94,20 +94,20 @@ int main(int argc, char** argv) {
 
     {
         int n       = 3;
-        int out       = 2;
+        int out     = 2;
         uint32_t* a = new uint32_t[n * batchSize];
         uint32_t* b = new uint32_t[n * batchSize * out];
         uint32_t* c = new uint32_t[out * batchSize];
 
         for (size_t j = 0; j < batchSize; ++j) {
             for (int i = 0; i < n * out; ++i) {
-                a[i % n + n * j] = 0;
+                a[i % n + n * j]   = 0;
                 b[i + n * out * j] = i + j;
             }
         }
 
-        Iface::generateFCTriplesCheetah(nullptr, b, c, batchSize, n, out, PARTY, std::string(""), port,
-                                        threads, Utils::PROTO::AB2);
+        Iface::generateFCTriplesCheetah(nullptr, b, c, batchSize, n, out, PARTY, std::string(""),
+                                        port, threads, Utils::PROTO::AB2);
 
         for (size_t i = 0; i < batchSize; ++i) {
             for (int j = 0; j < out; ++j) {
@@ -141,8 +141,8 @@ int main(int argc, char** argv) {
         memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t) * batchSize);
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(nullptr, b, c, conv, batchSize, std::string(""), port,
-                                                 PARTY, threads, Utils::PROTO::AB);
+        Iface::generateConvTriplesCheetahWrapper(nullptr, b, c, conv, batchSize, std::string(""),
+                                                 port, PARTY, threads, Utils::PROTO::AB);
 
         delete[] a;
         delete[] b;
@@ -150,13 +150,14 @@ int main(int argc, char** argv) {
     }
     {
         int rows = 2;
-        int cols = 4;
+        int h    = 2;
+        int w    = 2;
 
-        std::vector<uint32_t> A(rows * cols * batchSize, 3);
+        std::vector<uint32_t> A(rows * h * w * batchSize, 3);
         std::vector<uint32_t> B(rows * batchSize, 1);
-        std::vector<uint32_t> C(rows * cols * batchSize);
+        std::vector<uint32_t> C(rows * h * w * batchSize);
 
-        Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), batchSize, rows, cols,
+        Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), batchSize, rows, h, w,
                                         std::string(""), port, PARTY, threads, Utils::PROTO::AB);
     }
 

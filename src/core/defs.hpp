@@ -52,17 +52,17 @@ constexpr uint64_t moduloMidPt = MOD / 2;
 namespace Utils {
 
 struct ConvParm {
-    size_t ic;
-    size_t iw;
-    size_t ih;
+    int ic;
+    int iw;
+    int ih;
 
-    size_t fc;
-    size_t fw;
-    size_t fh;
-    size_t n_filters;
+    int fc;
+    int fw;
+    int fh;
+    int n_filters;
 
-    size_t stride;
-    size_t padding;
+    int stride;
+    int padding;
 };
 
 enum class PROTO {
@@ -153,6 +153,7 @@ void print_info(const gemini::HomConv2DSS::Meta& meta, const size_t& padding);
 
 gemini::HomFCSS::Meta init_meta_fc(const long& image_h, const long& filter_h);
 gemini::HomBNSS::Meta init_meta_bn(const long& image_h, const long& filter_h);
+gemini::HomBNSS::Meta init_meta_bn(const long& image_h, const long& filter_h, const long& filter_w);
 
 gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const long& iw,
                                          const long& fc, const long& fh, const long& fw,
