@@ -44,7 +44,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     if (party == emp::ALICE)
         addr = nullptr;
 
-    auto start = measure::now();
+    // auto start = measure::now();
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
     static sci::OTPack<IO::NetIO> ot_pack(ios, threads, party, true, false);
@@ -63,11 +63,11 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         total += current;
     }
 
-    Utils::log(Utils::Level::INFO, "P", party,
-               ": Bool triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
-    std::string unit;
-    uint64_t data = Utils::to_MB(ios[0]->counter, unit);
-    Utils::log(Utils::Level::INFO, "P", party, ": Bool triple data[", unit, "]: ", data);
+    // Utils::log(Utils::Level::INFO, "P", party,
+    //            ": Bool triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    // std::string unit;
+    // uint64_t data = Utils::to_MB(ios[0]->counter, unit);
+    // Utils::log(Utils::Level::INFO, "P", party, ": Bool triple data[", unit, "]: ", data);
 
     for (int i = 0; i < threads; ++i) delete ios[i];
     delete[] ios;
@@ -168,7 +168,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
             B(i) = static_cast<uint64_t>(b[i]);
     }
 
-    auto start = measure::now();
+    // auto start = measure::now();
 
     gemini::HomBNSS::Meta meta;
     meta.is_shared_input = proto == Utils::PROTO::AB;
@@ -202,11 +202,11 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
         total += current;
     }
 
-    Utils::log(Utils::Level::INFO, "P", party,
-               ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
-    std::string unit;
-    uint64_t data = Utils::to_MB(ios[0]->counter, unit);
-    Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
+    // Utils::log(Utils::Level::INFO, "P", party,
+    //            ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    // std::string unit;
+    // uint64_t data = Utils::to_MB(ios[0]->counter, unit);
+    // Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
 
     for (int i = 0; i < threads; ++i) delete ios[i];
     delete[] ios;
