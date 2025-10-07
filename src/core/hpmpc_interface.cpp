@@ -40,6 +40,7 @@ class PROF : public seal::MMProf {
 void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
                                 int bitlength [[maybe_unused]], uint64_t num_triples,
                                 std::string ip, int port, int party, int threads) {
+    std::cout << "num_triples: " << num_triples << "\n";
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
         addr = nullptr;
@@ -142,6 +143,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
                                  int bitlength [[maybe_unused]], uint64_t num_triples,
                                  std::string ip, int port, int party, int threads,
                                  Utils::PROTO proto) {
+    std::cout << "num_triples: " << num_triples << "\n";
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
         addr = nullptr;
