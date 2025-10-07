@@ -287,7 +287,6 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
                                       parm.n_filters, parm.stride, parm.padding);
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
-    std::cout << Utils::getOutDim(parm) << "\n";
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
         generateConvTriplesCheetah(a, b, c, meta, batch, ip, port, party, threads, proto, factor);
     } else {
