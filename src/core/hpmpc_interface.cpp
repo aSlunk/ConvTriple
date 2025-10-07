@@ -10,7 +10,7 @@
 #include "ot/bit-triple-generator.h"
 #include "ot/cheetah-ot_pack.h"
 
-constexpr uint64_t MAX_BOOL  = 20'000'000;
+constexpr uint64_t MAX_BOOL  = 16'777'216;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
 namespace Iface {

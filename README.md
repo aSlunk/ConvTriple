@@ -1,11 +1,66 @@
-Based on [OpenCheetah](https://github.com/Alibaba-Gemini-Lab/OpenCheetah/tree/main)
+Uses [OpenCheetah](https://github.com/Alibaba-Gemini-Lab/OpenCheetah/tree/main)
+to implement two protocols for MPC and a few linear operations.
+
+# Build the Project
+
+**Build the dependencies**:
+- Install OpenSSL
+```sh
+# for debian based distributions
+apt install libssl-dev
+```
+- To install Eigen3/EMP-Tool/SEAL use
+```sh
+./deps.sh
+```
+$\Rightarrow$ this will create `./deps/` and install the projects into it.
+
+
+**Build the project**:
+```sh
+./build.sh
+
+# OR
+
+cmake . -B build -DCMAKE_BUILD_TYPE=Release -DUSE_APPROX_RESHARE=OFF \
+    -DTRIPLE_VERIFY=OFF -DTRIPLE_COLOR=OFF -DTRIPLE_ZERO=ON
+cmake --build build -j
+```
+
+CMake Options:
+- `TRIPLE_VERIFY`: if enabled - Verifies correctness of the triples
+- `TRIPLE_COLOR`: if enabled - Uses ANSI color codes for colored logs
+- `TRIPLE_ZERO`: if enabled - Allows tensors to be zero (can be insecure)
+
+Formatting:
+```sh
+cmake --build build -t format
+```
+
+
+# Run the Project
+
+Server:
+```sh
+./build/bin/cheetah <PORT> <SAMPLES> <BATCHSIZE> <threads>
+```
+
+Client:
+```sh
+./build/bin/cheetah_client <PORT> <HOST> <SAMPLES> <BATCHSIZE> <threads>
+```
+
+> [!NOTE]
+> `<SAMPLES>` has currently no effect
+
 
 # Protocols
 
-- Currently supported:
-    - boolean triples via OT
-    - Matrix $\times$ Vector triples via HE
-    - Convolution triples via HE
+Currently supported:
+- Boolean triples via OT
+- Matrix $\times$ Vector triples via HE
+- 2D-Convolution triples via HE
+- 2D-BatchNorm triples via HE
 
 ## Protocol 1
 
