@@ -4,12 +4,12 @@ to implement two protocols for MPC and a few linear operations.
 # Build the Project
 
 **Build the dependencies**:
-- Install OpenSSL
+- Install OpenSSL and Eigen3
 ```sh
 # for debian based distributions
-apt install libssl-dev
+apt install libssl-dev libeigen3-dev
 ```
-- To install Eigen3/EMP-Tool/SEAL use
+- To install EMP-Tool/SEAL use
 ```sh
 ./deps.sh
 ```
