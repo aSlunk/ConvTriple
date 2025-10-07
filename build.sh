@@ -1,6 +1,5 @@
 #!/bin/bash
 
-THREADS=8
 BUILD_TYPE=Release
 BUILD_DIR=build
 
