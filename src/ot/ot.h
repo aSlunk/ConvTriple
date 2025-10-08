@@ -28,7 +28,8 @@ Modified by Deevashwer Rathee, Nishant Kumar, Mayank Rathee
 #ifndef OT_H__
 #define OT_H__
 
-#include "block.h"
+#include "ot/block.h"
+#include "ot/prg.h"
 
 namespace sci {
 template <typename T>

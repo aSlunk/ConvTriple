@@ -22,6 +22,7 @@ $\Rightarrow$ this will create `./deps/` and install the projects into it.
 
 # OR
 
+mkdir ./data # to store ferret output
 cmake . -B build -DCMAKE_BUILD_TYPE=Release -DUSE_APPROX_RESHARE=OFF \
     -DTRIPLE_VERIFY=OFF -DTRIPLE_COLOR=OFF -DTRIPLE_ZERO=ON
 cmake --build build -j

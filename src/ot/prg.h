@@ -29,7 +29,9 @@ Modified by Deevashwer Rathee
 #define PRG_H__
 
 #include "ot/aes-ni.h"
+#include "ot/aes.h"
 #include "ot/block.h"
+#include "ot/constants.h"
 // #include <gmp.h>
 
 #include <random>

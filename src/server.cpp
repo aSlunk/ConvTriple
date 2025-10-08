@@ -26,12 +26,11 @@ int main(int argc, char** argv) {
     int num_triples = 10;
 
     {
-        int tmp    = 103'29300;
+        int tmp = 103'293000;
         // tmp = 37'500'000;
         uint8_t* a = new uint8_t[tmp];
         uint8_t* b = new uint8_t[tmp];
         uint8_t* c = new uint8_t[tmp];
-
 
         Iface::generateBoolTriplesCheetah(a, b, c, 1, tmp, std::string(""), port, PARTY, threads);
 

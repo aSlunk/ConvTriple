@@ -49,18 +49,24 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
 
     std::vector<sci::OTPack<IO::NetIO>*> ot_packs(threads);
     for (int i = 0; i < threads; ++i)
-        ot_packs[i] = new sci::OTPack<IO::NetIO>(ios + i, 1, i & 1 ? 3 - party : party, true, false);
+        ot_packs[i]
+            = new sci::OTPack<IO::NetIO>(ios + i, 1, i & 1 ? 3 - party : party, true, false);
 
     auto start = measure::now();
 
-    auto func = [&a, &b, &c, &ios, &party, &ot_packs, &threads](int wid, int start, int end) -> Code {
-        if (start >= end) return Code::OK;
+    auto func
+        = [&a, &b, &c, &ios, &party, &ot_packs, &threads](int wid, int start, int end) -> Code {
+        if (start >= end)
+            return Code::OK;
+
+        if (!wid)
+            std::cout << end - start << "\n";
 
         int cur_party = wid & 1 ? 3 - party : party;
         TripleGenerator<IO::NetIO> triple_gen(cur_party, ios[wid], ot_packs[wid]);
 
         for (int total = start; total < end;) {
-            int current = std::min(end - total, static_cast<int>(MAX_BOOL/threads));
+            int current = std::min(end - total, static_cast<int>(MAX_BOOL / threads));
             switch (cur_party) {
             case emp::ALICE:
                 Server::triple_gen(triple_gen, a + total, b + total, c + total, current, true);

@@ -37,12 +37,12 @@ class OTPack {
         // this->do_setup = do_setup;
         this->io = ios[0];
 
-        silent_ot = new cheetah::SilentOT<T>(party, threads, ios, malicious, do_setup,
+        silent_ot = new cheetah::SilentOT<T>(party, 1, ios, false, true,
                                              party == emp::ALICE ? PRE_OT_DATA_REG_SEND_FILE_ALICE
                                                                  : PRE_OT_DATA_REG_RECV_FILE_BOB);
 
         silent_ot_reversed = new cheetah::SilentOT<T>(
-            3 - party, threads, ios, malicious, do_setup,
+            3 - party, 1, ios, false, true,
             party == emp::ALICE ? PRE_OT_DATA_REG_RECV_FILE_ALICE : PRE_OT_DATA_REG_SEND_FILE_BOB);
 
         for (int i = 0; i < KKOT_TYPES; i++) {
