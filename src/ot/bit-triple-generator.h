@@ -217,6 +217,7 @@ class TripleGenerator {
         case _2COT: {
             uint8_t *a, *b, *c;
             if (packed) {
+                num_triples *= 8;
                 a = new uint8_t[num_triples];
                 b = new uint8_t[num_triples];
                 c = new uint8_t[num_triples];
@@ -336,6 +337,8 @@ class TripleGenerator {
             assert((num_triples & 1) == 0); // num_triples is even
             uint8_t *a, *b, *c;
             if (packed) {
+                num_triples *= 8;
+                std::cout << num_triples << "\n";
                 a = new uint8_t[num_triples];
                 b = new uint8_t[num_triples];
                 c = new uint8_t[num_triples];

@@ -45,32 +45,48 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     if (party == emp::ALICE)
         addr = nullptr;
 
-    // auto start = measure::now();
-
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
-    static sci::OTPack<IO::NetIO> ot_pack(ios, threads, party, true, false);
-    static TripleGenerator<IO::NetIO> triple_gen(party, ios[0], &ot_pack);
 
-    for (size_t total = 0; total < num_triples;) {
-        int current = std::min(num_triples - total, MAX_BOOL);
-        switch (party) {
-        case emp::ALICE:
-            Server::triple_gen(triple_gen, a + total, b + total, c + total, current, true);
-            break;
-        case emp::BOB:
-            Client::triple_gen(triple_gen, a + total, b + total, c + total, current, true);
-            break;
+    std::vector<sci::OTPack<IO::NetIO>*> ot_packs(threads);
+    for (int i = 0; i < threads; ++i)
+        ot_packs[i] = new sci::OTPack<IO::NetIO>(ios + i, 1, i & 1 ? 3 - party : party, true, false);
+
+    auto start = measure::now();
+
+    auto func = [&a, &b, &c, &ios, &party, &ot_packs, &threads](int wid, int start, int end) -> Code {
+        if (start >= end) return Code::OK;
+
+        int cur_party = wid & 1 ? 3 - party : party;
+        TripleGenerator<IO::NetIO> triple_gen(cur_party, ios[wid], ot_packs[wid]);
+
+        for (int total = start; total < end;) {
+            int current = std::min(end - total, static_cast<int>(MAX_BOOL/threads));
+            switch (cur_party) {
+            case emp::ALICE:
+                Server::triple_gen(triple_gen, a + total, b + total, c + total, current, true);
+                break;
+            case emp::BOB:
+                Client::triple_gen(triple_gen, a + total, b + total, c + total, current, true);
+                break;
+            }
+            total += current;
         }
-        total += current;
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(threads);
+    gemini::LaunchWorks(tpool, num_triples, func);
+
+    Utils::log(Utils::Level::INFO, "P", party,
+               ": Bool triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    std::string unit;
+    uint64_t data = Utils::to_MB(ios[0]->counter, unit);
+    Utils::log(Utils::Level::INFO, "P", party, ": Bool triple data[", unit, "]: ", data);
+
+    for (int i = 0; i < threads; ++i) {
+        delete ot_packs[i];
+        delete ios[i];
     }
-
-    // Utils::log(Utils::Level::INFO, "P", party,
-    //            ": Bool triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
-    // std::string unit;
-    // uint64_t data = Utils::to_MB(ios[0]->counter, unit);
-    // Utils::log(Utils::Level::INFO, "P", party, ": Bool triple data[", unit, "]: ", data);
-
-    for (int i = 0; i < threads; ++i) delete ios[i];
     delete[] ios;
 }
 

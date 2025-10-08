@@ -6,20 +6,38 @@ DEPS="$WORK_DIR/deps"
 TMP="$WORK_DIR/tmp"
 
 mkdir deps
+mkdir $TMP
 
 # git clone https://gitlab.com/libeigen/eigen.git $TMP/eigen
 # cd $TMP/eigen
 # cmake . -B build -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_BUILD_TYPE=Release
 # cmake --install build
 
+cd $TMP
+git clone "https://github.com/emp-toolkit/emp-tool.git" emp-tool
+cd emp-tool
+git checkout 44b1dde
+sed -i '4i #include <cstdint>' emp-tool/utils/block.h
+cmake . -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cmake --build . --target install -j
+
+cd ..
+
 ###############################################################################
 # emp-ot
 ###############################################################################
-mkdir -p $TMP/emp
-cd $TMP/emp
-export CMAKE_INSTALL_PREFIX="$DEPS"
-wget "https://raw.githubusercontent.com/emp-toolkit/emp-readme/master/scripts/install.py"
-python install.py --install --tool --ot
+git clone https://github.com/emp-toolkit/emp-ot.git emp-ot
+cd emp-ot
+git checkout d5f4fc89433c1e391de16c209bcca1a08755507b
+cmake $TMP/emp-ot -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_PREFIX_PATH=$DEPS -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cmake --build . --target install -j
+# mkdir -p $TMP/emp
+# cd $TMP/emp
+# export CMAKE_INSTALL_PREFIX="$DEPS"
+# wget "https://raw.githubusercontent.com/emp-toolkit/emp-readme/master/scripts/install.py"
+# python install.py --install --tool --ot
+
+cd ..
 
 ###############################################################################
 # SEAL
@@ -34,5 +52,3 @@ cmake . -B build -DCMAKE_INSTALL_PREFIX=$BUILD_DIR -DCMAKE_PREFIX_PATH=$BUILD_DI
 	                    -DSEAL_USE_ZSTD=ON -DCMAKE_BUILD_TYPE=Release -DSEAL_USE_INTEL_HEXL=ON -DSEAL_BUILD_DEPS=ON\
                         -DSEAL_THROW_ON_TRANSPARENT_CIPHERTEXT=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build --target install --parallel 8
-
-rm -rf $TMP

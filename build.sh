@@ -7,4 +7,4 @@ if [[ ! -d $BUILD_DIR ]]; then
     cmake . -B $BUILD_DIR -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DTRIPLE_VERIFY=OFF -DTRIPLE_COLOR=OFF -DUSE_APPROX_RESHARE=OFF -DTRIPLE_ZERO=ON
 fi
 
-cmake --build build -j -v
+cmake --build build -j

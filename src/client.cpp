@@ -32,23 +32,22 @@ int main(int argc, char** argv) {
     int num_triples = 10;
 
     {
-        int tmp    = 16;
-        __m128i* a = new __m128i[tmp];
-        __m128i* b = new __m128i[tmp];
-        __m128i* c = new __m128i[tmp];
-
-        a[15] = _mm_set_epi32(-1, -2, -3, -4);
+        int tmp    = 103'29300;
+        // tmp = 37'500'000;
+        uint8_t* a = new uint8_t[tmp];
+        uint8_t* b = new uint8_t[tmp];
+        uint8_t* c = new uint8_t[tmp];
 
         Iface::generateBoolTriplesCheetah((uint8_t*)a, (uint8_t*)b, (uint8_t*)c, 1,
                                           tmp * sizeof(*a), std::string(addr), port, PARTY,
                                           threads);
 
-        print_m128i(a[15]);
-
         delete[] a;
         delete[] b;
         delete[] c;
     }
+
+    return 0;
 
     for (int i = 0; i < 2; ++i) {
         {
