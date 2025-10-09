@@ -9,6 +9,7 @@
 #include <functional>
 #include <ostream>
 #include <thread>
+#include <unistd.h>
 
 #include <gemini/cheetah/hom_bn_ss.h>
 #include <gemini/cheetah/hom_conv2d_ss.h>
