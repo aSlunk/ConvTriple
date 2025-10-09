@@ -98,62 +98,7 @@ class TripleGenerator {
             this->_buffBytes = _buffSize >> 3;
             this->_chunkSize = (chunk_size >> 3) > 1 ? ((chunk_size >> 3) << 3) : 8;
 
-            // #if TGEN_PRINT_COMM || TGEN_PRINT_TIME
-            //         std::string f_tag = "NEW | 3Gen";
-            // #endif
-            // #if TGEN_PRINT_COMM
-            //         int _wcomm = 10;
-            //         std::stringstream log_comm;
-            //         uint64_t start_comm = io->counter;
-            //         uint64_t total_comm = 0;
-            //         log_comm << "P" << party << " COMM | ";
-            //         log_comm << f_tag;
-            //         log_comm << ": enable_buffer = " << std::boolalpha << enable_buffer;
-            //         log_comm << ", _buffSize = " << _buffSize;
-            //         log_comm << ", _chunkSize = " << _chunkSize;
-            //         log_comm << std::endl;
-            // #endif
-            // #if TGEN_PRINT_TIME
-            //         int _wtime = 10;
-            //         std::stringstream log_time;
-            //         auto start = std::chrono::system_clock::now();
-            //         auto end   = std::chrono::system_clock::now();
-            //         std::chrono::duration<double> total_time = end - start;
-            //         log_time << "P" << party << " TIME | ";
-            //         log_time << f_tag;
-            //         log_time << ": enable_buffer = " << std::boolalpha << enable_buffer;
-            //         log_time << ", _buffSize = " << _buffSize;
-            //         log_time << ", _chunkSize = " << _chunkSize;
-            //         log_time << std::endl;
-            // #endif
-
             refillBuffer();
-
-            // #if TGEN_PRINT_TIME
-            //         end = std::chrono::system_clock::now();
-            //         std::chrono::duration<double> refill_time = end - (start + total_time);
-            //         total_time += refill_time;
-            //         log_time << "P" << party << " TIME | ";
-            //         log_time << f_tag;
-            //         log_time << ": refill = " << std::setw(_wtime) << refill_time.count() * 1000;
-            //         log_time << " ms";
-            //         log_time << std::endl;
-            // #endif
-            // #if TGEN_PRINT_COMM
-            //         uint64_t refill_comm = io->counter - (start_comm + total_comm);
-            //         total_comm += refill_comm;
-            //         log_comm << "P" << party << " COMM | ";
-            //         log_comm << f_tag;
-            //         log_comm << ": refill = " << std::setw(_wcomm) << refill_comm;
-            //         log_comm << " bytes";
-            //         log_comm << std::endl;
-            // #endif
-            // #if TGEN_PRINT_COMM
-            //         std::cout << log_comm.str();
-            // #endif
-            // #if TGEN_PRINT_TIME
-            //         std::cout << log_time.str();
-            // #endif
         }
     }
 
@@ -186,13 +131,7 @@ class TripleGenerator {
       Resets the buffer pointer to 0
       Enables the buffer
     */
-    void refillBuffer(
-        // #if USE_CHEETAH
-        TripleGenMethod method = _2ROT
-        // #else
-        //     TripleGenMethod method = _16KKOT_to_4OT
-        // #endif
-    ) {
+    void refillBuffer(TripleGenMethod method = _2ROT) {
         _Bai = new uint8_t[_buffBytes];
         _Bbi = new uint8_t[_buffBytes];
         _Bci = new uint8_t[_buffBytes];
@@ -249,7 +188,9 @@ class TripleGenerator {
             for (int i = 0; i < nChunks; i++) {
                 uint64_t start      = i * _chunkSize;
                 uint64_t startBytes = start >> 3;
-                uint64_t end = ((i + 1) * _chunkSize) < n_trips ? ((i + 1) * _chunkSize) : n_trips;
+                uint64_t end        = static_cast<int64_t>((i + 1) * _chunkSize) < n_trips
+                                          ? ((i + 1) * _chunkSize)
+                                          : n_trips;
 
 #if TGEN_PRINT_COMM || TGEN_PRINT_TIME
                 std::string f_tag = "NEW | 3get";
@@ -322,19 +263,19 @@ class TripleGenerator {
         get(party, triples, method);
     }
 
-  public:
+  private:
     // Buffer implementation to use pre-generated triples from the offline phase
-    uint8_t* _Bai;            // Buffer for Ai
-    uint8_t* _Bbi;            // Buffer for Bi
-    uint8_t* _Bci;            // Buffer for Ci
-    uint64_t _buffSize;       // Number of triples in the buffer (always multiple of 8)
-    uint64_t _buffBytes;      // Number of bytes in the buffer (always = _buffSize/8)
-    uint64_t _chunkSize;      // Number of triples to be generated in one go (always multiple of 8)
-    bool _buffEnable = false; // Flag to enable/disable buffer
-    int _buffPtr     = 0;     // Pointer to the current triple in the buffer
-    int _nRefill     = 0;     // Number of times the buffer has been refilled
-    double mill_time = 0;     // Time taken for millioinaires' protocol
-    double mill_comm = 0;     // Communication in millionaires' protocol
+    uint8_t* _Bai;             // Buffer for Ai
+    uint8_t* _Bbi;             // Buffer for Bi
+    uint8_t* _Bci;             // Buffer for Ci
+    uint64_t _buffSize;        // Number of triples in the buffer (always multiple of 8)
+    uint64_t _buffBytes;       // Number of bytes in the buffer (always = _buffSize/8)
+    uint64_t _chunkSize;       // Number of triples to be generated in one go (always multiple of 8)
+    bool _buffEnable  = false; // Flag to enable/disable buffer
+    uint64_t _buffPtr = 0;     // Pointer to the current triple in the buffer
+    int _nRefill      = 0;     // Number of times the buffer has been refilled
+    double mill_time  = 0;     // Time taken for millioinaires' protocol
+    double mill_comm  = 0;     // Communication in millionaires' protocol
 
     void generate(int party, uint8_t* ai, uint8_t* bi, uint8_t* ci, uint64_t num_triples,
                   TripleGenMethod method, bool packed = false, int offset = 1) {
@@ -446,7 +387,6 @@ class TripleGenerator {
                 break;
             }
             }
-            io->flush();
 
             for (size_t i = 0; i < num_triples; i++) b[i] = b[i] ^ v[i];
             for (size_t i = 0; i < num_triples; i++) c[i] = (a[i] & b[i]) ^ u[i] ^ v[i];
@@ -521,16 +461,20 @@ class TripleGenerator {
             assert((num_triples & 1) == 0); // num_triples is even
             uint8_t *a, *b, *c;
             if (packed) {
-                a = new uint8_t[num_triples];
-                b = new uint8_t[num_triples];
-                c = new uint8_t[num_triples];
+                int num_bytes = ceil((double)num_triples / 8);
+                a             = new uint8_t[num_triples];
+                b             = new uint8_t[num_triples];
+                c             = new uint8_t[num_triples];
+
+                uint8_to_bool_arr(a, ai, num_bytes);
+                uint8_to_bool_arr(b, bi, num_bytes);
             } else {
                 a = ai;
                 b = bi;
                 c = ci;
             }
-            prg->random_bool((bool*)a, num_triples);
-            prg->random_bool((bool*)b, num_triples);
+            // prg->random_bool((bool*)a, num_triples);
+            // prg->random_bool((bool*)b, num_triples);
             switch (party) {
             case emp::ALICE: {
                 prg->random_bool((bool*)c, num_triples);
@@ -571,8 +515,8 @@ class TripleGenerator {
             }
             if (packed) {
                 for (size_t i = 0; i < num_triples; i += 8) {
-                    ai[i / 8] = bool_to_uint8(a + i, 8);
-                    bi[i / 8] = bool_to_uint8(b + i, 8);
+                    // ai[i / 8] = bool_to_uint8(a + i, 8);
+                    // bi[i / 8] = bool_to_uint8(b + i, 8);
                     ci[i / 8] = bool_to_uint8(c + i, 8);
                 }
                 delete[] a;
@@ -676,6 +620,12 @@ class TripleGenerator {
         for (int i = 0; i < length; ++i) {
             data[i] = (input & 1);
             input >>= 1;
+        }
+    }
+
+    inline void uint8_to_bool_arr(uint8_t* data, uint8_t* input, int length) {
+        for (int i = 0; i < length; i++) {
+            uint8_to_bool(data + i * 8, input[i], 8);
         }
     }
 };

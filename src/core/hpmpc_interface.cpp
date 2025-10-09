@@ -13,6 +13,8 @@
 constexpr uint64_t MAX_BOOL  = 16'777'216;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
+#define OTHER_PARTY(party) (3 - party)
+
 namespace Iface {
 
 class PROF : public seal::MMProf {
@@ -49,8 +51,8 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
 
     std::vector<sci::OTPack<IO::NetIO>*> ot_packs(threads);
     for (int i = 0; i < threads; ++i)
-        ot_packs[i]
-            = new sci::OTPack<IO::NetIO>(ios + i, 1, i & 1 ? 3 - party : party, true, false);
+        ot_packs[i] = new sci::OTPack<IO::NetIO>(ios + i, 1, i & 1 ? OTHER_PARTY(party) : party,
+                                                 true, false);
 
     auto start = measure::now();
 
@@ -59,11 +61,8 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         if (start >= end)
             return Code::OK;
 
-        if (!wid)
-            std::cout << end - start << "\n";
-
-        int cur_party = wid & 1 ? 3 - party : party;
-        TripleGenerator<IO::NetIO> triple_gen(cur_party, ios[wid], ot_packs[wid]);
+        int cur_party = wid & 1 ? OTHER_PARTY(party) : party;
+        TripleGenerator<IO::NetIO> triple_gen(cur_party, ios[wid], ot_packs[wid], false);
 
         for (int total = start; total < end;) {
             int current = std::min(end - total, static_cast<int>(MAX_BOOL / threads));
@@ -86,7 +85,8 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     Utils::log(Utils::Level::INFO, "P", party,
                ": Bool triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
-    uint64_t data = Utils::to_MB(ios[0]->counter, unit);
+    uint64_t data = 0;
+    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party, ": Bool triple data[", unit, "]: ", data);
 
     for (int i = 0; i < threads; ++i) {

@@ -30,7 +30,7 @@ namespace Server {
 
 template <class Channel>
 void triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b, uint8_t* c,
-                const size_t& numTriple, const bool& packed);
+                size_t numTriple, const bool& packed);
 
 template <class Channel>
 void RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, const bool& packed);
@@ -41,7 +41,7 @@ namespace Client {
 
 template <class Channel>
 void triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b, uint8_t* c,
-                const size_t& numTriple, const bool& packed);
+                size_t numTriple, const bool& packed);
 
 template <class Channel>
 void RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, const bool& packed);
@@ -50,11 +50,24 @@ void RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, const boo
 
 template <class Channel>
 void Server::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b, uint8_t* c,
-                        const size_t& numTriple, const bool& packed) {
-    triple.generate(emp::ALICE, a, b, c, numTriple, METHOD, packed);
+                        size_t numTriple, const bool& packed) {
+
+    if (packed) {
+        numTriple *= 8;
+    }
+
+    Triple trips(numTriple, packed);
+
+    // triple.generate(emp::ALICE, a, b, c, numTriple, METHOD, packed);
+    triple.get(emp::ALICE, &trips, METHOD);
+
+    numTriple = trips.num_bytes;
+    std::memcpy(a, trips.ai, numTriple);
+    std::memcpy(b, trips.ai, numTriple);
+    std::memcpy(c, trips.ai, numTriple);
 
 #ifdef VERIFY
-    size_t len = LEN(numTriple, packed);
+    size_t len = numTriple;
     Utils::log(Utils::Level::DEBUG, "VERIFYING OT");
     Utils::log(Utils::Level::DEBUG, numTriple);
 
@@ -100,11 +113,23 @@ void Server::RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, c
 
 template <class Channel>
 void Client::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b, uint8_t* c,
-                        const size_t& numTriple, const bool& packed) {
-    triple.generate(emp::BOB, a, b, c, numTriple, METHOD, packed);
+                        size_t numTriple, const bool& packed) {
+
+    if (packed) {
+        numTriple *= 8;
+    }
+
+    Triple trips(numTriple, packed);
+    // triple.generate(emp::BOB, a, b, c, numTriple, METHOD, packed);
+    triple.get(emp::BOB, &trips, METHOD);
+
+    numTriple = trips.num_bytes;
+    std::memcpy(a, trips.ai, numTriple);
+    std::memcpy(b, trips.ai, numTriple);
+    std::memcpy(c, trips.ai, numTriple);
 
 #ifdef VERIFY
-    size_t len = LEN(numTriple, packed);
+    size_t len = numTriple;
     triple.io->send_data(a, sizeof(uint8_t) * len, false);
     triple.io->send_data(b, sizeof(uint8_t) * len, false);
     triple.io->send_data(c, sizeof(uint8_t) * len, false);
