@@ -10,7 +10,7 @@
 #include "ot/bit-triple-generator.h"
 #include "ot/cheetah-ot_pack.h"
 
-constexpr uint64_t MAX_BOOL  = 50'000'000;
+constexpr uint64_t MAX_BOOL  = 16'000'000;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
 #define OTHER_PARTY(party) (3 - party)
@@ -170,7 +170,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     if (party == emp::ALICE)
         addr = nullptr;
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
 
     static gemini::HomBNSS bn = [&ios, &party] {
         gemini::HomBNSS bn;
@@ -232,7 +232,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     // uint64_t data = Utils::to_MB(ios[0]->counter, unit);
     // Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
 
-    for (int i = 0; i < threads; ++i) delete ios[i];
+    for (int i = 0; i < 1; ++i) delete ios[i];
     delete[] ios;
 }
 
@@ -302,6 +302,9 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
 
     delete[] ai;
     delete[] bi;
+
+    for (int i = 0; i < 1; ++i) delete ios[i];
+    delete[] ios;
 }
 
 void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uint32_t* c,
@@ -395,6 +398,9 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
 
     delete[] ai;
     delete[] bi;
+
+    for (int i = 0; i < 1; ++i) delete ios[i];
+    delete[] ios;
 }
 
 void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
@@ -450,6 +456,9 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
                     c[C.NumElements() * cur_batch + i * C.height() * C.width() + j * C.width() + k]
                         = C(i, j, k);
     }
+
+    for (int i = 0; i < 1; ++i) delete ios[i];
+    delete[] ios;
 }
 
 // void tmp(int party) {

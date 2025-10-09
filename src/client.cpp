@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     int num_triples = 10;
 
     {
-        int tmp = 103'293'000;
+        int tmp = 37'233'728 / 10;
         // tmp = 37'500'000;
         uint8_t* a = new uint8_t[tmp];
         uint8_t* b = new uint8_t[tmp];
@@ -47,8 +47,6 @@ int main(int argc, char** argv) {
         delete[] c;
     }
 
-    return 0;
-
     for (int i = 0; i < 2; ++i) {
         {
             // num_triples = 48'168'448;
@@ -62,6 +60,8 @@ int main(int argc, char** argv) {
                                                Utils::PROTO::AB);
         }
     }
+
+    return 0;
 
     {
         int n       = 3;
