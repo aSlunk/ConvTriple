@@ -387,6 +387,7 @@ class TripleGenerator {
                 break;
             }
             }
+            io->flush();
 
             for (size_t i = 0; i < num_triples; i++) b[i] = b[i] ^ v[i];
             for (size_t i = 0; i < num_triples; i++) c[i] = (a[i] & b[i]) ^ u[i] ^ v[i];
@@ -492,6 +493,7 @@ class TripleGenerator {
                 }
                 // otpack->kkot_16->send(ot_messages, num_triples/2, 2);
                 otpack->kkot[3]->send(ot_messages, num_triples / 2, 2);
+                io->flush();
                 for (size_t i = 0; i < num_triples; i += 2) delete[] ot_messages[i / 2];
                 delete[] ot_messages;
                 break;

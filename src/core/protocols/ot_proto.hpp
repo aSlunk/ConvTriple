@@ -57,17 +57,15 @@ void Server::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b
     }
 
     Triple trips(numTriple, packed);
+    std::memcpy(trips.ai, a, trips.num_bytes);
+    std::memcpy(trips.bi, b, trips.num_bytes);
 
     // triple.generate(emp::ALICE, a, b, c, numTriple, METHOD, packed);
     triple.get(emp::ALICE, &trips, METHOD);
-
-    numTriple = trips.num_bytes;
-    std::memcpy(a, trips.ai, numTriple);
-    std::memcpy(b, trips.ai, numTriple);
-    std::memcpy(c, trips.ai, numTriple);
+    std::memcpy(c, trips.ci, trips.num_bytes);
 
 #ifdef VERIFY
-    size_t len = numTriple;
+    size_t len = trips.num_bytes;
     Utils::log(Utils::Level::DEBUG, "VERIFYING OT");
     Utils::log(Utils::Level::DEBUG, numTriple);
 
@@ -120,16 +118,14 @@ void Client::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b
     }
 
     Triple trips(numTriple, packed);
+    std::memcpy(trips.ai, a, trips.num_bytes);
+    std::memcpy(trips.bi, b, trips.num_bytes);
     // triple.generate(emp::BOB, a, b, c, numTriple, METHOD, packed);
     triple.get(emp::BOB, &trips, METHOD);
-
-    numTriple = trips.num_bytes;
-    std::memcpy(a, trips.ai, numTriple);
-    std::memcpy(b, trips.ai, numTriple);
-    std::memcpy(c, trips.ai, numTriple);
+    std::memcpy(c, trips.ci, trips.num_bytes);
 
 #ifdef VERIFY
-    size_t len = numTriple;
+    size_t len = trips.num_bytes;
     triple.io->send_data(a, sizeof(uint8_t) * len, false);
     triple.io->send_data(b, sizeof(uint8_t) * len, false);
     triple.io->send_data(c, sizeof(uint8_t) * len, false);
