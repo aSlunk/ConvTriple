@@ -10,7 +10,7 @@
 #include "ot/bit-triple-generator.h"
 #include "ot/cheetah-ot_pack.h"
 
-constexpr uint64_t MAX_BOOL  = 100'000'000;
+constexpr uint64_t MAX_BOOL  = 1'000'000;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
 #define OTHER_PARTY(party) (3 - party)
