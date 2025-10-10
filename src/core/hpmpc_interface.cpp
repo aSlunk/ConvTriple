@@ -10,7 +10,7 @@
 #include "ot/bit-triple-generator.h"
 #include "ot/cheetah-ot_pack.h"
 
-constexpr uint64_t MAX_BOOL  = 16'000'000;
+constexpr uint64_t MAX_BOOL  = 100'000'000;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
 #define OTHER_PARTY(party) (3 - party)
@@ -47,14 +47,14 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     if (party == emp::ALICE)
         addr = nullptr;
 
+    auto start = measure::now();
+
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
 
     std::vector<sci::OTPack<IO::NetIO>*> ot_packs(threads);
     for (int i = 0; i < threads; ++i)
         ot_packs[i] = new sci::OTPack<IO::NetIO>(ios + i, 1, i & 1 ? OTHER_PARTY(party) : party,
                                                  true, false);
-
-    auto start = measure::now();
 
     auto func
         = [&a, &b, &c, &ios, &party, &ot_packs, &threads](int wid, int start, int end) -> Code {
