@@ -41,11 +41,12 @@ int main(int argc, char** argv) {
 
     {
         num_triples = 22;
-        std::vector<uint32_t> a_cp(num_triples * 2);
-        std::vector<uint32_t> b_cp(num_triples * 2);
-        std::vector<uint32_t> c_cp(num_triples * 2);
+        num_triples = 9'006'592;
+        std::vector<uint32_t> a_cp(num_triples * 1);
+        std::vector<uint32_t> b_cp(num_triples * 1);
+        std::vector<uint32_t> c_cp(num_triples * 1);
 
-        for (int i = 0; i < 2; ++i) {
+        for (int i = 0; i < 1; ++i) {
             // num_triples = 48'168'448;
             std::vector<uint32_t> a(num_triples, 0);
             std::vector<uint32_t> b(num_triples, 0);
@@ -68,7 +69,7 @@ int main(int argc, char** argv) {
             std::memcpy(c_cp.data() + num_triples * i, c.data(), num_triples * sizeof(uint32_t));
         }
 
-        for (size_t round = 0; round < 2; ++round) {
+        for (size_t round = 0; round < 1; ++round) {
             std::vector<uint32_t> a(num_triples);
             std::vector<uint32_t> b(num_triples);
             std::vector<uint32_t> c(num_triples);
@@ -93,8 +94,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    return 0;
-
     {
         int n       = 3;
         int out     = 2;
@@ -112,11 +111,11 @@ int main(int argc, char** argv) {
         Iface::generateFCTriplesCheetah(nullptr, b, c, batchSize, n, out, PARTY, std::string(""),
                                         port, threads, Utils::PROTO::AB2);
 
-        for (size_t i = 0; i < batchSize; ++i) {
-            for (int j = 0; j < out; ++j) {
-                std::cout << j << " " << c[i * out + j] << "\n";
-            }
-        }
+        // for (size_t i = 0; i < batchSize; ++i) {
+        //     for (int j = 0; j < out; ++j) {
+        //         std::cout << j << " " << c[i * out + j] << "\n";
+        //     }
+        // }
 
         delete[] a;
         delete[] b;

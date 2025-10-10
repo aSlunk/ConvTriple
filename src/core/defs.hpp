@@ -71,6 +71,17 @@ enum class PROTO {
     AB2,
 };
 
+constexpr std::string proto(const PROTO& proto) {
+    switch (proto) {
+    case PROTO::AB:
+        return "AB";
+    case PROTO::AB2:
+        return "AB2";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 enum class Level {
     DEBUG,
     INFO,
@@ -130,7 +141,7 @@ template <class T>
 inline double to_MB(const T& bytes, std::string& unit) {
     // return bytes / 1'000'000.0;
     unit = "MiB";
-    return static_cast<double>(bytes) / (1 << 20);
+    return static_cast<double>(bytes) / (1.0 * (1 << 20));
 }
 
 template <class Time>

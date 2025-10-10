@@ -41,8 +41,9 @@ class PROF : public seal::MMProf {
 
 void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
                                 int bitlength [[maybe_unused]], uint64_t num_triples,
-                                std::string ip, int port, int party, int threads) {
-    std::cout << "num_triples: " << num_triples << "\n";
+                                std::string ip, int port, int party, int threads,
+                                TripleGenMethod method) {
+    Utils::log(Utils::Level::INFO, "P", party, ": num_triples (BOOL): ", num_triples);
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
         addr = nullptr;
@@ -56,8 +57,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         ot_packs[i] = new sci::OTPack<IO::NetIO>(ios + i, 1, i & 1 ? OTHER_PARTY(party) : party,
                                                  true, false);
 
-    auto func
-        = [&a, &b, &c, &ios, &party, &ot_packs, &threads](int wid, int start, int end) -> Code {
+    auto func = [&](int wid, int start, int end) -> Code {
         if (start >= end)
             return Code::OK;
 
@@ -68,10 +68,12 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
             int current = std::min(end - total, static_cast<int>(MAX_BOOL / threads));
             switch (cur_party) {
             case emp::ALICE:
-                Server::triple_gen(triple_gen, a + total, b + total, c + total, current, true);
+                Server::triple_gen(triple_gen, a + total, b + total, c + total, current, true,
+                                   method);
                 break;
             case emp::BOB:
-                Client::triple_gen(triple_gen, a + total, b + total, c + total, current, true);
+                Client::triple_gen(triple_gen, a + total, b + total, c + total, current, true,
+                                   method);
                 break;
             }
             total += current;
@@ -85,7 +87,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     Utils::log(Utils::Level::INFO, "P", party,
                ": Bool triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
-    uint64_t data = 0;
+    double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party, ": Bool triple data[", unit, "]: ", data);
 
@@ -165,12 +167,15 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
                                  int bitlength [[maybe_unused]], uint64_t num_triples,
                                  std::string ip, int port, int party, int threads,
                                  Utils::PROTO proto) {
-    std::cout << "num_triples: " << num_triples << "\n";
+    Utils::log(Utils::Level::INFO, "P", party, ": num_triples (ARITH): ", num_triples,
+               " " + Utils::proto(proto));
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
         addr = nullptr;
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
+    auto start = measure::now();
+
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
 
     static gemini::HomBNSS bn = [&ios, &party] {
         gemini::HomBNSS bn;
@@ -192,45 +197,50 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
             B(i) = static_cast<uint64_t>(b[i]);
     }
 
-    // auto start = measure::now();
-
     gemini::HomBNSS::Meta meta;
     meta.is_shared_input = proto == Utils::PROTO::AB;
     meta.target_base_mod = PLAIN_MOD;
 
-    for (size_t total = 0; total < num_triples;) {
-        size_t current = std::min(MAX_ARITH, num_triples - total);
+    auto func = [&](size_t wid, int start, int end) -> Code {
+        for (int total = start; total < end;) {
+            size_t current = std::min(static_cast<int>(MAX_ARITH), end - total);
 
-        meta.vec_shape = {static_cast<long>(current)};
+            meta.vec_shape = {static_cast<long>(current)};
 
-        Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(A.data() + total, meta.vec_shape);
-        Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(B.data() + total, meta.vec_shape);
-        Tensor<uint64_t> tmp_C(meta.vec_shape);
+            Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(A.data() + total, meta.vec_shape);
+            Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(B.data() + total, meta.vec_shape);
+            Tensor<uint64_t> tmp_C(meta.vec_shape);
 
-        Result res;
-        switch (party) {
-        case emp::ALICE: {
-            res = Server::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
-            break;
+            Result res;
+            switch (party) {
+            case emp::ALICE: {
+                res = Server::perform_elem(ios + wid, bn, meta, tmp_A, tmp_B, tmp_C, 1, proto);
+                break;
+            }
+            case emp::BOB: {
+                res = Client::perform_elem(ios + wid, bn, meta, tmp_A, tmp_B, tmp_C, 1, proto);
+                break;
+            }
+            default: {
+                Utils::log(Utils::Level::ERROR, "Unknown party: P", party);
+            }
+            }
+
+            for (uint64_t i = 0; i < current; ++i) c[i + total] = static_cast<uint32_t>(tmp_C(i));
+            total += current;
         }
-        case emp::BOB: {
-            res = Client::perform_elem(ios, bn, meta, tmp_A, tmp_B, tmp_C, threads, proto);
-            break;
-        }
-        default: {
-            Utils::log(Utils::Level::ERROR, "Unknown party: P", party);
-        }
-        }
+        return Code::OK;
+    };
 
-        for (uint64_t i = 0; i < current; ++i) c[i + total] = static_cast<uint32_t>(tmp_C(i));
-        total += current;
-    }
+    gemini::ThreadPool tpool(threads);
+    gemini::LaunchWorks(tpool, num_triples, func);
 
-    // Utils::log(Utils::Level::INFO, "P", party,
-    //            ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
-    // std::string unit;
-    // uint64_t data = Utils::to_MB(ios[0]->counter, unit);
-    // Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
+    Utils::log(Utils::Level::INFO, "P", party,
+               ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    std::string unit;
+    double data = 0;
+    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
 
     for (int i = 0; i < 1; ++i) delete ios[i];
     delete[] ios;
@@ -245,9 +255,14 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
         addr = nullptr;
     }
 
+    auto meta = Utils::init_meta_fc(com_dim, dim2);
+    Utils::log(Utils::Level::INFO, "P", party, " FC: ", meta.input_shape, " x ", meta.weight_shape,
+               " ", Utils::proto(proto));
+
+    auto start = measure::now();
+
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
 
-    auto meta = Utils::init_meta_fc(com_dim, dim2);
     // meta.is_shared_input = proto == Utils::PROTO::AB;
     static gemini::HomFCSS fc = [&ios, &party] {
         gemini::HomFCSS fc;
@@ -300,6 +315,13 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
             c[i * dim2 + j] = C[i](j);
         }
 
+    Utils::log(Utils::Level::INFO, "P", party,
+               ": FC triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    std::string unit;
+    double data = 0;
+    for (int i = 0; i < 1; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    Utils::log(Utils::Level::INFO, "P", party, ": FC triple data[", unit, "]: ", data);
+
     delete[] ai;
     delete[] bi;
 
@@ -312,6 +334,9 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
                                        int party, int threads, Utils::PROTO proto, int factor) {
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding);
+
+    Utils::log(Utils::Level::INFO, "P", party, " CONV: ", meta.ishape, " x ", meta.fshape, ", ",
+               parm.stride, ", ", parm.padding, ", ", Utils::proto(proto));
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
@@ -343,6 +368,8 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
     if (party == emp::ALICE) {
         addr = nullptr;
     }
+
+    auto start = measure::now();
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
 
@@ -396,6 +423,13 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
         for (long i = 0; i < C.NumElements(); ++i) c[i + C.NumElements() * cur_batch] = C.data()[i];
     }
 
+    Utils::log(Utils::Level::INFO, "P", party,
+               ": CONV triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    std::string unit;
+    double data = 0;
+    for (int i = 0; i < 1; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    Utils::log(Utils::Level::INFO, "P", party, ": CONV triple data[", unit, "]: ", data);
+
     delete[] ai;
     delete[] bi;
 
@@ -411,10 +445,14 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
     if (party == emp::ALICE) {
         addr = nullptr;
     }
+    auto meta = Utils::init_meta_bn(num_ele, h, w);
+    Utils::log(Utils::Level::INFO, "P", party, " BN: ", meta.ishape, " x ", meta.vec_shape, ", ",
+               Utils::proto(proto));
+
+    auto start = measure::now();
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
 
-    auto meta                 = Utils::init_meta_bn(num_ele, h, w);
     meta.is_shared_input      = proto == Utils::PROTO::AB;
     static gemini::HomBNSS bn = [&ios, &party] {
         gemini::HomBNSS bn;
@@ -456,6 +494,13 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
                     c[C.NumElements() * cur_batch + i * C.height() * C.width() + j * C.width() + k]
                         = C(i, j, k);
     }
+
+    Utils::log(Utils::Level::INFO, "P", party,
+               ": BN triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    std::string unit;
+    double data = 0;
+    for (int i = 0; i < 1; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    Utils::log(Utils::Level::INFO, "P", party, ": BN triple data[", unit, "]: ", data);
 
     for (int i = 0; i < 1; ++i) delete ios[i];
     delete[] ios;

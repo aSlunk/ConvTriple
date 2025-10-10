@@ -30,7 +30,7 @@ namespace Server {
 
 template <class Channel>
 void triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b, uint8_t* c,
-                size_t numTriple, const bool& packed);
+                size_t numTriple, const bool& packed, TripleGenMethod method);
 
 template <class Channel>
 void RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, const bool& packed);
@@ -41,7 +41,7 @@ namespace Client {
 
 template <class Channel>
 void triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b, uint8_t* c,
-                size_t numTriple, const bool& packed);
+                size_t numTriple, const bool& packed, TripleGenMethod method);
 
 template <class Channel>
 void RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, const bool& packed);
@@ -50,7 +50,7 @@ void RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, const boo
 
 template <class Channel>
 void Server::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b, uint8_t* c,
-                        size_t numTriple, const bool& packed) {
+                        size_t numTriple, const bool& packed, TripleGenMethod method) {
 
     if (packed) {
         numTriple *= 8;
@@ -111,7 +111,7 @@ void Server::RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, c
 
 template <class Channel>
 void Client::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b, uint8_t* c,
-                        size_t numTriple, const bool& packed) {
+                        size_t numTriple, const bool& packed, TripleGenMethod method) {
 
     if (packed) {
         numTriple *= 8;

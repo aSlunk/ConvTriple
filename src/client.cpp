@@ -47,21 +47,19 @@ int main(int argc, char** argv) {
         delete[] c;
     }
 
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 1; ++i) {
         {
             // num_triples = 48'168'448;
-            num_triples = 22;
-            std::vector<uint32_t> a(num_triples, 0);
-            std::vector<uint32_t> b(num_triples, 0);
-            std::vector<uint32_t> c(num_triples, 0);
+            num_triples = 9'006'592;
+            std::vector<uint32_t> a(num_triples, 1);
+            std::vector<uint32_t> b(num_triples, 1);
+            std::vector<uint32_t> c(num_triples, 1);
 
             Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples,
                                                std::string(addr), port, PARTY, threads,
                                                Utils::PROTO::AB);
         }
     }
-
-    return 0;
 
     {
         int n       = 3;
