@@ -44,6 +44,7 @@ enum TripleGenMethod {
 class Triple {
   public:
     bool packed;
+    bool wraped = false;
     uint8_t* ai;
     uint8_t* bi;
     uint8_t* ci;
@@ -69,10 +70,33 @@ class Triple {
         this->ci = new uint8_t[num_bytes];
     }
 
+    Triple(uint8_t* a, uint8_t* b, uint8_t* c, int num_triples, bool packed = false, int offset = 0) {
+        assert((offset < num_triples) || (num_triples == 0));
+        this->num_triples = num_triples;
+        this->packed      = packed;
+        if (packed) {
+            assert(num_triples % 8 == 0);
+            assert(offset % 8 == 0);
+            this->num_bytes = num_triples / 8;
+        } else
+            this->num_bytes = num_triples;
+        if (offset == 0)
+            this->offset = 1;
+        else
+            this->offset = offset;
+        assert((num_triples % this->offset) == 0);
+        this->ai = a;
+        this->bi = b;
+        this->ci = c;
+        wraped = true;
+    }
+
     ~Triple() {
-        delete[] ai;
-        delete[] bi;
-        delete[] ci;
+        if (!wraped) {
+            delete[] ai;
+            delete[] bi;
+            delete[] ci;
+        }
     }
 };
 
@@ -106,8 +130,11 @@ class TripleGenerator {
         delete prg;
         // delete buffer
         if (_buffEnable) {
+        if (_Bai)
             delete[] _Bai;
+        if (_Bbi)
             delete[] _Bbi;
+        if (_Bci)
             delete[] _Bci;
         }
     }
@@ -263,11 +290,11 @@ class TripleGenerator {
         get(party, triples, method);
     }
 
-  private:
+  public:
     // Buffer implementation to use pre-generated triples from the offline phase
-    uint8_t* _Bai;             // Buffer for Ai
-    uint8_t* _Bbi;             // Buffer for Bi
-    uint8_t* _Bci;             // Buffer for Ci
+    uint8_t* _Bai = nullptr;             // Buffer for Ai
+    uint8_t* _Bbi = nullptr;             // Buffer for Bi
+    uint8_t* _Bci = nullptr;             // Buffer for Ci
     uint64_t _buffSize;        // Number of triples in the buffer (always multiple of 8)
     uint64_t _buffBytes;       // Number of bytes in the buffer (always = _buffSize/8)
     uint64_t _chunkSize;       // Number of triples to be generated in one go (always multiple of 8)

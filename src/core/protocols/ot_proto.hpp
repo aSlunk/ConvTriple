@@ -65,7 +65,7 @@ void Server::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b
     std::memcpy(c, trips.ci, trips.num_bytes);
 
 #ifdef VERIFY
-    size_t len = trips.num_bytes;
+    size_t len = numTriple / 8;
     Utils::log(Utils::Level::DEBUG, "VERIFYING OT");
     Utils::log(Utils::Level::DEBUG, numTriple);
 
@@ -81,6 +81,7 @@ void Server::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b
     for (size_t i = 0; i < len; ++i) {
         if (((b2[i] ^ b[i]) & (a[i] ^ a2[i])) != (c2[i] ^ c[i])) {
             same = false;
+            std::cout << i << "\n";
             break;
         }
     }
@@ -125,7 +126,7 @@ void Client::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b
     std::memcpy(c, trips.ci, trips.num_bytes);
 
 #ifdef VERIFY
-    size_t len = trips.num_bytes;
+    size_t len = numTriple / 8;
     triple.io->send_data(a, sizeof(uint8_t) * len, false);
     triple.io->send_data(b, sizeof(uint8_t) * len, false);
     triple.io->send_data(c, sizeof(uint8_t) * len, false);

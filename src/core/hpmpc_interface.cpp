@@ -61,7 +61,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         if (start >= end)
             return Code::OK;
 
-        int cur_party = wid & 1 ? OTHER_PARTY(party) : party;
+        int cur_party = wid & 1 ? OTHER_PARTY(party): party;
         TripleGenerator<IO::NetIO> triple_gen(cur_party, ios[wid], ot_packs[wid], false);
 
         for (int total = start; total < end;) {
@@ -202,23 +202,26 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     meta.target_base_mod = PLAIN_MOD;
 
     auto func = [&](size_t wid, int start, int end) -> Code {
+        if (start >= end)
+            return Code::OK;
         for (int total = start; total < end;) {
             size_t current = std::min(static_cast<int>(MAX_ARITH), end - total);
 
-            meta.vec_shape = {static_cast<long>(current)};
+            gemini::HomBNSS::Meta m = meta;
+            m.vec_shape = gemini::TensorShape({static_cast<long>(current)});
 
-            Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(A.data() + total, meta.vec_shape);
-            Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(B.data() + total, meta.vec_shape);
-            Tensor<uint64_t> tmp_C(meta.vec_shape);
+            Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(A.data() + total, m.vec_shape);
+            Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(B.data() + total, m.vec_shape);
+            Tensor<uint64_t> tmp_C(m.vec_shape);
 
             Result res;
             switch (party) {
             case emp::ALICE: {
-                res = Server::perform_elem(ios + wid, bn, meta, tmp_A, tmp_B, tmp_C, 1, proto);
+                res = Server::perform_elem(ios + wid, bn, m, tmp_A, tmp_B, tmp_C, 1, proto);
                 break;
             }
             case emp::BOB: {
-                res = Client::perform_elem(ios + wid, bn, meta, tmp_A, tmp_B, tmp_C, 1, proto);
+                res = Client::perform_elem(ios + wid, bn, m, tmp_A, tmp_B, tmp_C, 1, proto);
                 break;
             }
             default: {
@@ -335,7 +338,7 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding);
 
-    Utils::log(Utils::Level::INFO, "P", party, " CONV: ", meta.ishape, " x ", meta.fshape, ", ",
+    Utils::log(Utils::Level::INFO, "P", party, " CONV: ", meta.ishape, " x ", meta.fshape, " x ", parm.n_filters, ", ",
                parm.stride, ", ", parm.padding, ", ", Utils::proto(proto));
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
