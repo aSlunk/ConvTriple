@@ -71,7 +71,7 @@ enum class PROTO {
     AB2,
 };
 
-constexpr std::string proto(const PROTO& proto) {
+inline std::string proto_str(const PROTO& proto) {
     switch (proto) {
     case PROTO::AB:
         return "AB";

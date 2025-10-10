@@ -168,7 +168,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
                                  std::string ip, int port, int party, int threads,
                                  Utils::PROTO proto) {
     Utils::log(Utils::Level::INFO, "P", party, ": num_triples (ARITH): ", num_triples,
-               " " + Utils::proto(proto));
+               " " + Utils::proto_str(proto));
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
         addr = nullptr;
@@ -260,7 +260,7 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
 
     auto meta = Utils::init_meta_fc(com_dim, dim2);
     Utils::log(Utils::Level::INFO, "P", party, " FC: ", meta.input_shape, " x ", meta.weight_shape,
-               " ", Utils::proto(proto));
+               " ", Utils::proto_str(proto));
 
     auto start = measure::now();
 
@@ -339,7 +339,7 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
                                       parm.n_filters, parm.stride, parm.padding);
 
     Utils::log(Utils::Level::INFO, "P", party, " CONV: ", meta.ishape, " x ", meta.fshape, " x ", parm.n_filters, ", ",
-               parm.stride, ", ", parm.padding, ", ", Utils::proto(proto));
+               parm.stride, ", ", parm.padding, ", ", Utils::proto_str(proto));
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
@@ -450,7 +450,7 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
     }
     auto meta = Utils::init_meta_bn(num_ele, h, w);
     Utils::log(Utils::Level::INFO, "P", party, " BN: ", meta.ishape, " x ", meta.vec_shape, ", ",
-               Utils::proto(proto));
+               Utils::proto_str(proto));
 
     auto start = measure::now();
 
