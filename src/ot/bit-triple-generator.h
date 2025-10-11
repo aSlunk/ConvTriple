@@ -70,7 +70,8 @@ class Triple {
         this->ci = new uint8_t[num_bytes];
     }
 
-    Triple(uint8_t* a, uint8_t* b, uint8_t* c, int num_triples, bool packed = false, int offset = 0) {
+    Triple(uint8_t* a, uint8_t* b, uint8_t* c, int num_triples, bool packed = false,
+           int offset = 0) {
         assert((offset < num_triples) || (num_triples == 0));
         this->num_triples = num_triples;
         this->packed      = packed;
@@ -88,7 +89,7 @@ class Triple {
         this->ai = a;
         this->bi = b;
         this->ci = c;
-        wraped = true;
+        wraped   = true;
     }
 
     ~Triple() {
@@ -130,12 +131,12 @@ class TripleGenerator {
         delete prg;
         // delete buffer
         if (_buffEnable) {
-        if (_Bai)
-            delete[] _Bai;
-        if (_Bbi)
-            delete[] _Bbi;
-        if (_Bci)
-            delete[] _Bci;
+            if (_Bai)
+                delete[] _Bai;
+            if (_Bbi)
+                delete[] _Bbi;
+            if (_Bci)
+                delete[] _Bci;
         }
     }
 
@@ -292,9 +293,9 @@ class TripleGenerator {
 
   public:
     // Buffer implementation to use pre-generated triples from the offline phase
-    uint8_t* _Bai = nullptr;             // Buffer for Ai
-    uint8_t* _Bbi = nullptr;             // Buffer for Bi
-    uint8_t* _Bci = nullptr;             // Buffer for Ci
+    uint8_t* _Bai = nullptr;   // Buffer for Ai
+    uint8_t* _Bbi = nullptr;   // Buffer for Bi
+    uint8_t* _Bci = nullptr;   // Buffer for Ci
     uint64_t _buffSize;        // Number of triples in the buffer (always multiple of 8)
     uint64_t _buffBytes;       // Number of bytes in the buffer (always = _buffSize/8)
     uint64_t _chunkSize;       // Number of triples to be generated in one go (always multiple of 8)

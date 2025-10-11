@@ -26,13 +26,14 @@ int main(int argc, char** argv) {
     int num_triples = 10;
 
     {
-        int tmp = 6996272;
+        int tmp = 37'996'272;
         // tmp = 37'500'000;
         uint8_t* a = new uint8_t[tmp];
         uint8_t* b = new uint8_t[tmp];
         uint8_t* c = new uint8_t[tmp];
 
-        Iface::generateBoolTriplesCheetah(a, b, c, 1, tmp, std::string(""), port, PARTY, threads);
+        Iface::generateBoolTriplesCheetah(a, b, c, 1, tmp, std::string("127.0.0.1"), port, PARTY,
+                                          threads);
 
         delete[] a;
         delete[] b;
