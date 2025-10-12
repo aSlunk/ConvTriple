@@ -5,7 +5,7 @@ target_include_directories(gemini PUBLIC include ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gemini PUBLIC SEAL::seal Eigen3::Eigen)
 target_compile_options(
     gemini PRIVATE
-    "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra>"
+    "$<$<CONFIG:Debug>:-g3;-ggdb;-Og;-Wall;-Wextra>"
     "$<$<CONFIG:Release>:-Wall;-Wextra>"
     "-Wno-unused-parameter"
 )
@@ -43,9 +43,12 @@ target_link_libraries(${HE_LIB} PUBLIC gemini)
 target_compile_definitions(${HE_LIB} PUBLIC USE_CHEETAH=1)
 target_compile_options(
     ${HE_LIB} PRIVATE
-    "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra>"
+    "$<$<CONFIG:Debug>:-g3;-ggdb;-Og;-Wall;-Wextra;-fsanitize=address>"
     "$<$<CONFIG:Release>:-Wall;-Wextra>"
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
+)
+target_link_options(${HE_LIB} PUBLIC
+    "$<$<CONFIG:Debug>:-fsanitize=address>"
 )
 
 if(TRIPLE_VERIFY)
@@ -64,7 +67,7 @@ add_executable(${server} server.cpp)
 target_link_libraries(${server} PRIVATE ${HE_LIB})
 target_compile_options(
     ${server} PRIVATE
-    "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra>"
+    "$<$<CONFIG:Debug>:-g3;-ggdb;-Og;-Wall;-Wextra>"
     "$<$<CONFIG:Release>:-Wall;-Wextra>"
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
 )
@@ -78,7 +81,7 @@ target_link_libraries(${client} PRIVATE ${HE_LIB})
 target_compile_definitions(${client} PUBLIC USE_CHEETAH=1)
 target_compile_options(
     ${client} PRIVATE
-    "$<$<CONFIG:DEBUG>:-g3;-ggdb;-Og;-Wall;-Wextra>"
+    "$<$<CONFIG:Debug>:-g3;-ggdb;-Og;-Wall;-Wextra>"
     "$<$<CONFIG:Release>:-Wall;-Wextra>"
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
 )
