@@ -28,7 +28,7 @@ cd ..
 ###############################################################################
 git clone https://github.com/emp-toolkit/emp-ot.git emp-ot
 cd emp-ot
-git checkout d5f4fc89433c1e391de16c209bcca1a08755507b
+git checkout 93b7aa9
 cmake $TMP/emp-ot -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_PREFIX_PATH=$DEPS -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build . --target install -j
 # mkdir -p $TMP/emp

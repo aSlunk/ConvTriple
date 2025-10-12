@@ -28,7 +28,7 @@ target_include_directories(gemini PUBLIC
 )
 
 ################################################################################
-## Interface: static library
+## Interface: static library HE
 ################################################################################
 set(HE_LIB HE)
 add_library(${HE_LIB} STATIC
