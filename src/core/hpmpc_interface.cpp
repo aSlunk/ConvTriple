@@ -240,7 +240,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
 
-    for (int i = 0; i < 1; ++i) delete ios[i];
+    for (int i = 0; i < threads; ++i) delete ios[i];
     delete[] ios;
 }
 
@@ -259,7 +259,7 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
 
     auto start = measure::now();
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
 
     // meta.is_shared_input = proto == Utils::PROTO::AB;
     static gemini::HomFCSS fc = [&ios, &party] {
@@ -323,7 +323,7 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
     delete[] ai;
     delete[] bi;
 
-    for (int i = 0; i < 1; ++i) delete ios[i];
+    for (int i = 0; i < threads; ++i) delete ios[i];
     delete[] ios;
 }
 
@@ -370,7 +370,7 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
 
     auto start = measure::now();
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
 
     static gemini::HomConv2DSS conv = [&ios, &party] {
         gemini::HomConv2DSS conv;
@@ -432,7 +432,7 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
     delete[] ai;
     delete[] bi;
 
-    for (int i = 0; i < 1; ++i) delete ios[i];
+    for (int i = 0; i < threads; ++i) delete ios[i];
     delete[] ios;
 }
 
@@ -450,7 +450,7 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
 
     auto start = measure::now();
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
 
     meta.is_shared_input      = proto == Utils::PROTO::AB;
     static gemini::HomBNSS bn = [&ios, &party] {
@@ -501,7 +501,7 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
     for (int i = 0; i < 1; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party, ": BN triple data[", unit, "]: ", data);
 
-    for (int i = 0; i < 1; ++i) delete ios[i];
+    for (int i = 0; i < threads; ++i) delete ios[i];
     delete[] ios;
 }
 

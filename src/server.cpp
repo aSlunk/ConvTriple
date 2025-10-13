@@ -27,6 +27,7 @@ int main(int argc, char** argv) {
 
     {
         int tmp = 37'996'272;
+        tmp = 3;
         // tmp = 37'500'000;
         uint8_t* a = new uint8_t[tmp];
         uint8_t* b = new uint8_t[tmp];
@@ -126,8 +127,8 @@ int main(int argc, char** argv) {
     {
         Utils::ConvParm conv{
             .ic        = 1,
-            .iw        = 2,
-            .ih        = 2,
+            .iw        = 100,
+            .ih        = 100,
             .fc        = 1,
             .fw        = 3,
             .fh        = 3,

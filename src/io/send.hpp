@@ -207,7 +207,7 @@ Code IO::send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, const std::vec
         }
     }
 
-    send_recv2(ctx, ios, to_send, to_recv, threads);
+    send_recv(ctx, ios, to_send, to_recv, threads);
     to_send.clear();
 
     recv.resize(send.size());
@@ -228,7 +228,7 @@ Code IO::send_recv(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, const E
     for (size_t i = 0; i < ios.size(); ++i) {
         ios_c[i] = &ios[i];
     }
-    Code code = send_recv2(ctx, ios_c, send, recv, ios.size());
+    Code code = send_recv(ctx, ios_c, send, recv, ios.size());
 
     delete[] ios_c;
     return code;
@@ -344,7 +344,7 @@ Code IO::recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const std::vec
         }
     }
 
-    recv_send2(ctx, ios, to_send, to_recv, threads);
+    recv_send(ctx, ios, to_send, to_recv, threads);
 
     recv.resize(send.size());
     for (size_t i = 0; i < send.size(); ++i) {
@@ -364,7 +364,7 @@ Code IO::recv_send(const seal::SEALContext& ctx, vector<IO::NetIO>& ios, const V
     for (size_t i = 0; i < ios.size(); ++i) {
         ios_c[i] = &ios[i];
     }
-    Code code = recv_send2(ctx, ios_c, send, recv, ios.size());
+    Code code = recv_send(ctx, ios_c, send, recv, ios.size());
     delete[] ios_c;
     return code;
 }

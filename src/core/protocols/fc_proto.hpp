@@ -117,7 +117,7 @@ Result Client::Protocol2(Channel** client, const HomFCSS& hom_fc, const HomFCSS:
 
         vector<vector<seal::Ciphertext>> enc_A1(ele);
         for (size_t i = 0; i < ele; ++i)
-            IO::recv_encrypted_vector(client + wid, hom_fc.getContext(), enc_A1[i], 1);
+            IO::recv_encrypted_vector(client + wid, hom_fc.getContext(), enc_A1[i], threads);
 
         measures.send_recv += Utils::time_diff(start);
         ////////////////////////////////////////////////////////////////////////////
@@ -139,7 +139,7 @@ Result Client::Protocol2(Channel** client, const HomFCSS& hom_fc, const HomFCSS:
         ////////////////////////////////////////////////////////////////////////////
         start = measure::now();
 
-        for (size_t i = 0; i < ele; ++i) IO::send_encrypted_vector(client + wid, M2[i], 1);
+        for (size_t i = 0; i < ele; ++i) IO::send_encrypted_vector(client + wid, M2[i], threads);
 
         measures.send_recv += Utils::time_diff(start);
         return Code::OK;
@@ -275,7 +275,7 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server, const HomF
 
         start = measure::now();
 
-        for (size_t i = 0; i < ele; ++i) IO::send_encrypted_vector(server + wid, enc_A1[i], 1);
+        for (size_t i = 0; i < ele; ++i) IO::send_encrypted_vector(server + wid, enc_A1[i], threads);
 
         measures.send_recv = Utils::time_diff(start);
         ////////////////////////////////////////////////////////////////////////////
@@ -285,7 +285,7 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server, const HomF
 
         vector<vector<seal::Ciphertext>> enc_C1(ele);
         for (size_t i = 0; i < ele; ++i)
-            IO::recv_encrypted_vector(server + wid, fc.getContext(), enc_C1[i], 1);
+            IO::recv_encrypted_vector(server + wid, fc.getContext(), enc_C1[i], threads);
 
         measures.send_recv += Utils::time_diff(start);
         start = measure::now();
