@@ -158,11 +158,11 @@ int main(int argc, char** argv) {
         int w    = 2;
 
         std::vector<uint32_t> A(rows * h * w * batchSize, 3);
-        std::vector<uint32_t> B(rows * batchSize, 1);
+        std::vector<uint32_t> B(rows * batchSize, 0);
         std::vector<uint32_t> C(rows * h * w * batchSize);
 
         Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), batchSize, rows, h, w,
-                                        std::string(""), port, PARTY, threads, Utils::PROTO::AB);
+                                        std::string(""), port, PARTY, threads, Utils::PROTO::AB2);
     }
 
     // HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, samples, true);

@@ -315,7 +315,7 @@ Result Server::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** server
     size_t n_ct_coeff_packing = ((s2 * s3 + POLY_MOD - 1) / POLY_MOD) * s4;
     size_t n_ct_bfv_packing   = ((s2 * s3 * s4 + POLY_MOD - 1) / POLY_MOD) * 3;
     if (n_ct_coeff_packing >= n_ct_bfv_packing)
-        measures = Server::perform_proto(server, bn, meta, A1, B1, C1, threads);
+        measures = Server::perform_proto(server, bn, meta, A1, B1, C1, threads, proto);
     else {
         switch (proto) {
         case Utils::PROTO::AB:
@@ -359,7 +359,7 @@ Result Client::perform_proto(const gemini::HomBNSS::Meta& meta, Channel** client
     size_t n_ct_coeff_packing = ((s2 * s3 + POLY_MOD - 1) / POLY_MOD) * s4;
     size_t n_ct_bfv_packing   = ((s2 * s3 * s4 + POLY_MOD - 1) / POLY_MOD) * 3;
     if (n_ct_coeff_packing >= n_ct_bfv_packing)
-        measures = Client::perform_proto(client, bn, meta, A2, B2, C2, threads);
+        measures = Client::perform_proto(client, bn, meta, A2, B2, C2, threads, proto);
     else {
         switch (proto) {
         case Utils::PROTO::AB:

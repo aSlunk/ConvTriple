@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
         std::vector<uint32_t> C(rows * h * w * batchSize);
 
         Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), batchSize, rows, h, w,
-                                        std::string(addr), port, PARTY, threads, Utils::PROTO::AB);
+                                        std::string(addr), port, PARTY, threads, Utils::PROTO::AB2);
     }
     // HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, samples, true);
     // all.run_ot(20'000'000);
