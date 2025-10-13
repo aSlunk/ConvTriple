@@ -407,15 +407,16 @@ class TripleGenerator {
                 otpack->silent_ot_reversed->template recv_ot_rm_rc<uint8_t>(u, (bool*)a,
                                                                             num_triples, 1);
                 otpack->silent_ot->send_ot_rm_rc(v, b, num_triples, 1);
+                io->flush();
                 break;
             }
             case emp::BOB: {
                 otpack->silent_ot_reversed->template send_ot_rm_rc<uint8_t>(v, b, num_triples, 1);
+                io->flush();
                 otpack->silent_ot->recv_ot_rm_rc(u, (bool*)a, num_triples, 1);
                 break;
             }
             }
-            io->flush();
 
             for (size_t i = 0; i < num_triples; i++) b[i] = b[i] ^ v[i];
             for (size_t i = 0; i < num_triples; i++) c[i] = (a[i] & b[i]) ^ u[i] ^ v[i];
