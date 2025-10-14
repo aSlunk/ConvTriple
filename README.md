@@ -9,7 +9,7 @@ to implement two protocols for MPC and a few linear operations.
 # for debian based distributions
 apt install libssl-dev libeigen3-dev
 ```
-- To install EMP-Tool/SEAL use
+- To install EMP-Tool/EMP-OT/SEAL use
 ```sh
 ./deps.sh
 ```

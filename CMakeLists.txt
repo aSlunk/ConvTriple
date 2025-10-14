@@ -15,7 +15,7 @@ add_compile_options(-fPIC)
 ## Dependencies
 set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps;${CMAKE_PREFIX_PATH}")
 
-find_package(Eigen3 NO_MODULE)
+find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(emp-tool REQUIRED)
 find_package(emp-ot REQUIRED)
 find_package(OpenSSL REQUIRED)

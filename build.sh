@@ -10,6 +10,8 @@ fi
 
 if [[ ! -d $FERRET_DIR ]]; then
     mkdir $FERRET_DIR
+else
+    rm -f $FERRET_DIR/*
 fi
 
 cmake --build build -j

@@ -3,7 +3,7 @@
 WORK_DIR="$PWD"
 DEPS="$WORK_DIR/deps"
 
-TMP="$WORK_DIR/tmp"
+TMP="$DEPS/tmp"
 
 mkdir deps
 mkdir $TMP
@@ -52,3 +52,5 @@ cmake . -B build -DCMAKE_INSTALL_PREFIX=$BUILD_DIR -DCMAKE_PREFIX_PATH=$BUILD_DI
 	                    -DSEAL_USE_ZSTD=ON -DCMAKE_BUILD_TYPE=Release -DSEAL_USE_INTEL_HEXL=ON -DSEAL_BUILD_DEPS=ON\
                         -DSEAL_THROW_ON_TRANSPARENT_CIPHERTEXT=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build --target install --parallel 8
+
+rm -rf "$TMP"
