@@ -275,6 +275,7 @@ Code IO::send_recv(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec& 
 template <class EncVec>
 Code IO::send_recv2(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec& send,
                     vector<seal::Ciphertext>& recv, const size_t& threads) {
+    std::cerr << "EXPERIMENTAL: send_recv2\n";
     vector<std::tuple<std::stringstream, size_t>> is_th(threads);
 
     auto serialize = [&is_th, &send](long wid, size_t start, size_t end) -> Code {
@@ -414,6 +415,7 @@ Code IO::recv_send(const seal::SEALContext& ctx, IO::NetIO** ios, const Vec& sen
 template <class EncVec>
 Code IO::recv_send2(const seal::SEALContext& ctx, IO::NetIO** ios, const EncVec& send,
                     vector<seal::Ciphertext>& recv, const size_t& threads) {
+    std::cerr << "EXPERIMENTAL: recv_send2\n";
     vector<std::tuple<std::stringstream, size_t>> is_th_r(threads);
     vector<std::tuple<std::stringstream, size_t>> is_th_s(threads);
 

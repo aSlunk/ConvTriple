@@ -27,14 +27,14 @@ int main(int argc, char** argv) {
 
     {
         int tmp = 37'996'272;
-        tmp = 3;
+        tmp     = 3;
         // tmp = 37'500'000;
         uint8_t* a = new uint8_t[tmp];
         uint8_t* b = new uint8_t[tmp];
         uint8_t* c = new uint8_t[tmp];
 
         Iface::generateBoolTriplesCheetah(a, b, c, 1, tmp, std::string("127.0.0.1"), port, PARTY,
-                                          threads);
+                                          threads, _2ROT);
 
         delete[] a;
         delete[] b;

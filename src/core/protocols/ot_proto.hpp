@@ -10,8 +10,6 @@
 
 #include "core/defs.hpp"
 
-static constexpr TripleGenMethod METHOD = TripleGenMethod::_16KKOT_to_4OT;
-
 static constexpr size_t LEN(const size_t& numTriple, const bool& packed) {
     return numTriple / (packed ? 8 : 1);
 }
@@ -56,13 +54,8 @@ void Server::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b
         numTriple *= 8;
     }
 
-    Triple trips(numTriple, packed);
-    std::memcpy(trips.ai, a, trips.num_bytes);
-    std::memcpy(trips.bi, b, trips.num_bytes);
-
-    // triple.generate(emp::ALICE, a, b, c, numTriple, METHOD, packed);
-    triple.get(emp::ALICE, &trips, METHOD);
-    std::memcpy(c, trips.ci, trips.num_bytes);
+    Triple trips(a, b, c, numTriple, packed);
+    triple.get(emp::ALICE, &trips, method);
 
 #ifdef VERIFY
     size_t len = numTriple / 8;
@@ -118,12 +111,8 @@ void Client::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b
         numTriple *= 8;
     }
 
-    Triple trips(numTriple, packed);
-    std::memcpy(trips.ai, a, trips.num_bytes);
-    std::memcpy(trips.bi, b, trips.num_bytes);
-    // triple.generate(emp::BOB, a, b, c, numTriple, METHOD, packed);
-    triple.get(emp::BOB, &trips, METHOD);
-    std::memcpy(c, trips.ci, trips.num_bytes);
+    Triple trips(a, b, c, numTriple, packed);
+    triple.get(emp::BOB, &trips, method);
 
 #ifdef VERIFY
     size_t len = numTriple / 8;

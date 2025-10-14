@@ -275,7 +275,8 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server, const HomF
 
         start = measure::now();
 
-        for (size_t i = 0; i < ele; ++i) IO::send_encrypted_vector(server + wid, enc_A1[i], threads);
+        for (size_t i = 0; i < ele; ++i)
+            IO::send_encrypted_vector(server + wid, enc_A1[i], threads);
 
         measures.send_recv = Utils::time_diff(start);
         ////////////////////////////////////////////////////////////////////////////
