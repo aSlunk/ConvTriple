@@ -16,7 +16,7 @@ mkdir $TMP
 cd $TMP
 git clone "https://github.com/emp-toolkit/emp-tool.git" emp-tool
 cd emp-tool
-git checkout 44b1dde
+git checkout 8052d95
 sed -i '4i #include <cstdint>' emp-tool/utils/block.h
 cmake . -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build . --target install -j

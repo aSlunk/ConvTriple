@@ -6,10 +6,10 @@
 
 #define KKOT_TYPES 8
 
-#define PRE_OT_DATA_REG_SEND_FILE_ALICE "./data/pre_ot_data_reg_send_alice"
-#define PRE_OT_DATA_REG_SEND_FILE_BOB "./data/pre_ot_data_reg_send_bob"
-#define PRE_OT_DATA_REG_RECV_FILE_ALICE "./data/pre_ot_data_reg_recv_alice"
-#define PRE_OT_DATA_REG_RECV_FILE_BOB "./data/pre_ot_data_reg_recv_bob"
+#define PRE_OT_DATA_REG_SEND_FILE_ALICE "./data/pre_ot_data_reg_send_alice_"
+#define PRE_OT_DATA_REG_SEND_FILE_BOB "./data/pre_ot_data_reg_send_bob_"
+#define PRE_OT_DATA_REG_RECV_FILE_ALICE "./data/pre_ot_data_reg_recv_alice_"
+#define PRE_OT_DATA_REG_RECV_FILE_BOB "./data/pre_ot_data_reg_recv_bob_"
 
 namespace sci {
 
@@ -37,13 +37,17 @@ class OTPack {
         // this->do_setup = do_setup;
         this->io = ios[0];
 
+        auto post_fix = std::to_string(ios[0]->port);
+
         silent_ot = new cheetah::SilentOT<T>(party, 1, ios, false, true,
-                                             party == emp::ALICE ? PRE_OT_DATA_REG_SEND_FILE_ALICE
-                                                                 : PRE_OT_DATA_REG_RECV_FILE_BOB);
+                                             party == emp::ALICE
+                                                 ? PRE_OT_DATA_REG_SEND_FILE_ALICE + post_fix
+                                                 : PRE_OT_DATA_REG_RECV_FILE_BOB + post_fix);
 
         silent_ot_reversed = new cheetah::SilentOT<T>(
             3 - party, 1, ios, false, true,
-            party == emp::ALICE ? PRE_OT_DATA_REG_RECV_FILE_ALICE : PRE_OT_DATA_REG_SEND_FILE_BOB);
+            party == emp::ALICE ? PRE_OT_DATA_REG_RECV_FILE_ALICE + post_fix
+                                : PRE_OT_DATA_REG_SEND_FILE_BOB + post_fix);
 
         for (int i = 0; i < KKOT_TYPES; i++) {
             kkot[i] = new cheetah::SilentOTN<T>(silent_ot, 1 << (i + 1));
