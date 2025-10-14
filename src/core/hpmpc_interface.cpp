@@ -317,7 +317,7 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
                ": FC triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
-    for (int i = 0; i < 1; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party, ": FC triple data[", unit, "]: ", data);
 
     delete[] ai;
@@ -426,7 +426,7 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
                ": CONV triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
-    for (int i = 0; i < 1; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party, ": CONV triple data[", unit, "]: ", data);
 
     delete[] ai;
@@ -498,7 +498,7 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
                ": BN triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
-    for (int i = 0; i < 1; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party, ": BN triple data[", unit, "]: ", data);
 
     for (int i = 0; i < threads; ++i) delete ios[i];

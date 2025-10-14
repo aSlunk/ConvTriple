@@ -149,7 +149,7 @@ Result Client::Protocol2(Channel** client, const HomFCSS& hom_fc, const HomFCSS:
     gemini::LaunchWorks(tpool, batch, prog);
 
     Result final;
-    for (size_t i = 0; i < 1; ++i) final.bytes += client[i]->counter;
+    for (size_t i = 0; i < threads; ++i) final.bytes += client[i]->counter;
     return final;
 }
 
@@ -241,7 +241,7 @@ Result Client::Protocol1(Channel** client, const HomFCSS& fc, const HomFCSS::Met
     };
 
     fin_measures.ret = gemini::LaunchWorks(tpool, batch, prog);
-    for (size_t i = 0; i < 1; ++i) fin_measures.bytes += client[i]->counter;
+    for (size_t i = 0; i < threads; ++i) fin_measures.bytes += client[i]->counter;
 
     return fin_measures;
 }
@@ -300,7 +300,7 @@ Result Server::Protocol2(const HomFCSS::Meta& meta, Channel** server, const HomF
     gemini::LaunchWorks(tpool, batch, prog);
 
     Result final;
-    for (size_t i = 0; i < 1; ++i) final.bytes += server[i]->counter;
+    for (size_t i = 0; i < threads; ++i) final.bytes += server[i]->counter;
     return final;
 }
 
@@ -395,7 +395,7 @@ Result Server::Protocol1(const HomFCSS::Meta& meta, Channel** server, const HomF
     Result final;
     final.ret = gemini::LaunchWorks(tpool, batch, prog);
 
-    for (size_t i = 0; i < 1; ++i) final.bytes += server[i]->counter;
+    for (size_t i = 0; i < threads; ++i) final.bytes += server[i]->counter;
     return final;
 }
 

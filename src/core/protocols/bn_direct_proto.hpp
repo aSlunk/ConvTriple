@@ -118,7 +118,7 @@ Result Client::Protocol2(Channel** client, const gemini::HomBNSS& bn,
 
     measures.send_recv += Utils::time_diff(start);
 
-    for (size_t i = 0; i < 1; ++i) measures.bytes += client[i]->counter;
+    for (size_t i = 0; i < threads; ++i) measures.bytes += client[i]->counter;
     return measures;
 }
 
@@ -187,7 +187,7 @@ Result Client::Protocol1(Channel** client, const gemini::HomBNSS& bn,
 
     measures.plain_op = Utils::time_diff(start);
 
-    for (size_t i = 0; i < 1; ++i) measures.bytes += client[i]->counter;
+    for (size_t i = 0; i < threads; ++i) measures.bytes += client[i]->counter;
     measures.ret = Code::OK;
 
     return measures;
@@ -231,7 +231,7 @@ Result Server::Protocol2(const gemini::HomBNSS::Meta& meta, Channel** server,
     measures.ret        = bn.decryptToTensor(enc_C1, meta, C1, threads);
     measures.decryption = Utils::time_diff(start);
 
-    for (size_t i = 0; i < 1; ++i) measures.bytes += server[i]->counter;
+    for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     return measures;
 }
 
@@ -298,7 +298,7 @@ Result Server::Protocol1(const gemini::HomBNSS::Meta& meta, Channel** server,
 
     measures.plain_op = Utils::time_diff(start);
 
-    for (size_t i = 0; i < 1; ++i) measures.bytes += server[i]->counter;
+    for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     measures.ret = Code::OK;
     return measures;
 }
