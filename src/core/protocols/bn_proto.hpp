@@ -128,7 +128,7 @@ Result Client::Protocol2_alt(Channel** client, const gemini::HomBNSS& bn,
 
     measures.send_recv += Utils::time_diff(start);
 
-    for (size_t i = 0; i < 1; ++i) measures.bytes += client[i]->counter;
+    for (size_t i = 0; i < threads; ++i) measures.bytes += client[i]->counter;
     return measures;
 }
 
@@ -202,7 +202,7 @@ Result Client::Protocol1_alt(Channel** client, const gemini::HomBNSS& bn,
 
     measures.plain_op = Utils::time_diff(start);
 
-    for (size_t i = 0; i < 1; ++i) measures.bytes += client[i]->counter;
+    for (size_t i = 0; i < threads; ++i) measures.bytes += client[i]->counter;
     measures.ret = Code::OK;
 
     return measures;
@@ -251,7 +251,7 @@ Result Server::Protocol2_alt(const gemini::HomBNSS::Meta& meta, Channel** server
     // Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
     Utils::log(Utils::Level::DEBUG, C1.NumElements());
 
-    for (size_t i = 0; i < 1; ++i) measures.bytes += server[i]->counter;
+    for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     return measures;
 }
 
@@ -324,7 +324,7 @@ Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server
 
     measures.plain_op = Utils::time_diff(start);
 
-    for (size_t i = 0; i < 1; ++i) measures.bytes += server[i]->counter;
+    for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     measures.ret = Code::OK;
     return measures;
 }
@@ -361,30 +361,39 @@ Result Server::perform_proto(Channel** ios, const gemini::HomBNSS& bn,
                              const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                              const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
                              Utils::PROTO proto) {
-    Result res;
     Tensor<uint64_t> vec, scales;
     pack(A, B, vec, scales);
 
     C.Reshape(meta.ishape);
 
-    gemini::HomBNSS::Meta tmp;
-    tmp.is_shared_input = meta.is_shared_input;
-    tmp.target_base_mod = meta.target_base_mod;
-    tmp.vec_shape       = vec.shape();
+    auto func = [&](size_t wid, int start, int end) -> Code {
+        if (start >= end)
+            return Code::OK;
 
-    Tensor<uint64_t> tmp_C = Tensor<uint64_t>::Wrap(C.data(), tmp.vec_shape);
+        Result res;
+        gemini::HomBNSS::Meta tmp;
+        tmp.is_shared_input = meta.is_shared_input;
+        tmp.target_base_mod = meta.target_base_mod;
+        tmp.vec_shape       = {end - start};
 
-    switch (proto) {
-    case Utils::PROTO::AB:
-        res = Server::Protocol1_alt(tmp, ios, bn, vec, scales, tmp_C, threads);
-        break;
-    case Utils::PROTO::AB2:
-        res = Server::Protocol2_alt(tmp, ios, bn, vec, tmp_C, threads);
-        break;
-    }
+        Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(vec.data() + start, tmp.vec_shape);
+        Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(scales.data() + start, tmp.vec_shape);
+        Tensor<uint64_t> tmp_C = Tensor<uint64_t>::Wrap(C.data() + start, tmp.vec_shape);
 
-    if (res.ret != Code::OK)
-        return res;
+        switch (proto) {
+        case Utils::PROTO::AB:
+            res = Server::Protocol1_alt(tmp, ios + wid, bn, tmp_A, tmp_B, tmp_C, 1);
+            break;
+        case Utils::PROTO::AB2:
+            res = Server::Protocol2_alt(tmp, ios + wid, bn, tmp_A, tmp_C, 1);
+            break;
+        }
+        return res.ret;
+    };
+
+    Result res;
+    gemini::ThreadPool tpool(threads);
+    res.ret = gemini::LaunchWorks(tpool, vec.NumElements(), func);
 
     return res;
 }
@@ -423,29 +432,41 @@ Result Client::perform_proto(Channel** ios, const gemini::HomBNSS& bn,
 #ifndef NDEBUG
     Utils::log(Utils::Level::DEBUG, "Using alternative BN");
 #endif
-    Result res;
     Tensor<uint64_t> vec, scales;
     pack(A, B, vec, scales);
 
     C.Reshape(meta.ishape);
-    gemini::HomBNSS::Meta tmp;
-    tmp.is_shared_input = meta.is_shared_input;
-    tmp.target_base_mod = meta.target_base_mod;
-    tmp.vec_shape       = vec.shape();
 
-    Tensor<uint64_t> tmp_C = Tensor<uint64_t>::Wrap(C.data(), tmp.vec_shape);
+    auto func = [&](size_t wid, int start, int end) -> Code {
+        if (start >= end)
+            return Code::OK;
 
-    switch (proto) {
-    case Utils::PROTO::AB:
-        res = Client::Protocol1_alt(ios, bn, tmp, vec, scales, tmp_C, threads);
-        break;
-    case Utils::PROTO::AB2:
-        res = Client::Protocol2_alt(ios, bn, tmp, vec, scales, tmp_C, threads);
-        break;
-    }
+        Result res;
+        gemini::HomBNSS::Meta tmp;
+        tmp.is_shared_input = meta.is_shared_input;
+        tmp.target_base_mod = meta.target_base_mod;
+        tmp.vec_shape       = {end - start};
 
-    if (res.ret != Code::OK)
-        return res;
+        Tensor<uint64_t> tmp_A = Tensor<uint64_t>::Wrap(vec.data() + start, tmp.vec_shape);
+        Tensor<uint64_t> tmp_B = Tensor<uint64_t>::Wrap(scales.data() + start, tmp.vec_shape);
+        Tensor<uint64_t> tmp_C = Tensor<uint64_t>::Wrap(C.data() + start, tmp.vec_shape);
+
+        switch (proto) {
+        case Utils::PROTO::AB:
+            res = Client::Protocol1_alt(ios + wid, bn, tmp, tmp_A, tmp_B, tmp_C, 1);
+            break;
+        case Utils::PROTO::AB2:
+            res = Client::Protocol2_alt(ios + wid, bn, tmp, tmp_A, tmp_B, tmp_C, 1);
+            break;
+        }
+
+        return res.ret;
+    };
+
+    Result res;
+
+    gemini::ThreadPool tpool(threads);
+    res.ret = gemini::LaunchWorks(tpool, vec.NumElements(), func);
 
     return res;
 }
