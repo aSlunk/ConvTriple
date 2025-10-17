@@ -55,8 +55,13 @@ if [[ "$1" = "-gpu" ]]; then
     cd $DEPS_DIR/troy-nova
     git checkout 3354734
     patch --quiet --no-backup-if-mismatch -N -p1 -i $WORK_DIR/patch/troy-nova.patch -d $DEPS_DIR/troy-nova
+
+    sed -i "2i #include <algorithm>" ./test/lwe.cu
+    sed -i "5i #include <cstdint>" ./src/utils/compression.h
+
+    export CMAKE_GENERATOR="Unix Makefiles"
     bash scripts/build.sh -install -prefix=$BUILD_DIR
 fi
 
 
-rm -rf "$TMP"
+# rm -rf "$TMP"

@@ -25,6 +25,9 @@ find_package(SEAL 4.0.0 REQUIRED)
 if(TRIPLE_GPU)
     enable_language(CUDA)
     find_package(Troy REQUIRED)
+    find_package(CUDAToolkit REQUIRED)
+
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -fPIC")
 endif()
 # include_directories(${EIGEN3_INCLUDE_DIR}
 #                     ${EMP-OT_INCLUDE_DIRS}

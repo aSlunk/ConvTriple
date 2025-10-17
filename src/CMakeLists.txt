@@ -3,6 +3,11 @@ add_library(gemini SHARED)
 add_subdirectory(include)
 target_include_directories(gemini PUBLIC include ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gemini PUBLIC SEAL::seal Eigen3::Eigen)
+
+if(TRIPLE_GPU)
+target_link_libraries(gemini PUBLIC Troy::troy CUDA::cudart CUDA::cufft)
+endif()
+
 target_compile_options(
     gemini PRIVATE
     "$<$<CONFIG:Debug>:-g3;-ggdb;-Og;-Wall;-Wextra>"
