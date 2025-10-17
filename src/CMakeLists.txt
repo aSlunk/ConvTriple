@@ -4,10 +4,6 @@ add_subdirectory(include)
 target_include_directories(gemini PUBLIC include ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gemini PUBLIC SEAL::seal Eigen3::Eigen)
 
-if(TRIPLE_GPU)
-target_link_libraries(gemini PUBLIC Troy::troy CUDA::cudart CUDA::cufft)
-endif()
-
 target_compile_options(
     gemini PRIVATE
     "$<$<CONFIG:Debug>:-g3;-ggdb;-Og;-Wall;-Wextra>"
@@ -36,11 +32,22 @@ target_include_directories(gemini PUBLIC
 ## Interface: static library HE
 ################################################################################
 set(HE_LIB HE)
-add_library(${HE_LIB} STATIC
-    core/hpmpc_interface.cpp
-    core/defs.cpp
-    io/send.cpp
-)
+if(TRIPLE_GPU)
+    add_library(${HE_LIB} STATIC
+        core/hpmpc_interface.cpp
+        core/defs.cpp
+        io/send.cpp
+        troy/conv2d_gpu.cu
+    )
+
+    target_link_libraries(${HE_LIB} PUBLIC Troy::troy CUDA::cudart CUDA::cufft)
+else()
+    add_library(${HE_LIB} STATIC
+        core/hpmpc_interface.cpp
+        core/defs.cpp
+        io/send.cpp
+    )
+endif()
 message(STATUS ${EIGEN3_INCLUDE_DIR})
 target_include_directories(${HE_LIB} PUBLIC io include ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(${HE_LIB} PRIVATE OpenSSL::SSL OpenSSL::Crypto)

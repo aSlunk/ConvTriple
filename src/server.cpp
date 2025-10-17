@@ -6,6 +6,8 @@
 #include <core/hpmpc_interface.hpp>
 #include <core/networks/resnet50.hpp>
 
+#include <troy/conv2d_gpu.cuh>
+
 #define PARTY 1
 
 int main(int argc, char** argv) {
@@ -13,6 +15,8 @@ int main(int argc, char** argv) {
         std::cout << argv[0] << " <port> <samples> <batchSize> (<threads>)\n";
         return EXEC_FAILED;
     }
+
+    TROY::conv2d();
 
     size_t port                     = strtoul(argv[1], NULL, 10);
     [[maybe_unused]] size_t samples = strtoul(argv[2], NULL, 10);
