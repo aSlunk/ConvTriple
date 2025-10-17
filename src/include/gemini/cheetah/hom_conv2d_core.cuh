@@ -38,7 +38,7 @@ namespace gemini {
     }
   }
 
-  uint64_t plain_modulus(const std::shared_ptr<seal::SEALContext> context_){
+  int64_t plain_modulus(const std::shared_ptr<seal::SEALContext> context_){
     if (context_) {
       return context_->first_context_data()->parms().plain_modulus().value();
     } else {

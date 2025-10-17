@@ -8,7 +8,7 @@ option(USE_APPROX_RESHARE "Enable APPROX RESHARE" OFF)
 option(TRIPLE_VERIFY "Enable verification" ON)
 option(TRIPLE_COLOR "Enable colored output" ON)
 option(TRIPLE_ZERO "Enable computation with ZERO" OFF)
-option(TRIPLE_GPU "Enable GPU support" OFF)
+option(TRIPLE_GPU "Enable GPU support" ON)
 
 add_compile_options(-fPIC)
 # add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)
@@ -24,10 +24,10 @@ find_package(SEAL 4.0.0 REQUIRED)
 
 if(TRIPLE_GPU)
     enable_language(CUDA)
-    find_package(Troy REQUIRED)
     find_package(CUDAToolkit REQUIRED)
 
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -fPIC")
+    set(CMAKE_CUDA_FLAGS_DEBUG "")
 endif()
 # include_directories(${EIGEN3_INCLUDE_DIR}
 #                     ${EMP-OT_INCLUDE_DIRS}

@@ -5,7 +5,9 @@ target_include_directories(gemini PUBLIC include ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(gemini PUBLIC SEAL::seal Eigen3::Eigen)
 
 if(TRIPLE_GPU)
-target_link_libraries(gemini PUBLIC Troy::troy CUDA::cudart CUDA::cufft)
+    target_link_libraries(gemini PUBLIC CUDA::cudart CUDA::cufft)
+    target_link_libraries(gemini PRIVATE /home/slunk/Documents/Uni/master/IDP/ConvTriple/deps/lib/libtroy.so)
+    target_include_directories(gemini PRIVATE /home/slunk/Documents/Uni/master/IDP/ConvTriple/deps/include/troy)
 endif()
 
 target_compile_options(

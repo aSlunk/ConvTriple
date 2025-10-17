@@ -6,7 +6,12 @@
 namespace gemini {
 
   inline bool isInitializedCuda() {
-    return troy::KernelProvider::isInitialized();
+    try {
+      troy::KernelProvider::checkInitialized();
+      return true;
+    } catch (const std::invalid_argument& e) {
+      return false;
+    }
   }
 
   inline void initializeCuda() {
