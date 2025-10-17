@@ -59,8 +59,10 @@ if [[ "$1" = "-gpu" ]]; then
     sed -i "2i #include <algorithm>" ./test/lwe.cu
     sed -i "5i #include <cstdint>" ./src/utils/compression.h
 
-    export CMAKE_GENERATOR="Unix Makefiles"
-    bash scripts/build.sh -install -prefix=$BUILD_DIR
+    cmake -B build . -DCMAKE_INSTALL_PREFIX=$BUILD_DIR -DCMAKE_CUDA_ARCHITECTURES="75;80;89" -DCMAKE_BUILD_TYPE=$BUILD_MODE -DCMAKE_PREFIX_PATH=$BUILD_DIR -DTROY_PYBIND=OFF -DTROY_TEST=ON -DTROY_BENCH=ON -DTROY_EXAMPLES=ON
+    cmake --build build -t install -j
+    # export CMAKE_GENERATOR="Unix Makefiles"
+    # bash scripts/build.sh -install -prefix=$BUILD_DIR
 fi
 
 
