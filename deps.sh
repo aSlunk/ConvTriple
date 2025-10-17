@@ -5,22 +5,24 @@ DEPS="$WORK_DIR/deps"
 
 TMP="$DEPS/tmp"
 
+BUILD_DIR="$DEPS"
+DEPS_DIR="$TMP"
+
 mkdir deps
 mkdir $TMP
+cd $TMP
 
 # git clone https://gitlab.com/libeigen/eigen.git $TMP/eigen
 # cd $TMP/eigen
 # cmake . -B build -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_BUILD_TYPE=Release
 # cmake --install build
 
-cd $TMP
 git clone "https://github.com/emp-toolkit/emp-tool.git" emp-tool
 cd emp-tool
 git checkout 8052d95
 sed -i '4i #include <cstdint>' emp-tool/utils/block.h
 cmake . -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build . --target install -j
-
 cd ..
 
 ###############################################################################
@@ -31,19 +33,11 @@ cd emp-ot
 git checkout 93b7aa9
 cmake $TMP/emp-ot -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_PREFIX_PATH=$DEPS -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build . --target install -j
-# mkdir -p $TMP/emp
-# cd $TMP/emp
-# export CMAKE_INSTALL_PREFIX="$DEPS"
-# wget "https://raw.githubusercontent.com/emp-toolkit/emp-readme/master/scripts/install.py"
-# python install.py --install --tool --ot
-
 cd ..
 
 ###############################################################################
 # SEAL
 ###############################################################################
-BUILD_DIR="$DEPS"
-DEPS_DIR="$TMP"
 git clone https://github.com/microsoft/SEAL.git $DEPS_DIR/SEAL
 cd $DEPS_DIR/SEAL
 git switch --detach v4.0.0
@@ -52,5 +46,17 @@ cmake . -B build -DCMAKE_INSTALL_PREFIX=$BUILD_DIR -DCMAKE_PREFIX_PATH=$BUILD_DI
 	                    -DSEAL_USE_ZSTD=ON -DCMAKE_BUILD_TYPE=Release -DSEAL_USE_INTEL_HEXL=ON -DSEAL_BUILD_DEPS=ON\
                         -DSEAL_THROW_ON_TRANSPARENT_CIPHERTEXT=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build --target install --parallel 8
+
+###############################################################################
+# troy-nova
+###############################################################################
+if [[ "$1" = "-gpu" ]]; then
+    git clone "https://github.com/lightbulb128/troy-nova.git" $DEPS_DIR/troy-nova
+    cd $DEPS_DIR/troy-nova
+    git checkout 3354734
+    patch --quiet --no-backup-if-mismatch -N -p1 -i $WORK_DIR/patch/troy-nova.patch -d $DEPS_DIR/troy-nova
+    bash scripts/build.sh -install -prefix=$BUILD_DIR
+fi
+
 
 rm -rf "$TMP"

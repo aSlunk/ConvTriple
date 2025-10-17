@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(IDP)
+project(IDP LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED 20)
@@ -8,6 +8,7 @@ option(USE_APPROX_RESHARE "Enable APPROX RESHARE" OFF)
 option(TRIPLE_VERIFY "Enable verification" ON)
 option(TRIPLE_COLOR "Enable colored output" ON)
 option(TRIPLE_ZERO "Enable computation with ZERO" OFF)
+option(TRIPLE_GPU "Enable GPU support" OFF)
 
 add_compile_options(-fPIC)
 # add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)
@@ -20,6 +21,11 @@ find_package(emp-tool REQUIRED)
 find_package(emp-ot REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(SEAL 4.0.0 REQUIRED)
+
+if(TRIPLE_GPU)
+    enable_language(CUDA)
+    find_package(Troy REQUIRED)
+endif()
 # include_directories(${EIGEN3_INCLUDE_DIR}
 #                     ${EMP-OT_INCLUDE_DIRS}
 #                     ${EMP-TOOL_INCLUDE_DIRS})
