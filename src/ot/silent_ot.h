@@ -35,7 +35,10 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
         count_rcot_ = 0;
     }
 
-    ~SilentOT() { delete ferret; }
+    ~SilentOT() {
+        ferret->skip_file();
+        delete ferret;
+    }
 
     void flush() {
         for (int i = 0; i < ferret->threads; ++i) {
