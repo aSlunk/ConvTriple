@@ -10,7 +10,7 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
             size_t kw, size_t oc, size_t stride) {
     using namespace troy;
     size_t poly_mod   = 4096;
-    size_t plain_mod  = 1lu << 32;
+    size_t plain_mod  = (1ULL << 32);
     SchemeType scheme = SchemeType::BFV;
 
     EncryptionParameters parms(scheme);
@@ -26,6 +26,7 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
     }
 
     uint64_t mod = parms.plain_modulus_host().value();
+    std::cout << mod << ": MOD\n";
     size_t oh    = ih - kh + 1;
     size_t ow    = iw - kw + 1;
 
@@ -51,6 +52,7 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         auto y_encrypted  = helper.deserialize_outputs(evaluator, y_serialized);
         vector<uint64_t> y_decrypted
             = helper.decrypt_outputs_uint64s(encoder, decryptor, y_encrypted);
+        auto res = apply_stride(y_decrypted, stride, bs, ic, ih, iw, kh, kw, oc);
 
 #ifdef VERIFY
         std::vector<uint64_t> w(oc * ic * kh * kw);
@@ -59,25 +61,26 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         ios[0]->recv_data(w.data(), w.size() * sizeof(uint64_t));
         ios[0]->recv_data(R.data(), R.size() * sizeof(uint64_t));
 
+        add_inplace(R, res, mod);
         vector<uint64_t> ideal
             = ideal_conv(x.data(), w.data(), R.data(), mod, bs, ic, ih, iw, kh, kw, oc, stride);
-        if (vector_equal(y_decrypted, ideal)) {
+        if (vector_equal(R, ideal)) {
             std::cout << "SUCCESS\n";
         } else {
             std::cout << "FAILED\n";
-            // for (size_t h = 0; h < oh; ++h) {
-            //     for (size_t w = 0; w < ow; ++w) {
-            //         std::cout << y_decrypted[h * ow + w] << ", ";
-            //     }
-            //     std::cout << "\n";
-            // }
-            // std::cout << "\n";
-            // for (size_t h = 0; h < oh; ++h) {
-            //     for (size_t w = 0; w < ow; ++w) {
-            //         std::cout << ideal[h * ow + w] << ", ";
-            //     }
-            //     std::cout << "\n";
-            // }
+            for (size_t h = 0; h < oh; ++h) {
+                for (size_t w = 0; w < ow; ++w) {
+                    std::cout << res[h * ow + w] << ", ";
+                }
+                std::cout << "\n";
+            }
+            std::cout << "\n";
+            for (size_t h = 0; h < oh; ++h) {
+                for (size_t w = 0; w < ow; ++w) {
+                    std::cout << ideal[h * ow + w] << ", ";
+                }
+                std::cout << "\n";
+            }
         }
 #endif
         std::cout << "P" << party - 1 << ": " << (1.0 * ios[0]->counter) / (1 << 20) << "MiB\n";
@@ -98,6 +101,8 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         std::stringstream y_serialized;
         helper.serialize_outputs(evaluator, y_encrypted, y_serialized);
         send(ios, y_serialized);
+
+        auto res = apply_stride(R, stride, bs, ic, ih, iw, kh, kw, oc);
 #ifdef VERIFY
         ios[0]->send_data(w.data(), w.size() * sizeof(uint64_t));
         ios[0]->send_data(R.data(), R.size() * sizeof(uint64_t));
@@ -150,12 +155,12 @@ vector<uint64_t> ideal_conv(uint64_t* x, uint64_t* w, uint64_t* R, size_t t, siz
                             }
                         }
                     }
-                    auto old_h = (ih - kh) + 1;
-                    auto old_w = (iw - kw) + 1;
-                    add_mod_inplace(y_truth[b * oc * oh * ow + o * oh * ow + i * ow + j],
-                                    -R[b * oc * old_h * old_w + o * old_h * old_w
-                                       + i * stride * old_w + j * stride],
-                                    t);
+                    // auto old_h = (ih - kh) + 1;
+                    // auto old_w = (iw - kw) + 1;
+                    // add_mod_inplace(y_truth[b * oc * oh * ow + o * oh * ow + i * ow + j],
+                    //                 -R[b * oc * old_h * old_w + o * old_h * old_w
+                    //                    + i * stride * old_w + j * stride],
+                    //                 t);
                 }
             }
         }
@@ -187,6 +192,11 @@ vector<uint64_t> apply_stride(std::vector<uint64_t>& x, const size_t& stride, co
         }
     }
     return res;
+}
+
+void add_inplace(std::vector<uint64_t>& a, const std::vector<uint64_t>& b, size_t t) {
+    for (size_t i = 0; i < a.size(); ++i)
+        add_mod_inplace(a[i], b[i], t);
 }
 
 } // namespace TROY
