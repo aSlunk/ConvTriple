@@ -6,10 +6,8 @@
 
 namespace TROY {
 
-void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
-            size_t stride) {
-    std::cout << "conv\n";
-
+void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
+            size_t kw, size_t oc, size_t stride) {
     using namespace troy;
     size_t poly_mod   = 4096;
     size_t plain_mod  = 1lu << 32;
@@ -22,7 +20,6 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
     HeContextPointer he = HeContext::create(parms, true, SecurityLevel::Classical128);
 
     BatchEncoder encoder(he);
-    std::cout << utils::device_count() << "\n";
     if (utils::device_count() > 0) {
         he->to_device_inplace();
         encoder.to_device_inplace();
@@ -31,7 +28,6 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
     uint64_t mod = parms.plain_modulus_host().value();
     size_t oh    = ih - kh + 1;
     size_t ow    = iw - kw + 1;
-
 
     linear::Conv2dHelper helper(bs, ic, oc, ih, iw, kh, kw, parms.poly_modulus_degree(),
                                 linear::MatmulObjective::EncryptLeft);
@@ -43,7 +39,7 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
     Decryptor decryptor(he, keygen.secret_key());
 
     if (party == 1) {
-        vector<uint64_t> x = random_polynomial(bs * ic * ih * iw);
+        vector<uint64_t> x        = random_polynomial(bs * ic * ih * iw);
         linear::Plain2d x_encoded = helper.encode_inputs_uint64s(encoder, x.data());
 
         linear::Cipher2d x_encrypted = x_encoded.encrypt_symmetric(encryptor);
@@ -52,11 +48,13 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         send(ios, x_serialized);
 
         auto y_serialized = recv(ios);
-        auto y_encrypted = helper.deserialize_outputs(evaluator, y_serialized);
-        vector<uint64_t> y_decrypted = helper.decrypt_outputs_uint64s(encoder, decryptor, y_encrypted);
+        auto y_encrypted  = helper.deserialize_outputs(evaluator, y_serialized);
+        vector<uint64_t> y_decrypted
+            = helper.decrypt_outputs_uint64s(encoder, decryptor, y_encrypted);
         std::vector<uint64_t> w(oc * ic * kh * kw);
         std::vector<uint64_t> R(bs * ic * ih * iw);
 
+#ifdef VERIFY
         ios[0]->recv_data(w.data(), w.size() * sizeof(uint64_t));
         ios[0]->recv_data(R.data(), R.size() * sizeof(uint64_t));
 
@@ -80,8 +78,10 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
             //     std::cout << "\n";
             // }
         }
+#endif
+        std::cout << "P" << party - 1 << ": " << (1.0 * ios[0]->counter) / (1 << 20) << "MiB\n";
     } else {
-        auto stream = recv(ios);
+        auto stream      = recv(ios);
         auto x_encrypted = linear::Cipher2d::load_new(stream, he);
 
         vector<uint64_t> w = random_polynomial(oc * ic * kh * kw);
@@ -90,7 +90,6 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         linear::Plain2d w_encoded = helper.encode_weights_uint64s(encoder, w.data());
         linear::Plain2d R_encoded = helper.encode_inputs_uint64s(encoder, R.data());
 
-
         linear::Cipher2d y_encrypted = helper.conv2d(evaluator, x_encrypted, w_encoded);
         // y_encrypted.mod_switch_to_next_inplace(evaluator);
         // y_encrypted.sub_plain_inplace(evaluator, R_encoded);
@@ -98,15 +97,15 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         std::stringstream y_serialized;
         helper.serialize_outputs(evaluator, y_encrypted, y_serialized);
         send(ios, y_serialized);
+#ifdef VERIFY
         ios[0]->send_data(w.data(), w.size() * sizeof(uint64_t));
         ios[0]->send_data(R.data(), R.size() * sizeof(uint64_t));
         ios[0]->flush();
+#endif
+        std::cout << "P" << party - 1 << ": " << (1.0 * ios[0]->counter) / (1 << 20) << "MiB\n";
     }
 
-
-
     // vector<uint64_t> y_stride    = apply_stride(y_decrypted, stride, bs, ic, ih, iw, kh, kw, oc);
-
 }
 
 std::vector<uint64_t> random_polynomial(size_t size, uint64_t max_value) {

@@ -10,8 +10,8 @@ using std::vector;
 
 namespace TROY {
 
-void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
-            size_t stride);
+void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
+            size_t kw, size_t oc, size_t stride);
 bool vector_equal(const vector<uint64_t>& a, const vector<uint64_t>& b);
 vector<uint64_t> ideal_conv(uint64_t* x, uint64_t* w, uint64_t* R, size_t t, size_t bs, size_t ic,
                             size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
@@ -46,11 +46,10 @@ inline void add_mod_inplace(uint64_t& a, uint64_t b, uint64_t t) { a = add_mod(a
 
 template <class T>
 void TROY::send(T** ios, const std::stringstream& ss) {
-    auto tmp = ss.str();
+    auto tmp   = ss.str();
     uint32_t n = tmp.size();
     ios[0]->send_data(&n, sizeof(uint32_t));
     ios[0]->flush();
-    std::cout << n << ": send\n";
     if (n > 0) {
         ios[0]->send_data(tmp.c_str(), n);
         ios[0]->flush();
@@ -62,7 +61,6 @@ std::stringstream TROY::recv(T** ios) {
     std::stringstream res;
     uint32_t n{0};
     ios[0]->recv_data(&n, sizeof(uint32_t));
-    std::cout << n << ": recv\n";
     if (n > 0) {
         char* s = new char[n];
         ios[0]->recv_data(s, n);
