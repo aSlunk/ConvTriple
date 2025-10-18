@@ -6,7 +6,9 @@
 #include <core/hpmpc_interface.hpp>
 #include <core/networks/resnet50.hpp>
 
+#ifdef USE_CONV_CUDA
 #include <troy/conv2d_gpu.cuh>
+#endif
 
 #define PARTY 1
 
@@ -16,7 +18,9 @@ int main(int argc, char** argv) {
         return EXEC_FAILED;
     }
 
-    TROY::conv2d();
+#ifdef USE_CONV_CUDA
+    TROY::conv2d(1, 1, 10, 10, 3, 3, 1, 1);
+#endif
 
     size_t port                     = strtoul(argv[1], NULL, 10);
     [[maybe_unused]] size_t samples = strtoul(argv[2], NULL, 10);
