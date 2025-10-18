@@ -51,10 +51,11 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         auto y_encrypted  = helper.deserialize_outputs(evaluator, y_serialized);
         vector<uint64_t> y_decrypted
             = helper.decrypt_outputs_uint64s(encoder, decryptor, y_encrypted);
-        std::vector<uint64_t> w(oc * ic * kh * kw);
-        std::vector<uint64_t> R(bs * ic * ih * iw);
 
 #ifdef VERIFY
+        std::vector<uint64_t> w(oc * ic * kh * kw);
+        std::vector<uint64_t> R(bs * oc * oh * ow);
+
         ios[0]->recv_data(w.data(), w.size() * sizeof(uint64_t));
         ios[0]->recv_data(R.data(), R.size() * sizeof(uint64_t));
 
@@ -85,14 +86,14 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         auto x_encrypted = linear::Cipher2d::load_new(stream, he);
 
         vector<uint64_t> w = random_polynomial(oc * ic * kh * kw);
-        vector<uint64_t> R = random_polynomial(bs * ic * ih * iw);
+        vector<uint64_t> R = random_polynomial(bs * oc * oh * ow);
 
         linear::Plain2d w_encoded = helper.encode_weights_uint64s(encoder, w.data());
-        linear::Plain2d R_encoded = helper.encode_inputs_uint64s(encoder, R.data());
+        linear::Plain2d R_encoded = helper.encode_outputs_uint64s(encoder, R.data());
 
         linear::Cipher2d y_encrypted = helper.conv2d(evaluator, x_encrypted, w_encoded);
         // y_encrypted.mod_switch_to_next_inplace(evaluator);
-        // y_encrypted.sub_plain_inplace(evaluator, R_encoded);
+        y_encrypted.sub_plain_inplace(evaluator, R_encoded);
 
         std::stringstream y_serialized;
         helper.serialize_outputs(evaluator, y_encrypted, y_serialized);
@@ -151,10 +152,10 @@ vector<uint64_t> ideal_conv(uint64_t* x, uint64_t* w, uint64_t* R, size_t t, siz
                     }
                     auto old_h = (ih - kh) + 1;
                     auto old_w = (iw - kw) + 1;
-                    // add_mod_inplace(y_truth[b * oc * oh * ow + o * oh * ow + i * ow + j],
-                    //                 -R[b * oc * old_h * old_w + o * old_h * old_w
-                    //                    + i * stride * old_w + j * stride],
-                    //                 t);
+                    add_mod_inplace(y_truth[b * oc * oh * ow + o * oh * ow + i * ow + j],
+                                    -R[b * oc * old_h * old_w + o * old_h * old_w
+                                       + i * stride * old_w + j * stride],
+                                    t);
                 }
             }
         }
