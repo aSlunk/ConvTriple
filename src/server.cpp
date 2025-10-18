@@ -19,7 +19,6 @@ int main(int argc, char** argv) {
         return EXEC_FAILED;
     }
 
-
     size_t port                     = strtoul(argv[1], NULL, 10);
     [[maybe_unused]] size_t samples = strtoul(argv[2], NULL, 10);
     size_t batchSize                = strtoul(argv[3], NULL, 10);
@@ -37,7 +36,6 @@ int main(int argc, char** argv) {
     delete ios[0];
     delete[] ios;
 #endif
-
 
     {
         int tmp = 37'996'272;
