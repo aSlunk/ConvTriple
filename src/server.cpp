@@ -19,9 +19,6 @@ int main(int argc, char** argv) {
         return EXEC_FAILED;
     }
 
-#ifdef USE_CONV_CUDA
-    TROY::conv2d(1, 1, 10, 10, 3, 3, 1, 1);
-#endif
 
     size_t port                     = strtoul(argv[1], NULL, 10);
     [[maybe_unused]] size_t samples = strtoul(argv[2], NULL, 10);
@@ -33,6 +30,14 @@ int main(int argc, char** argv) {
         threads = std::min(strtoul(argv[4], NULL, 10), (size_t)N_THREADS);
 
     int num_triples = 10;
+
+#ifdef USE_CONV_CUDA
+    auto ios = Utils::init_ios<IO::NetIO>(nullptr, port, 1);
+    TROY::conv2d(ios, PARTY, 1, 3, 230, 230, 3, 3, 64, 1);
+    delete ios[0];
+    delete[] ios;
+#endif
+
 
     {
         int tmp = 37'996'272;

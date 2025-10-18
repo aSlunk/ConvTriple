@@ -84,9 +84,11 @@ target_compile_options(
     "$<$<CONFIG:Release>:-Wall;-Wextra>"
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
 )
-target_compile_definitions(${server} PRIVATE USE_CONV_CUDA)
 if(TRIPLE_COLOR)
     target_compile_definitions(${server} PRIVATE COLOR)
+endif()
+if(TRIPLE_GPU)
+    target_compile_definitions(${server} PRIVATE USE_CONV_CUDA)
 endif()
 
 set(client cheetah_client)
@@ -101,6 +103,9 @@ target_compile_options(
 )
 if(TRIPLE_COLOR)
     target_compile_definitions(${client} PRIVATE COLOR)
+endif()
+if(TRIPLE_GPU)
+    target_compile_definitions(${client} PRIVATE USE_CONV_CUDA)
 endif()
 
 message(STATUS "TRIPLE_VERIFY: ${TRIPLE_VERIFY}")
