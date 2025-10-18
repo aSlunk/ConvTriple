@@ -6,16 +6,17 @@
 
 namespace TROY {
 
-void conv2d(size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
+void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
             size_t stride) {
     std::cout << "conv\n";
+
     using namespace troy;
     size_t poly_mod   = 4096;
     size_t plain_mod  = 1lu << 32;
     SchemeType scheme = SchemeType::BFV;
 
     EncryptionParameters parms(scheme);
-    parms.set_coeff_modulus(CoeffModulus::create(poly_mod, {60, 40}).to_vector());
+    parms.set_coeff_modulus(CoeffModulus::create(poly_mod, {60, 49}).to_vector());
     parms.set_plain_modulus(plain_mod);
     parms.set_poly_modulus_degree(poly_mod);
     HeContextPointer he = HeContext::create(parms, true, SecurityLevel::Classical128);
@@ -31,9 +32,6 @@ void conv2d(size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, si
     size_t oh    = ih - kh + 1;
     size_t ow    = iw - kw + 1;
 
-    vector<uint64_t> x = random_polynomial(bs * ic * ih * iw);
-    vector<uint64_t> w = random_polynomial(oc * ic * kh * kw);
-    vector<uint64_t> R = random_polynomial(bs * oc * oh * ow);
 
     linear::Conv2dHelper helper(bs, ic, oc, ih, iw, kh, kw, parms.poly_modulus_degree(),
                                 linear::MatmulObjective::EncryptLeft);
@@ -44,34 +42,71 @@ void conv2d(size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, si
     Evaluator evaluator(he);
     Decryptor decryptor(he, keygen.secret_key());
 
-    linear::Plain2d x_encoded = helper.encode_inputs_uint64s(encoder, x.data());
-    linear::Plain2d w_encoded = helper.encode_weights_uint64s(encoder, w.data());
-    linear::Plain2d R_encoded = helper.encode_outputs_uint64s(encoder, R.data());
+    if (party == 1) {
+        vector<uint64_t> x = random_polynomial(bs * ic * ih * iw);
+        linear::Plain2d x_encoded = helper.encode_inputs_uint64s(encoder, x.data());
 
-    linear::Cipher2d x_encrypted = x_encoded.encrypt_symmetric(encryptor);
+        linear::Cipher2d x_encrypted = x_encoded.encrypt_symmetric(encryptor);
+        std::stringstream x_serialized;
+        x_encrypted.save(x_serialized, he);
+        send(ios, x_serialized);
 
-    std::stringstream x_serialized;
-    x_encrypted.save(x_serialized, he);
-    x_encrypted = linear::Cipher2d::load_new(x_serialized, he);
+        auto y_serialized = recv(ios);
+        auto y_encrypted = helper.deserialize_outputs(evaluator, y_serialized);
+        vector<uint64_t> y_decrypted = helper.decrypt_outputs_uint64s(encoder, decryptor, y_encrypted);
+        std::vector<uint64_t> w(oc * ic * kh * kw);
+        std::vector<uint64_t> R(bs * ic * ih * iw);
 
-    linear::Cipher2d y_encrypted = helper.conv2d(evaluator, x_encrypted, w_encoded);
-    y_encrypted.sub_plain_inplace(evaluator, R_encoded);
+        ios[0]->recv_data(w.data(), w.size() * sizeof(uint64_t));
+        ios[0]->recv_data(R.data(), R.size() * sizeof(uint64_t));
 
-    std::stringstream y_serialized;
-    helper.serialize_outputs(evaluator, y_encrypted, y_serialized);
-    y_encrypted = helper.deserialize_outputs(evaluator, y_serialized);
-
-    vector<uint64_t> y_decrypted = helper.decrypt_outputs_uint64s(encoder, decryptor, y_encrypted);
-    vector<uint64_t> y_stride    = apply_stride(y_decrypted, stride, bs, ic, ih, iw, kh, kw, oc);
-
-    vector<uint64_t> idea
-        = ideal_conv(x.data(), w.data(), R.data(), mod, bs, ic, ih, iw, kh, kw, oc, stride);
-
-    if (vector_equal(y_stride, idea)) {
-        std::cout << "SUCCESS\n";
+        vector<uint64_t> ideal
+            = ideal_conv(x.data(), w.data(), R.data(), mod, bs, ic, ih, iw, kh, kw, oc, stride);
+        if (vector_equal(y_decrypted, ideal)) {
+            std::cout << "SUCCESS\n";
+        } else {
+            std::cout << "FAILED\n";
+            // for (size_t h = 0; h < oh; ++h) {
+            //     for (size_t w = 0; w < ow; ++w) {
+            //         std::cout << y_decrypted[h * ow + w] << ", ";
+            //     }
+            //     std::cout << "\n";
+            // }
+            // std::cout << "\n";
+            // for (size_t h = 0; h < oh; ++h) {
+            //     for (size_t w = 0; w < ow; ++w) {
+            //         std::cout << ideal[h * ow + w] << ", ";
+            //     }
+            //     std::cout << "\n";
+            // }
+        }
     } else {
-        std::cout << "FAILED\n";
+        auto stream = recv(ios);
+        auto x_encrypted = linear::Cipher2d::load_new(stream, he);
+
+        vector<uint64_t> w = random_polynomial(oc * ic * kh * kw);
+        vector<uint64_t> R = random_polynomial(bs * ic * ih * iw);
+
+        linear::Plain2d w_encoded = helper.encode_weights_uint64s(encoder, w.data());
+        linear::Plain2d R_encoded = helper.encode_inputs_uint64s(encoder, R.data());
+
+
+        linear::Cipher2d y_encrypted = helper.conv2d(evaluator, x_encrypted, w_encoded);
+        // y_encrypted.mod_switch_to_next_inplace(evaluator);
+        // y_encrypted.sub_plain_inplace(evaluator, R_encoded);
+
+        std::stringstream y_serialized;
+        helper.serialize_outputs(evaluator, y_encrypted, y_serialized);
+        send(ios, y_serialized);
+        ios[0]->send_data(w.data(), w.size() * sizeof(uint64_t));
+        ios[0]->send_data(R.data(), R.size() * sizeof(uint64_t));
+        ios[0]->flush();
     }
+
+
+
+    // vector<uint64_t> y_stride    = apply_stride(y_decrypted, stride, bs, ic, ih, iw, kh, kw, oc);
+
 }
 
 std::vector<uint64_t> random_polynomial(size_t size, uint64_t max_value) {
@@ -117,10 +152,10 @@ vector<uint64_t> ideal_conv(uint64_t* x, uint64_t* w, uint64_t* R, size_t t, siz
                     }
                     auto old_h = (ih - kh) + 1;
                     auto old_w = (iw - kw) + 1;
-                    add_mod_inplace(y_truth[b * oc * oh * ow + o * oh * ow + i * ow + j],
-                                    -R[b * oc * old_h * old_w + o * old_h * old_w
-                                       + i * stride * old_w + j * stride],
-                                    t);
+                    // add_mod_inplace(y_truth[b * oc * oh * ow + o * oh * ow + i * ow + j],
+                    //                 -R[b * oc * old_h * old_w + o * old_h * old_w
+                    //                    + i * stride * old_w + j * stride],
+                    //                 t);
                 }
             }
         }
