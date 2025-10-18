@@ -41,6 +41,7 @@ if(TRIPLE_GPU)
     )
 
     target_link_libraries(${HE_LIB} PUBLIC Troy::troy CUDA::cudart CUDA::cufft)
+    target_compile_definitions(${HE_LIB} PRIVATE USE_CONV_CUDA)
 else()
     add_library(${HE_LIB} STATIC
         core/hpmpc_interface.cpp
@@ -83,6 +84,7 @@ target_compile_options(
     "$<$<CONFIG:Release>:-Wall;-Wextra>"
     "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
 )
+target_compile_definitions(${server} PRIVATE USE_CONV_CUDA)
 if(TRIPLE_COLOR)
     target_compile_definitions(${server} PRIVATE COLOR)
 endif()
@@ -109,5 +111,7 @@ file(GLOB_RECURSE SRC_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/troy/*.cu"
+    "${CMAKE_CURRENT_SOURCE_DIR}/troy/*.cuh"
 )
 set(ALL_SOURCE_FILES ${ALL_SOURCE_FILES} ${SRC_FILES} PARENT_SCOPE)
