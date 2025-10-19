@@ -11,12 +11,8 @@
 #include "gemini/core/types.h"
 #include "gemini/core/util/ThreadPool.h"
 
-#ifdef CONV_USE_CUDA
-#include "gemini/cheetah/hom_conv2d_core.cuh"
-#else
 #include <seal/seal.h>
 #include <seal/secretkey.h>
-#endif
 
 #define BFV_TRUNCATE_LARGE 1
 #define BFV_TRUNCATE_SMALL 1
