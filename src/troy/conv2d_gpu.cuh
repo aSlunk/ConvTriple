@@ -5,16 +5,25 @@
 #include <vector>
 
 #include "io/net_io_channel.hpp"
+#include <troy/troy.h>
 
 using std::vector;
 
 namespace TROY {
 
+troy::HeContextPointer setup();
+
 void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
-            size_t kw, size_t oc, size_t stride, size_t padding);
+            size_t kw, size_t oc, size_t stride, size_t padding, bool mod_switch = false);
 
 void conv2d_ab2(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
-                size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride);
+                size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
+                bool mod_switch);
+
+// void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
+//                 size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
+//                 bool mod_switch);
+
 template <class T>
 bool vector_equal(const vector<T>& a, const vector<T>& b);
 vector<uint32_t> ideal_conv(uint32_t* x, uint32_t* w, uint32_t* R, size_t t, size_t bs, size_t ic,
@@ -22,10 +31,10 @@ vector<uint32_t> ideal_conv(uint32_t* x, uint32_t* w, uint32_t* R, size_t t, siz
                             size_t stride = 1);
 vector<uint32_t> random_polynomial(size_t size, uint64_t max_value = (1UL << 32));
 
-void add_inplace(std::vector<uint32_t>& a, const std::vector<uint32_t>& b, size_t t);
-vector<uint32_t> apply_stride(std::vector<uint32_t>& x, const size_t& stride, const size_t& bs,
-                              const size_t& ic, const size_t& ih, const size_t& iw,
-                              const size_t& kh, const size_t& kw, const size_t& oc);
+void add_inplace(std::vector<uint32_t>& a, const uint32_t* b, size_t t);
+size_t apply_stride(uint32_t* dest, std::vector<uint32_t>& x, const size_t& stride,
+                    const size_t& bs, const size_t& ic, const size_t& ih, const size_t& iw,
+                    const size_t& kh, const size_t& kw, const size_t& oc);
 
 template <class T>
 void send(T** ios, const std::stringstream& ss);

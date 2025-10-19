@@ -7,7 +7,7 @@
 #include <core/networks/resnet50.hpp>
 #include <io/file_io.hpp>
 
-#ifdef USE_CONV_CUDA
+#if USE_CONV_CUDA
 #include <troy/conv2d_gpu.cuh>
 #endif
 
@@ -30,9 +30,9 @@ int main(int argc, char** argv) {
 
     int num_triples = 10;
 
-#ifdef USE_CONV_CUDA
+#if USE_CONV_CUDA
     auto ios = Utils::init_ios<IO::NetIO>(nullptr, port, 1);
-    TROY::conv2d(ios, PARTY, 1, 3, 230, 230, 3, 3, 64, 2, 1);
+    TROY::conv2d(ios, PARTY, 1, 3, 230, 230, 7, 7, 64, 2, 0);
     delete ios[0];
     delete[] ios;
 #endif
@@ -141,10 +141,10 @@ int main(int argc, char** argv) {
             .iw        = 230,
             .ih        = 230,
             .fc        = 3,
-            .fw        = 3,
-            .fh        = 3,
+            .fw        = 7,
+            .fh        = 7,
             .n_filters = 64,
-            .stride    = 1,
+            .stride    = 2,
             .padding   = 0,
         };
 

@@ -4,6 +4,10 @@
 #include <chrono>
 #include <thread>
 
+#ifndef USE_CONV_CUDA
+#define USE_CONV_CUDA 0
+#endif
+
 #ifdef COLOR
 #define NC "\033[0m"
 #define RED "\033[31m"

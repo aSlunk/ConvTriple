@@ -41,7 +41,7 @@ if(TRIPLE_GPU)
     )
 
     target_link_libraries(${HE_LIB} PUBLIC Troy::troy CUDA::cudart CUDA::cufft)
-    target_compile_definitions(${HE_LIB} PRIVATE USE_CONV_CUDA)
+    target_compile_definitions(${HE_LIB} PRIVATE USE_CONV_CUDA=1)
 else()
     add_library(${HE_LIB} STATIC
         core/hpmpc_interface.cpp
@@ -54,11 +54,18 @@ target_include_directories(${HE_LIB} PUBLIC io include ${CMAKE_CURRENT_SOURCE_DI
 target_link_libraries(${HE_LIB} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 target_link_libraries(${HE_LIB} PUBLIC gemini)
 target_compile_definitions(${HE_LIB} PUBLIC USE_CHEETAH=1)
-target_compile_options(
-    ${HE_LIB} PRIVATE
-    "$<$<CONFIG:Debug>:-g3;-ggdb;-Og;-Wall;-Wextra;-fsanitize=address>"
-    "$<$<CONFIG:Release>:-Wall;-Wextra>"
-    "-march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter"
+
+target_compile_options(${HE_LIB} PRIVATE
+  $<$<COMPILE_LANGUAGE:CXX>:
+    $<$<CONFIG:Debug>:-g3;-ggdb;-Og;-Wall;-Wextra;-fsanitize=address>
+    $<$<CONFIG:Release>:-Wall;-Wextra>
+    -march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter
+  >
+  $<$<COMPILE_LANGUAGE:CUDA>:
+    $<$<CONFIG:Debug>:-Wall;-Wextra>
+    $<$<CONFIG:Release>:-Wall;-Wextra>
+    -march=native;-Wno-ignored-attributes;-Wno-ignored-qualifiers;-Wno-unused-parameter
+  >
 )
 target_link_options(${HE_LIB} PUBLIC
     "$<$<CONFIG:Debug>:-fsanitize=address>"
@@ -88,7 +95,7 @@ if(TRIPLE_COLOR)
     target_compile_definitions(${server} PRIVATE COLOR)
 endif()
 if(TRIPLE_GPU)
-    target_compile_definitions(${server} PRIVATE USE_CONV_CUDA)
+    target_compile_definitions(${server} PRIVATE USE_CONV_CUDA=1)
 endif()
 
 set(client cheetah_client)
@@ -105,7 +112,7 @@ if(TRIPLE_COLOR)
     target_compile_definitions(${client} PRIVATE COLOR)
 endif()
 if(TRIPLE_GPU)
-    target_compile_definitions(${client} PRIVATE USE_CONV_CUDA)
+    target_compile_definitions(${client} PRIVATE USE_CONV_CUDA=1)
 endif()
 
 message(STATUS "TRIPLE_VERIFY: ${TRIPLE_VERIFY}")
