@@ -35,18 +35,18 @@ inline uint64_t multiply_mod(uint64_t a, uint64_t b, uint64_t t) {
     return static_cast<uint64_t>(c % static_cast<__uint128_t>(t));
 }
 
-inline uint64_t add_mod(uint64_t a, uint64_t b, uint64_t t) {
-    return (a + b) % t;
-}
+inline uint64_t add_mod(uint64_t a, uint64_t b, uint64_t t) { return (a + b) % t; }
 
 template <class T>
-inline void add_mod_inplace(T& a, uint64_t b, uint64_t t) { a = add_mod(a, b, t); }
+inline void add_mod_inplace(T& a, uint64_t b, uint64_t t) {
+    a = add_mod(a, b, t);
+}
 
 } // namespace TROY
 
 template <class T>
 void TROY::send(T** ios, const std::stringstream& ss) {
-    auto tmp   = ss.str();
+    auto tmp = ss.str();
     size_t n = tmp.size();
     ios[0]->send_data(&n, sizeof(size_t));
     if (n > 0) {
@@ -79,6 +79,5 @@ bool TROY::vector_equal(const vector<T>& a, const vector<T>& b) {
     }
     return true;
 }
-
 
 #endif

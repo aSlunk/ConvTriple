@@ -35,7 +35,7 @@ set(HE_LIB HE)
 if(TRIPLE_GPU)
     add_library(${HE_LIB} STATIC
         core/hpmpc_interface.cpp
-        core/defs.cpp
+        core/utils.cpp
         io/send.cpp
         troy/conv2d_gpu.cu
     )
@@ -45,7 +45,7 @@ if(TRIPLE_GPU)
 else()
     add_library(${HE_LIB} STATIC
         core/hpmpc_interface.cpp
-        core/defs.cpp
+        core/utils.cpp
         io/send.cpp
     )
 endif()

@@ -13,7 +13,7 @@
 
 #include "net_io_channel.hpp"
 
-#include "core/defs.hpp"
+#include "core/utils.hpp"
 
 using std::string;
 using std::vector;

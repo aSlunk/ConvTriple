@@ -19,7 +19,7 @@
 #include "protocols/fc_proto.hpp"
 #include "protocols/ot_proto.hpp"
 
-#include "defs.hpp"
+#include "utils.hpp"
 
 using Utils::PROTO;
 using Utils::Result;

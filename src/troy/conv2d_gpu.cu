@@ -1,36 +1,39 @@
+#include <chrono>
 #include <sstream>
 
-#include "conv2d_gpu.cuh"
+#include <troy/troy.h>
 
-#include "troy/troy.h"
+#include "constants.hpp"
+#include "conv2d_gpu.cuh"
 
 namespace TROY {
 
 void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
             size_t kw, size_t oc, size_t stride) {
     using namespace troy;
-    size_t bitlen = 32;
-    size_t poly_mod   = 8192;
-    size_t plain_mod  = (1ULL << bitlen);
+    auto start        = measure::now();
+    size_t bitlen     = BIT_LEN;
+    size_t poly_mod   = POLY_MOD << 1;
+    size_t plain_mod  = PLAIN_MOD;
     SchemeType scheme = SchemeType::BFV;
 
     EncryptionParameters parms(scheme);
-    parms.set_coeff_modulus(CoeffModulus::create(poly_mod, {60, 40, 40 , 60}));
+    parms.set_coeff_modulus(CoeffModulus::create(poly_mod, {60, 40, 40, 60}));
     parms.set_plain_modulus(plain_mod);
     parms.set_poly_modulus_degree(poly_mod);
-    HeContextPointer he = HeContext::create(parms, true, SecurityLevel::Classical128);
+    HeContextPointer he = HeContext::create(parms, true, SecurityLevel::Classical128, 0x123);
 
     // BatchEncoder encoder(he);
     linear::PolynomialEncoderRing2k<uint32_t> encoder(he, bitlen);
     if (utils::device_count() > 0) {
         he->to_device_inplace();
         encoder.to_device_inplace();
+    } else {
+        std::cout << RED << "Couldn't find GPU" << NC << "\n";
     }
 
-    uint64_t mod = (1ULL << bitlen);
-    std::cout << mod << ": MOD\n";
-    size_t oh    = ih - kh + 1;
-    size_t ow    = iw - kw + 1;
+    size_t oh = ih - kh + 1;
+    size_t ow = iw - kw + 1;
 
     linear::Conv2dHelper helper(bs, ic, oc, ih, iw, kh, kw, parms.poly_modulus_degree(),
                                 linear::MatmulObjective::EncryptLeft);
@@ -42,8 +45,9 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
     Decryptor decryptor(he, keygen.secret_key());
 
     if (party == 1) {
-        vector<uint32_t> x        = random_polynomial(bs * ic * ih * iw);
-        linear::Cipher2d x_encrypted = helper.encrypt_inputs_ring2k(encryptor, encoder, x.data(), std::nullopt);
+        vector<uint32_t> x = random_polynomial(bs * ic * ih * iw);
+        linear::Cipher2d x_encrypted
+            = helper.encrypt_inputs_ring2k(encryptor, encoder, x.data(), std::nullopt);
         std::stringstream x_serialized;
         x_encrypted.save(x_serialized, he);
         send(ios, x_serialized);
@@ -61,13 +65,13 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         ios[0]->recv_data(w.data(), w.size() * sizeof(uint32_t));
         ios[0]->recv_data(R.data(), R.size() * sizeof(uint32_t));
 
-        add_inplace(R, res, mod);
-        vector<uint32_t> ideal
-            = ideal_conv(x.data(), w.data(), R.data(), mod, bs, ic, ih, iw, kh, kw, oc, stride);
+        add_inplace(R, res, plain_mod);
+        vector<uint32_t> ideal = ideal_conv(x.data(), w.data(), R.data(), plain_mod, bs, ic, ih, iw,
+                                            kh, kw, oc, stride);
         if (vector_equal(R, ideal)) {
-            std::cout << "SUCCESS\n";
+            std::cout << GREEN << "GPU-CONV: PASSED" << NC << "\n";
         } else {
-            std::cout << "FAILED\n";
+            std::cout << RED << "GPU-CONV: FAILED" << NC << "\n";
             // for (size_t h = 0; h < oh; ++h) {
             //     for (size_t w = 0; w < ow; ++w) {
             //         std::cout << R[h * ow + w] << ", ";
@@ -83,7 +87,6 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
             // }
         }
 #endif
-        std::cout << "P" << party - 1 << ": " << (1.0 * ios[0]->counter) / (1 << 20) << "MiB\n";
     } else {
         auto stream      = recv(ios);
         auto x_encrypted = linear::Cipher2d::load_new(stream, he);
@@ -91,7 +94,8 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         vector<uint32_t> w = random_polynomial(oc * ic * kh * kw);
         vector<uint32_t> R = random_polynomial(bs * oc * oh * ow);
 
-        linear::Plain2d w_encoded = helper.encode_weights_ring2k(encoder, w.data(), std::nullopt, false);
+        linear::Plain2d w_encoded
+            = helper.encode_weights_ring2k(encoder, w.data(), std::nullopt, false);
         linear::Plain2d R_encoded = helper.encode_outputs_ring2k(encoder, R.data(), std::nullopt);
 
         linear::Cipher2d y_encrypted = helper.conv2d(evaluator, x_encrypted, w_encoded);
@@ -111,7 +115,11 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         std::cout << "P" << party - 1 << ": " << (1.0 * ios[0]->counter) / (1 << 20) << "MiB\n";
     }
 
-    // vector<uint64_t> y_stride    = apply_stride(y_decrypted, stride, bs, ic, ih, iw, kh, kw, oc);
+    double time = std::chrono::duration<double, std::milli>(measure::now() - start).count();
+
+    std::cout << "P" << party - 1 << " conv time[s]: " << time / 1000.0 << "\n";
+    std::cout << "P" << party - 1 << " conv data[MiB]: " << (1.0 * ios[0]->counter) / (1 << 20)
+              << "\n";
 }
 
 std::vector<uint32_t> random_polynomial(size_t size, uint64_t max_value) {
@@ -185,8 +193,7 @@ vector<uint32_t> apply_stride(std::vector<uint32_t>& x, const size_t& stride, co
 }
 
 void add_inplace(std::vector<uint32_t>& a, const std::vector<uint32_t>& b, size_t t) {
-    for (size_t i = 0; i < a.size(); ++i)
-        add_mod_inplace(a[i], b[i], t);
+    for (size_t i = 0; i < a.size(); ++i) add_mod_inplace(a[i], b[i], t);
 }
 
 } // namespace TROY

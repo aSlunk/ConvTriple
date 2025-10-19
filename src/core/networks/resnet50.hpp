@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "core/defs.hpp"
+#include "core/utils.hpp"
 
 namespace ResNet50 {
 using std::vector;

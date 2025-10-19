@@ -10,7 +10,7 @@
 #include <io/send.hpp>
 
 #include "bn_proto.hpp"
-#include "core/defs.hpp"
+#include "core/utils.hpp"
 
 using gemini::Tensor;
 using Utils::Result;

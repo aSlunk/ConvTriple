@@ -9,7 +9,7 @@
 #include <io/net_io_channel.hpp>
 #include <io/send.hpp>
 
-#include "core/defs.hpp"
+#include "core/utils.hpp"
 
 using gemini::Tensor;
 using Utils::Result;

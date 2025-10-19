@@ -8,7 +8,7 @@
 #include <ot/bit-triple-generator.h>
 #include <ot/silent_ot.h>
 
-#include "core/defs.hpp"
+#include "core/utils.hpp"
 
 static constexpr size_t LEN(const size_t& numTriple, const bool& packed) {
     return numTriple / (packed ? 8 : 1);

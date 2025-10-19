@@ -19,7 +19,6 @@ int main(int argc, char** argv) {
         return EXEC_FAILED;
     }
 
-
     size_t port                     = strtoul(argv[1], NULL, 10);
     [[maybe_unused]] size_t samples = strtoul(argv[2], NULL, 10);
     size_t batchSize                = strtoul(argv[3], NULL, 10);
@@ -33,11 +32,10 @@ int main(int argc, char** argv) {
 
 #ifdef USE_CONV_CUDA
     auto ios = Utils::init_ios<IO::NetIO>(nullptr, port, 1);
-    TROY::conv2d(ios, PARTY, 1, 1, 5, 5, 3, 3, 1, 1);
+    TROY::conv2d(ios, PARTY, 1, 3, 230, 230, 3, 3, 64, 1);
     delete ios[0];
     delete[] ios;
 #endif
-
 
     {
         int tmp = 37'996'272;
@@ -57,7 +55,6 @@ int main(int argc, char** argv) {
 
     {
         num_triples = 22;
-        num_triples = 9'006'592;
         std::vector<uint32_t> a_cp(num_triples * 1);
         std::vector<uint32_t> b_cp(num_triples * 1);
         std::vector<uint32_t> c_cp(num_triples * 1);
@@ -140,15 +137,15 @@ int main(int argc, char** argv) {
 
     {
         Utils::ConvParm conv{
-            .ic        = 1,
-            .iw        = 100,
-            .ih        = 100,
-            .fc        = 1,
+            .ic        = 3,
+            .iw        = 230,
+            .ih        = 230,
+            .fc        = 3,
             .fw        = 3,
             .fh        = 3,
-            .n_filters = 1,
+            .n_filters = 64,
             .stride    = 1,
-            .padding   = 1,
+            .padding   = 0,
         };
 
         auto meta   = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
@@ -160,7 +157,7 @@ int main(int argc, char** argv) {
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
         Iface::generateConvTriplesCheetahWrapper(nullptr, b, c, conv, batchSize, std::string(""),
-                                                 port, PARTY, threads, Utils::PROTO::AB);
+                                                 port, PARTY, threads, Utils::PROTO::AB2);
 
         delete[] a;
         delete[] b;

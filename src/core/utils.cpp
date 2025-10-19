@@ -1,6 +1,4 @@
-#include <fstream>
-
-#include "defs.hpp"
+#include "utils.hpp"
 
 void Utils::add_result(Result& res, const Result& res2) {
     res.encryption += res2.encryption;
