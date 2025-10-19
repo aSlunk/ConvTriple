@@ -12,14 +12,15 @@ namespace TROY {
 
 void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
             size_t kw, size_t oc, size_t stride);
-bool vector_equal(const vector<uint64_t>& a, const vector<uint64_t>& b);
-vector<uint64_t> ideal_conv(uint64_t* x, uint64_t* w, uint64_t* R, size_t t, size_t bs, size_t ic,
+template <class T>
+bool vector_equal(const vector<T>& a, const vector<T>& b);
+vector<uint32_t> ideal_conv(uint32_t* x, uint32_t* w, uint32_t* R, size_t t, size_t bs, size_t ic,
                             size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
                             size_t stride = 1);
-vector<uint64_t> random_polynomial(size_t size, uint64_t max_value = (1UL << 20));
+vector<uint32_t> random_polynomial(size_t size, uint64_t max_value = (1UL << 32));
 
-void add_inplace(std::vector<uint64_t>& a, const std::vector<uint64_t>& b, size_t t);
-vector<uint64_t> apply_stride(std::vector<uint64_t>& x, const size_t& stride, const size_t& bs,
+void add_inplace(std::vector<uint32_t>& a, const std::vector<uint32_t>& b, size_t t);
+vector<uint32_t> apply_stride(std::vector<uint32_t>& x, const size_t& stride, const size_t& bs,
                               const size_t& ic, const size_t& ih, const size_t& iw,
                               const size_t& kh, const size_t& kw, const size_t& oc);
 
@@ -38,7 +39,8 @@ inline uint64_t add_mod(uint64_t a, uint64_t b, uint64_t t) {
     return (a + b) % t;
 }
 
-inline void add_mod_inplace(uint64_t& a, uint64_t b, uint64_t t) { a = add_mod(a, b, t); }
+template <class T>
+inline void add_mod_inplace(T& a, uint64_t b, uint64_t t) { a = add_mod(a, b, t); }
 
 } // namespace TROY
 
@@ -66,5 +68,17 @@ std::stringstream TROY::recv(T** ios) {
     }
     return res;
 }
+
+template <class T>
+bool TROY::vector_equal(const vector<T>& a, const vector<T>& b) {
+    if (a.size() != b.size())
+        return false;
+    for (size_t i = 0; i < a.size(); i++) {
+        if (a[i] != b[i])
+            return false;
+    }
+    return true;
+}
+
 
 #endif
