@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
 #ifdef USE_CONV_CUDA
     auto ios = Utils::init_ios<IO::NetIO>(nullptr, port, 1);
-    TROY::conv2d(ios, PARTY, 1, 3, 230, 230, 3, 3, 64, 1);
+    TROY::conv2d(ios, PARTY, 1, 3, 230, 230, 3, 3, 64, 2, 1);
     delete ios[0];
     delete[] ios;
 #endif

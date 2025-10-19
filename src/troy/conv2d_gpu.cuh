@@ -11,7 +11,10 @@ using std::vector;
 namespace TROY {
 
 void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
-            size_t kw, size_t oc, size_t stride);
+            size_t kw, size_t oc, size_t stride, size_t padding);
+
+void conv2d_ab2(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
+                size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride);
 template <class T>
 bool vector_equal(const vector<T>& a, const vector<T>& b);
 vector<uint32_t> ideal_conv(uint32_t* x, uint32_t* w, uint32_t* R, size_t t, size_t bs, size_t ic,

@@ -9,7 +9,29 @@
 namespace TROY {
 
 void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
-            size_t kw, size_t oc, size_t stride) {
+            size_t kw, size_t oc, size_t stride, size_t padding) {
+    vector<uint32_t> x = random_polynomial(bs * ic * ih * iw);
+    vector<uint32_t> w = random_polynomial(oc * ic * kh * kw);
+
+    size_t ow = ((iw + 2 * padding - kw) / stride) + 1;
+    size_t oh = ((ih + 2 * padding - kh) / stride) + 1;
+    vector<uint32_t> c(bs * oc * oh * ow);
+
+    if (!padding) {
+        conv2d_ab2(ios, party, x.data(), w.data(), c.data(), bs, ic, ih, iw, kh, kw, oc, stride);
+    } else {
+        vector<uint32_t> dest;
+
+        auto dim = Utils::pad_zero(x.data(), dest, ic, ih, iw, padding, bs);
+        ih       = std::get<0>(dim);
+        iw       = std::get<1>(dim);
+
+        conv2d_ab2(ios, party, dest.data(), w.data(), c.data(), bs, ic, ih, iw, kh, kw, oc, stride);
+    }
+}
+
+void conv2d_ab2(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
+                size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride) {
     using namespace troy;
     auto start        = measure::now();
     size_t bitlen     = BIT_LEN;
@@ -45,9 +67,8 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
     Decryptor decryptor(he, keygen.secret_key());
 
     if (party == 1) {
-        vector<uint32_t> x = random_polynomial(bs * ic * ih * iw);
         linear::Cipher2d x_encrypted
-            = helper.encrypt_inputs_ring2k(encryptor, encoder, x.data(), std::nullopt);
+            = helper.encrypt_inputs_ring2k(encryptor, encoder, x, std::nullopt);
         std::stringstream x_serialized;
         x_encrypted.save(x_serialized, he);
         send(ios, x_serialized);
@@ -59,15 +80,23 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         auto res = apply_stride(y_decrypted, stride, bs, ic, ih, iw, kh, kw, oc);
 
 #ifdef VERIFY
+        std::cout << PURPLE << "Verifying CONV" << NC << "\n";
+        size_t nh = (ih - kh) / stride + 1;
+        size_t nw = (iw - kw) / stride + 1;
+        std::cout << PURPLE << "[" << ic << ", " << ih << ", " << iw << "] x [" << ic << ", " << kh
+                  << ", " << kw << "] = [" << oc << ", " << nh << ", " << nw << "]" << NC << "\n";
+
         std::vector<uint32_t> w(oc * ic * kh * kw);
-        std::vector<uint32_t> R(bs * oc * oh * ow);
+        std::vector<uint32_t> R(bs * oc * nh * nw);
 
         ios[0]->recv_data(w.data(), w.size() * sizeof(uint32_t));
         ios[0]->recv_data(R.data(), R.size() * sizeof(uint32_t));
 
         add_inplace(R, res, plain_mod);
-        vector<uint32_t> ideal = ideal_conv(x.data(), w.data(), R.data(), plain_mod, bs, ic, ih, iw,
-                                            kh, kw, oc, stride);
+        std::cout << "okay\n";
+        vector<uint32_t> ideal
+            = ideal_conv(x, w.data(), R.data(), plain_mod, bs, ic, ih, iw, kh, kw, oc, stride);
+        std::cout << "okay2\n";
         if (vector_equal(R, ideal)) {
             std::cout << GREEN << "GPU-CONV: PASSED" << NC << "\n";
         } else {
@@ -88,15 +117,13 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         }
 #endif
     } else {
-        auto stream      = recv(ios);
-        auto x_encrypted = linear::Cipher2d::load_new(stream, he);
-
-        vector<uint32_t> w = random_polynomial(oc * ic * kh * kw);
         vector<uint32_t> R = random_polynomial(bs * oc * oh * ow);
 
-        linear::Plain2d w_encoded
-            = helper.encode_weights_ring2k(encoder, w.data(), std::nullopt, false);
+        linear::Plain2d w_encoded = helper.encode_weights_ring2k(encoder, w, std::nullopt, false);
         linear::Plain2d R_encoded = helper.encode_outputs_ring2k(encoder, R.data(), std::nullopt);
+
+        auto stream      = recv(ios);
+        auto x_encrypted = linear::Cipher2d::load_new(stream, he);
 
         linear::Cipher2d y_encrypted = helper.conv2d(evaluator, x_encrypted, w_encoded);
         // y_encrypted.mod_switch_to_next_inplace(evaluator);
@@ -108,8 +135,8 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
 
         auto res = apply_stride(R, stride, bs, ic, ih, iw, kh, kw, oc);
 #ifdef VERIFY
-        ios[0]->send_data(w.data(), w.size() * sizeof(uint32_t));
-        ios[0]->send_data(R.data(), R.size() * sizeof(uint32_t));
+        ios[0]->send_data(w, oc * ic * kw * kh * sizeof(uint32_t));
+        ios[0]->send_data(res.data(), res.size() * sizeof(uint32_t));
         ios[0]->flush();
 #endif
         std::cout << "P" << party - 1 << ": " << (1.0 * ios[0]->counter) / (1 << 20) << "MiB\n";
