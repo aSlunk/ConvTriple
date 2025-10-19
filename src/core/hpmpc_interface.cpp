@@ -43,7 +43,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
                                 int bitlength [[maybe_unused]], uint64_t num_triples,
                                 std::string ip, int port, int party, int threads,
                                 TripleGenMethod method) {
-    Utils::log(Utils::Level::INFO, "P", party, ": num_triples (BOOL): ", num_triples);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (BOOL): ", num_triples);
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
         addr = nullptr;
@@ -80,12 +80,12 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     gemini::ThreadPool tpool(threads);
     gemini::LaunchWorks(tpool, num_triples, func);
 
-    Utils::log(Utils::Level::INFO, "P", party,
+    Utils::log(Utils::Level::INFO, "P", party - 1,
                ": Bool triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
-    Utils::log(Utils::Level::INFO, "P", party, ": Bool triple data[", unit, "]: ", data);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": Bool triple data[", unit, "]: ", data);
 
     for (int i = 0; i < threads; ++i) {
         delete ios[i];
@@ -152,17 +152,17 @@ void setupBn(IO::NetIO** ios, gemini::HomBNSS& bn, const seal::SEALContext& ctx,
     Code code;
     code = bn.setUp(PLAIN_MOD, ctx, skey, o_pkey);
     if (code != Code::OK)
-        Utils::log(Utils::Level::ERROR, "P", std::to_string(party), ": ", CodeMessage(code));
+        Utils::log(Utils::Level::ERROR, "P", party - 1, ": ", CodeMessage(code));
     code = bn.setUp(PLAIN_MOD, contexts, opt_sks, bn_pks_);
     if (code != Code::OK)
-        Utils::log(Utils::Level::ERROR, "P", std::to_string(party), ": ", CodeMessage(code));
+        Utils::log(Utils::Level::ERROR, "P", party - 1, ": ", CodeMessage(code));
 }
 
 void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],
                                  int bitlength [[maybe_unused]], uint64_t num_triples,
                                  std::string ip, int port, int party, int threads,
                                  Utils::PROTO proto) {
-    Utils::log(Utils::Level::INFO, "P", party, ": num_triples (ARITH): ", num_triples,
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (ARITH): ", num_triples,
                " " + Utils::proto_str(proto));
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
@@ -220,7 +220,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
                 break;
             }
             default: {
-                Utils::log(Utils::Level::ERROR, "Unknown party: P", party);
+                Utils::log(Utils::Level::ERROR, "Unknown party: P", party - 1);
             }
             }
 
@@ -233,12 +233,12 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     gemini::ThreadPool tpool(threads);
     gemini::LaunchWorks(tpool, num_triples, func);
 
-    Utils::log(Utils::Level::INFO, "P", party,
+    Utils::log(Utils::Level::INFO, "P", party - 1,
                ": Arith triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
-    Utils::log(Utils::Level::INFO, "P", party, ": Arith triple data[", unit, "]: ", data);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": Arith triple data[", unit, "]: ", data);
 
     for (int i = 0; i < threads; ++i) delete ios[i];
     delete[] ios;
@@ -254,7 +254,7 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
     }
 
     auto meta = Utils::init_meta_fc(com_dim, dim2);
-    Utils::log(Utils::Level::INFO, "P", party, " FC: ", meta.input_shape, " x ", meta.weight_shape,
+    Utils::log(Utils::Level::INFO, "P", party - 1, " FC: ", meta.input_shape, " x ", meta.weight_shape,
                " ", Utils::proto_str(proto));
 
     auto start = measure::now();
@@ -313,12 +313,12 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
             c[i * dim2 + j] = C[i](j);
         }
 
-    Utils::log(Utils::Level::INFO, "P", party,
+    Utils::log(Utils::Level::INFO, "P", party - 1,
                ": FC triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
-    Utils::log(Utils::Level::INFO, "P", party, ": FC triple data[", unit, "]: ", data);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": FC triple data[", unit, "]: ", data);
 
     delete[] ai;
     delete[] bi;
@@ -333,7 +333,7 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding);
 
-    Utils::log(Utils::Level::INFO, "P", party, " CONV: ", meta.ishape, " x ", meta.fshape, " x ",
+    Utils::log(Utils::Level::INFO, "P", party - 1, " CONV: ", meta.ishape, " x ", meta.fshape, " x ",
                parm.n_filters, ", ", parm.stride, ", ", parm.padding, ", ",
                Utils::proto_str(proto));
 
@@ -422,12 +422,12 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
         for (long i = 0; i < C.NumElements(); ++i) c[i + C.NumElements() * cur_batch] = C.data()[i];
     }
 
-    Utils::log(Utils::Level::INFO, "P", party,
+    Utils::log(Utils::Level::INFO, "P", party - 1,
                ": CONV triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
-    Utils::log(Utils::Level::INFO, "P", party, ": CONV triple data[", unit, "]: ", data);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV triple data[", unit, "]: ", data);
 
     delete[] ai;
     delete[] bi;
@@ -445,7 +445,7 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
         addr = nullptr;
     }
     auto meta = Utils::init_meta_bn(num_ele, h, w);
-    Utils::log(Utils::Level::INFO, "P", party, " BN: ", meta.ishape, " x ", meta.vec_shape, ", ",
+    Utils::log(Utils::Level::INFO, "P", party - 1, " BN: ", meta.ishape, " x ", meta.vec_shape, ", ",
                Utils::proto_str(proto));
 
     auto start = measure::now();
@@ -494,12 +494,12 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
                         = C(i, j, k);
     }
 
-    Utils::log(Utils::Level::INFO, "P", party,
+    Utils::log(Utils::Level::INFO, "P", party - 1,
                ": BN triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
-    Utils::log(Utils::Level::INFO, "P", party, ": BN triple data[", unit, "]: ", data);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": BN triple data[", unit, "]: ", data);
 
     for (int i = 0; i < threads; ++i) delete ios[i];
     delete[] ios;

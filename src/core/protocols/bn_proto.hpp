@@ -249,7 +249,7 @@ Result Server::Protocol2_alt(const gemini::HomBNSS::Meta& meta, Channel** server
     measures.decryption = Utils::time_diff(start);
 
     // Utils::log(Utils::Level::DEBUG, C1.channels(), " x ", C1.height(), " x ", C1.width());
-    Utils::log(Utils::Level::DEBUG, C1.NumElements());
+    // Utils::log(Utils::Level::DEBUG, C1.NumElements());
 
     for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     return measures;
