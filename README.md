@@ -15,6 +15,11 @@ apt install libssl-dev libeigen3-dev
 ```
 $\Rightarrow$ this will create `./deps/` and install the projects into it.
 
+- For GPU support instead use the following to install [Troy-Nova](https://github.com/lightbulb128/troy-nova) (this requires CUDA)
+```sh
+./deps.sh -gpu
+```
+
 
 **Build the project**:
 ```sh
@@ -24,7 +29,8 @@ $\Rightarrow$ this will create `./deps/` and install the projects into it.
 
 mkdir ./data # to store ferret output
 cmake . -B build -DCMAKE_BUILD_TYPE=Release -DUSE_APPROX_RESHARE=OFF \
-    -DTRIPLE_VERIFY=OFF -DTRIPLE_COLOR=OFF -DTRIPLE_ZERO=ON
+    -DTRIPLE_VERIFY=OFF -DTRIPLE_COLOR=OFF -DTRIPLE_ZERO=ON \
+    -DTRIPLE_GPU=OFF
 cmake --build build -j
 ```
 
@@ -32,6 +38,7 @@ CMake Options:
 - `TRIPLE_VERIFY`: if enabled - Verifies correctness of the triples
 - `TRIPLE_COLOR`: if enabled - Uses ANSI color codes for colored logs
 - `TRIPLE_ZERO`: if enabled - Allows tensors to be zero (can be insecure)
+- `TRIPLE_GPU`: if enabled - Uses Troy-Nova for Convolutions
 
 Formatting:
 ```sh

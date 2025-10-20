@@ -31,7 +31,8 @@ cd ..
 git clone https://github.com/emp-toolkit/emp-ot.git emp-ot
 cd emp-ot
 git checkout 93b7aa9
-cmake $TMP/emp-ot -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_PREFIX_PATH=$DEPS -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cmake $TMP/emp-ot -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_PREFIX_PATH=$DEPS \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build . --target install -j
 cd ..
 
@@ -42,9 +43,11 @@ git clone https://github.com/microsoft/SEAL.git $DEPS_DIR/SEAL
 cd $DEPS_DIR/SEAL
 git switch --detach v4.0.0
 patch --quiet --no-backup-if-mismatch -N -p1 -i $WORK_DIR/patch/SEAL.patch -d $DEPS_DIR/SEAL/
-cmake . -B build -DCMAKE_INSTALL_PREFIX=$BUILD_DIR -DCMAKE_PREFIX_PATH=$BUILD_DIR -DSEAL_USE_MSGSL=OFF -DSEAL_USE_ZLIB=OFF\
-	                    -DSEAL_USE_ZSTD=ON -DCMAKE_BUILD_TYPE=Release -DSEAL_USE_INTEL_HEXL=ON -DSEAL_BUILD_DEPS=ON\
-                        -DSEAL_THROW_ON_TRANSPARENT_CIPHERTEXT=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cmake . -B build -DCMAKE_INSTALL_PREFIX=$BUILD_DIR \
+    -DCMAKE_PREFIX_PATH=$BUILD_DIR -DSEAL_USE_MSGSL=OFF -DSEAL_USE_ZLIB=OFF \
+    -DSEAL_USE_ZSTD=ON -DCMAKE_BUILD_TYPE=Release -DSEAL_USE_INTEL_HEXL=ON \
+    -DSEAL_BUILD_DEPS=ON -DSEAL_THROW_ON_TRANSPARENT_CIPHERTEXT=OFF \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build --target install --parallel 8
 
 ###############################################################################
@@ -59,7 +62,10 @@ if [[ "$1" = "-gpu" ]]; then
     sed -i "2i #include <algorithm>" ./test/lwe.cu
     sed -i "5i #include <cstdint>" ./src/utils/compression.h
 
-    cmake -B build . -DCMAKE_INSTALL_PREFIX=$BUILD_DIR -DCMAKE_CUDA_ARCHITECTURES="75;80;89" -DCMAKE_BUILD_TYPE=$BUILD_MODE -DCMAKE_PREFIX_PATH=$BUILD_DIR -DTROY_PYBIND=OFF -DTROY_TEST=ON -DTROY_BENCH=ON -DTROY_EXAMPLES=ON
+    cmake -B build . -DCMAKE_INSTALL_PREFIX=$BUILD_DIR \
+        -DCMAKE_CUDA_ARCHITECTURES="75;80;89" -DCMAKE_BUILD_TYPE=$BUILD_MODE \
+        -DCMAKE_PREFIX_PATH=$BUILD_DIR -DTROY_PYBIND=OFF -DTROY_TEST=ON \
+        -DTROY_BENCH=ON -DTROY_EXAMPLES=ON \
     cmake --build build -t install -j
     # export CMAKE_GENERATOR="Unix Makefiles"
     # bash scripts/build.sh -install -prefix=$BUILD_DIR
