@@ -42,7 +42,7 @@ class PROF : public seal::MMProf {
 void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
                                 int bitlength [[maybe_unused]], uint64_t num_triples,
                                 std::string ip, int port, int party, int threads,
-                                TripleGenMethod method) {
+                                TripleGenMethod method, unsigned io_offset) {
     Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (BOOL): ", num_triples);
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
@@ -50,7 +50,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
 
     auto start = measure::now();
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
 
     auto func = [&](int wid, int start, int end) -> Code {
         if (start >= end)
@@ -161,7 +161,7 @@ void setupBn(IO::NetIO** ios, gemini::HomBNSS& bn, const seal::SEALContext& ctx,
 void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],
                                  int bitlength [[maybe_unused]], uint64_t num_triples,
                                  std::string ip, int port, int party, int threads,
-                                 Utils::PROTO proto) {
+                                 Utils::PROTO proto, unsigned io_offset) {
     Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (ARITH): ", num_triples,
                " " + Utils::proto_str(proto));
     const char* addr = ip.c_str();
@@ -170,7 +170,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
 
     auto start = measure::now();
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
 
     static gemini::HomBNSS bn = [&ios, &party] {
         gemini::HomBNSS bn;
@@ -246,7 +246,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
 
 void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
                               uint64_t com_dim, uint64_t dim2, int party, std::string ip, int port,
-                              int threads, Utils::PROTO proto, int factor) {
+                              int threads, Utils::PROTO proto, int factor, unsigned io_offset) {
     const char* addr = ip.c_str();
 
     if (party == emp::ALICE) {
@@ -259,7 +259,7 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
 
     auto start = measure::now();
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
 
     // meta.is_shared_input = proto == Utils::PROTO::AB;
     static gemini::HomFCSS fc = [&ios, &party] {
@@ -329,7 +329,8 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
 
 void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uint32_t* c,
                                        Utils::ConvParm parm, int batch, std::string ip, int port,
-                                       int party, int threads, Utils::PROTO proto, int factor) {
+                                       int party, int threads, Utils::PROTO proto, int factor,
+                                       unsigned io_offset) {
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding);
 
@@ -339,7 +340,8 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
-        generateConvTriplesCheetah(a, b, c, meta, batch, ip, port, party, threads, proto, factor);
+        generateConvTriplesCheetah(a, b, c, meta, batch, ip, port, party, threads, proto, factor,
+                                   io_offset);
     } else {
         Utils::log(Utils::Level::INFO, "Adding padding manually");
 
@@ -355,13 +357,14 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
         meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                      parm.n_filters, parm.stride, parm.padding);
         generateConvTriplesCheetah(ai.data(), b, c, meta, batch, ip, port, party, threads, proto,
-                                   factor);
+                                   factor, io_offset);
     }
 }
 
 void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, std::string ip,
-                                int port, int party, int threads, Utils::PROTO proto, int factor) {
+                                int port, int party, int threads, Utils::PROTO proto, int factor,
+                                unsigned io_offset) {
     const char* addr = ip.c_str();
 
     if (party == emp::ALICE) {
@@ -370,7 +373,7 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
 
     auto start = measure::now();
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
 
     static gemini::HomConv2DSS conv = [&ios, &party] {
         gemini::HomConv2DSS conv;
@@ -438,7 +441,8 @@ void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* 
 
 void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
                               size_t num_ele, size_t h, size_t w, std::string ip, int port,
-                              int party, int threads, Utils::PROTO proto, int factor) {
+                              int party, int threads, Utils::PROTO proto, int factor,
+                              unsigned io_offset) {
     const char* addr = ip.c_str();
 
     if (party == emp::ALICE) {
@@ -450,7 +454,7 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
 
     auto start = measure::now();
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
 
     meta.is_shared_input      = proto == Utils::PROTO::AB;
     static gemini::HomBNSS bn = [&ios, &party] {
