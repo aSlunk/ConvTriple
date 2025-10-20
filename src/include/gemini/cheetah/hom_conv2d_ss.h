@@ -108,16 +108,16 @@ class HomConv2DSS {
     seal::SEALContext getContext() const { return *context_; }
 
 #ifdef CONV_USE_CUDA
-  void initCudaKernel();
-  bool isInitCu() const;
-  std::string schemeCu() const;
-  Code filtersToNttCu(std::vector<std::vector<seal::Plaintext>> &encoded_filters) const;
-  Code conv2DSSCu(const std::vector<seal::Ciphertext> &img_share0,
-                const std::vector<seal::Plaintext> &img_share1,
-                const std::vector<std::vector<seal::Plaintext>> &filters,
-                const Meta &meta, std::vector<seal::Ciphertext> &out_share0,
-                Tensor<uint64_t> &out_share1, size_t nthreads = 1, 
-                bool in_ntt = false, bool fil_ntt = false, bool out_ntt = false) const;
+    void initCudaKernel();
+    bool isInitCu() const;
+    std::string schemeCu() const;
+    Code filtersToNttCu(std::vector<std::vector<seal::Plaintext>>& encoded_filters) const;
+    Code conv2DSSCu(const std::vector<seal::Ciphertext>& img_share0,
+                    const std::vector<seal::Plaintext>& img_share1,
+                    const std::vector<std::vector<seal::Plaintext>>& filters, const Meta& meta,
+                    std::vector<seal::Ciphertext>& out_share0, Tensor<uint64_t>& out_share1,
+                    size_t nthreads = 1, bool in_ntt = false, bool fil_ntt = false,
+                    bool out_ntt = false) const;
 #endif
 
   protected:
@@ -146,10 +146,9 @@ class HomConv2DSS {
     std::shared_ptr<seal::PublicKey> pk_{nullptr};
     std::optional<seal::SecretKey> sk_{std::nullopt};
 
-
 #ifdef CONV_USE_CUDA
-  troy::SEALContextCuda *contextCu_;
-  troy::EvaluatorCuda *evaluatorCu_;
+    troy::SEALContextCuda* contextCu_;
+    troy::EvaluatorCuda* evaluatorCu_;
 #endif
 };
 

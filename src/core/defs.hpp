@@ -5,11 +5,9 @@
 #include <cassert>
 #include <chrono>
 #include <cstdint>
-#include <fstream>
 #include <functional>
 #include <ostream>
 #include <thread>
-#include <unistd.h>
 
 #include <gemini/cheetah/hom_bn_ss.h>
 #include <gemini/cheetah/hom_conv2d_ss.h>
@@ -246,12 +244,6 @@ std::vector<gemini::Tensor<uint64_t>> to_tensor64(T* buf, const gemini::TensorSh
 }
 
 template <class T>
-bool save_to_file(const char* path, const T* a, const T* b, const T* c, const size_t& n);
-
-template <class T>
-bool read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, bool trunc = true);
-
-template <class T>
 std::tuple<int, int> pad_zero(const T* src, std::vector<uint32_t>& dest, const int& channels,
                               const int& height, const int& width, const size_t& padding,
                               const int& batchsize);
@@ -362,78 +354,6 @@ void Utils::print_tensor(const gemini::Tensor<T>& t, const long& channel) {
         }
         break;
     }
-}
-
-template <class T>
-bool Utils::save_to_file(const char* path, const T* a, const T* b, const T* c, const size_t& n) {
-    std::fstream file(path, std::ios_base::out | std::ios_base::app | std::ios_base::binary);
-
-    if (!file.is_open())
-        return false;
-
-    file.write((char*)a, n * sizeof(T));
-    file.write((char*)b, n * sizeof(T));
-    file.write((char*)c, n * sizeof(T));
-
-    file.close();
-    return !file.fail();
-}
-
-template <class T>
-bool Utils::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, bool trunc) {
-    std::fstream file;
-    file.open(path, std::ios_base::in | std::ios_base::ate | std::ios_base::binary);
-    if (!file.is_open()) {
-        log(Level::FAILED, "Couldn't open: ", path);
-        return false;
-    }
-
-    size_t size = file.tellg();
-    if (file.fail()) {
-        log(Level::ERROR, "Couln't read file size");
-    }
-
-    std::cout << "SIZE: " << size << "\n";
-    std::cout << "n: " << n << "\n";
-    if (n * sizeof(T) * 3 > size) {
-        file.close();
-        log(Level::ERROR, "file too small");
-        return false;
-    }
-
-    file.seekg(0, std::ios::beg);
-
-    file.read((char*)a, n * sizeof(T));
-    file.read((char*)b, n * sizeof(T));
-    file.read((char*)c, n * sizeof(T));
-
-    file.close();
-
-    if (trunc) {
-        size_t to_trunc = n * 3 * sizeof(T);
-
-        file.open(path, std::ios::in | std::ios::out | std::ios::binary);
-        if (file.is_open()) {
-            std::vector<char> buffer(size - to_trunc);
-            file.seekg(to_trunc, std::ios::beg);
-            file.read(buffer.data(), buffer.size());
-            file.seekg(0, std::ios::beg);
-            file.write(buffer.data(), buffer.size());
-            file.close();
-        }
-
-        if (size == to_trunc) {
-            if (remove(path) != 0) {
-                std::perror("Truncation failed");
-            }
-        } else if (size > n * 3 * sizeof(T)) {
-            int res = truncate(path, size - to_trunc);
-            if (res != 0)
-                std::perror("Truncation failed");
-        }
-    }
-
-    return !file.fail();
 }
 
 template <class T>

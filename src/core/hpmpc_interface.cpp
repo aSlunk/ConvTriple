@@ -254,8 +254,8 @@ void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
     }
 
     auto meta = Utils::init_meta_fc(com_dim, dim2);
-    Utils::log(Utils::Level::INFO, "P", party - 1, " FC: ", meta.input_shape, " x ", meta.weight_shape,
-               " ", Utils::proto_str(proto));
+    Utils::log(Utils::Level::INFO, "P", party - 1, " FC: ", meta.input_shape, " x ",
+               meta.weight_shape, " ", Utils::proto_str(proto));
 
     auto start = measure::now();
 
@@ -333,8 +333,8 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding);
 
-    Utils::log(Utils::Level::INFO, "P", party - 1, " CONV: ", meta.ishape, " x ", meta.fshape, " x ",
-               parm.n_filters, ", ", parm.stride, ", ", parm.padding, ", ",
+    Utils::log(Utils::Level::INFO, "P", party - 1, " CONV: ", meta.ishape, " x ", meta.fshape,
+               " x ", parm.n_filters, ", ", parm.stride, ", ", parm.padding, ", ",
                Utils::proto_str(proto));
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
@@ -445,8 +445,8 @@ void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
         addr = nullptr;
     }
     auto meta = Utils::init_meta_bn(num_ele, h, w);
-    Utils::log(Utils::Level::INFO, "P", party - 1, " BN: ", meta.ishape, " x ", meta.vec_shape, ", ",
-               Utils::proto_str(proto));
+    Utils::log(Utils::Level::INFO, "P", party - 1, " BN: ", meta.ishape, " x ", meta.vec_shape,
+               ", ", Utils::proto_str(proto));
 
     auto start = measure::now();
 

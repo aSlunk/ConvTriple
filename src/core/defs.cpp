@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include "defs.hpp"
 
 void Utils::add_result(Result& res, const Result& res2) {

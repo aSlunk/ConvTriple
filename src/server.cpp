@@ -5,6 +5,7 @@
 #include <core/benching.hpp>
 #include <core/hpmpc_interface.hpp>
 #include <core/networks/resnet50.hpp>
+#include <io/file_io.hpp>
 
 #define PARTY 1
 
@@ -61,7 +62,7 @@ int main(int argc, char** argv) {
                                                std::string(""), port, PARTY, threads,
                                                Utils::PROTO::AB);
 
-            if (!Utils::save_to_file("arith.triple", a.data(), b.data(), c.data(), num_triples)) {
+            if (!IO::save_to_file("arith.triple", a.data(), b.data(), c.data(), num_triples)) {
                 Utils::log(Utils::Level::FAILED, "Failed to save triples");
             } else {
                 Utils::log(Utils::Level::PASSED, "Saved triples");
@@ -75,8 +76,8 @@ int main(int argc, char** argv) {
             std::vector<uint32_t> a(num_triples);
             std::vector<uint32_t> b(num_triples);
             std::vector<uint32_t> c(num_triples);
-            if (Utils::read_from_file("arith.triple", a.data(), b.data(), c.data(), num_triples,
-                                      true)) {
+            if (IO::read_from_file("arith.triple", a.data(), b.data(), c.data(), num_triples,
+                                   true)) {
                 Utils::log(Utils::Level::PASSED, "Read triples");
 
                 bool passed = true;
