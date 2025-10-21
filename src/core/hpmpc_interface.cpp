@@ -352,10 +352,12 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
             addr = nullptr;
         }
 
-        IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
+        IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1, io_offset);
 
         TROY::conv2d(ios, OTHER_PARTY(party), a, b, c, batch, parm.ic, parm.ih, parm.iw, parm.fh, parm.fw,
                      parm.n_filters, parm.stride, parm.padding, false, factor);
+        delete ios[0];
+        delete[] ios;
         return;
     }
 #endif

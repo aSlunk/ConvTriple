@@ -54,6 +54,9 @@ std::tuple<int, int> Utils::pad_zero(const T* src, std::vector<uint32_t>& dest, 
     size_t new_h   = height + padding * 2;
     size_t new_w   = width + padding * 2;
     size_t new_dim = new_h * new_w;
+    
+    if (!src)
+        return std::make_tuple(new_h, new_w);
 
     dest.clear();
     dest.resize(new_dim * channels * batchsize, 0);
