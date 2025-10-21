@@ -33,7 +33,8 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
     auto start = measure::now();
 
     if (!padding) {
-        conv2d_ab2(ios, party, x.data(), w.data(), c.data(), bs, ic, ih, iw, kh, kw, oc, stride, mod_switch);
+        conv2d_ab2(ios, party, x.data(), w.data(), c.data(), bs, ic, ih, iw, kh, kw, oc, stride,
+                   mod_switch);
     } else {
         vector<uint32_t> dest;
 
@@ -41,7 +42,8 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
         ih       = std::get<0>(dim);
         iw       = std::get<1>(dim);
 
-        conv2d_ab2(ios, party, dest.data(), w.data(), c.data(), bs, ic, ih, iw, kh, kw, oc, stride, mod_switch);
+        conv2d_ab2(ios, party, dest.data(), w.data(), c.data(), bs, ic, ih, iw, kh, kw, oc, stride,
+                   mod_switch);
     }
 
     double time = std::chrono::duration<double, std::milli>(measure::now() - start).count();
@@ -168,8 +170,8 @@ void conv2d_ab2(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* 
 }
 
 void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
-                size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
-                bool mod_switch) {
+               size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
+               bool mod_switch) {
     using namespace troy;
     auto he = setup();
     linear::PolynomialEncoderRing2k<uint32_t> encoder(he, BIT_LEN);
@@ -200,12 +202,12 @@ void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c
         x_encrypted.save(a1_serialized, he);
         vector<uint32_t> R1 = random_polynomial(bs * oc * oh * ow);
 
-        linear::Plain2d w_encoded = helper.encode_weights_ring2k(encoder, w, std::nullopt, false);
+        linear::Plain2d w_encoded  = helper.encode_weights_ring2k(encoder, w, std::nullopt, false);
         linear::Plain2d R1_encoded = helper.encode_outputs_ring2k(encoder, R1.data(), std::nullopt);
 
         send(ios, a1_serialized);
         auto a2_serialized = recv(ios);
-        auto a2_encrypted = linear::Cipher2d::load_new(a2_serialized, he);
+        auto a2_encrypted  = linear::Cipher2d::load_new(a2_serialized, he);
 
         auto m1_encrypted = helper.conv2d(evaluator, a2_encrypted, w_encoded);
         m1_encrypted.sub_plain_inplace(evaluator, R1_encoded);
@@ -253,7 +255,7 @@ void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c
 
         vector<uint32_t> R2 = random_polynomial(bs * oc * oh * ow);
 
-        linear::Plain2d w_encoded = helper.encode_weights_ring2k(encoder, w, std::nullopt, false);
+        linear::Plain2d w_encoded  = helper.encode_weights_ring2k(encoder, w, std::nullopt, false);
         linear::Plain2d R2_encoded = helper.encode_outputs_ring2k(encoder, R2.data(), std::nullopt);
 
         auto a1_serialized = recv(ios);
@@ -289,8 +291,8 @@ std::vector<uint32_t> random_polynomial(size_t size, uint64_t max_value) {
     return result;
 }
 
-vector<uint32_t> ideal_conv(uint32_t* x, uint32_t* w, size_t t, size_t bs, size_t ic,
-                            size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride) {
+vector<uint32_t> ideal_conv(uint32_t* x, uint32_t* w, size_t t, size_t bs, size_t ic, size_t ih,
+                            size_t iw, size_t kh, size_t kw, size_t oc, size_t stride) {
     size_t oh = (ih - kh) / stride + 1;
     size_t ow = (iw - kw) / stride + 1;
 
@@ -347,9 +349,9 @@ void add_inplace(std::vector<uint32_t>& a, const uint32_t* b, size_t t) {
     for (size_t i = 0; i < a.size(); ++i) add_mod_inplace(a[i], b[i], t);
 }
 
-void conv2d_ab2_reverse(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
-                size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
-                bool mod_switch) {
+void conv2d_ab2_reverse(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c,
+                        size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
+                        size_t stride, bool mod_switch) {
     using namespace troy;
     auto he = setup();
     linear::PolynomialEncoderRing2k<uint32_t> encoder(he, BIT_LEN);

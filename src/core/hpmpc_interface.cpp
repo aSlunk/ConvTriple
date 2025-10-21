@@ -49,7 +49,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         addr = nullptr;
 
     std::atomic<int> setup = 0;
-    auto start = measure::now();
+    auto start             = measure::now();
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
 
@@ -57,7 +57,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         if (start >= end)
             return Code::OK;
 
-        int cur_party = wid & 1 ? OTHER_PARTY(party) : party;
+        int cur_party    = wid & 1 ? OTHER_PARTY(party) : party;
         auto start_setup = measure::now();
 
         sci::OTPack<IO::NetIO> ot_pack(ios + wid, 1, cur_party, true, false);
@@ -92,7 +92,9 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party - 1, ": Bool triple data[", unit, "]: ", data);
 
-    Utils::log(Utils::Level::INFO, "P", party - 1, ": Setup time [s]: ", Utils::to_sec(setup.load()) / threads);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": Setup time [s]: ",
+               Utils::to_sec(setup.load())
+                   / (num_triples > static_cast<size_t>(threads) ? threads : num_triples));
 
     for (int i = 0; i < threads; ++i) {
         delete ios[i];

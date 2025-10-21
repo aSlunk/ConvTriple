@@ -9,7 +9,7 @@
 using std::vector;
 
 namespace troy {
-    class HeContext;
+class HeContext;
 }
 
 namespace TROY {
@@ -23,19 +23,18 @@ void conv2d_ab2(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* 
                 size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
                 bool mod_switch);
 
-void conv2d_ab2_reverse(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
-                size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
-                bool mod_switch);
+void conv2d_ab2_reverse(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c,
+                        size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
+                        size_t stride, bool mod_switch);
 
 void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
-                size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
-                bool mod_switch);
+               size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
+               bool mod_switch);
 
 template <class T>
 bool vector_equal(const vector<T>& a, const vector<T>& b);
-vector<uint32_t> ideal_conv(uint32_t* x, uint32_t* w, size_t t, size_t bs, size_t ic,
-                            size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
-                            size_t stride = 1);
+vector<uint32_t> ideal_conv(uint32_t* x, uint32_t* w, size_t t, size_t bs, size_t ic, size_t ih,
+                            size_t iw, size_t kh, size_t kw, size_t oc, size_t stride = 1);
 vector<uint32_t> random_polynomial(size_t size, uint64_t max_value = (1UL << 32));
 
 void add_inplace(std::vector<uint32_t>& a, const uint32_t* b, size_t t);
