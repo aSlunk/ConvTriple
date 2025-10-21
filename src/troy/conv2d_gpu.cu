@@ -21,29 +21,21 @@ troy::HeContextPointer setup() {
     return HeContext::create(parms, true, SecurityLevel::Classical128, 0x42);
 }
 
-void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
-            size_t kw, size_t oc, size_t stride, size_t padding, bool mod_switch) {
-    vector<uint32_t> x = random_polynomial(bs * ic * ih * iw, PLAIN_MOD);
-    vector<uint32_t> w = random_polynomial(oc * ic * kh * kw, PLAIN_MOD);
-
-    size_t ow = ((iw + 2 * padding - kw) / stride) + 1;
-    size_t oh = ((ih + 2 * padding - kh) / stride) + 1;
-    vector<uint32_t> c(bs * oc * oh * ow);
-
+void conv2d(IO::NetIO** ios, int party, INT_TYPE* a, INT_TYPE* b, INT_TYPE* c, size_t bs, size_t ic,
+            size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride, size_t padding,
+            bool mod_switch) {
     auto start = measure::now();
 
     if (!padding) {
-        conv2d_ab2(ios, party, x.data(), w.data(), c.data(), bs, ic, ih, iw, kh, kw, oc, stride,
-                   mod_switch);
+        conv2d_ab2(ios, party, a, b, c, bs, ic, ih, iw, kh, kw, oc, stride, mod_switch);
     } else {
-        vector<uint32_t> dest;
+        vector<INT_TYPE> dest;
 
-        auto dim = Utils::pad_zero(x.data(), dest, ic, ih, iw, padding, bs);
+        auto dim = Utils::pad_zero(a, dest, ic, ih, iw, padding, bs);
         ih       = std::get<0>(dim);
         iw       = std::get<1>(dim);
 
-        conv2d_ab2(ios, party, dest.data(), w.data(), c.data(), bs, ic, ih, iw, kh, kw, oc, stride,
-                   mod_switch);
+        conv2d_ab2(ios, party, dest.data(), b, c, bs, ic, ih, iw, kh, kw, oc, stride, mod_switch);
     }
 
     double time = std::chrono::duration<double, std::milli>(measure::now() - start).count();
@@ -53,12 +45,25 @@ void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t 
               << "\n";
 }
 
-void conv2d_ab2(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
+void conv2d_dummy(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
+                  size_t kw, size_t oc, size_t stride, size_t padding, bool mod_switch) {
+    vector<INT_TYPE> x = random_polynomial(bs * ic * ih * iw, PLAIN_MOD);
+    vector<INT_TYPE> w = random_polynomial(oc * ic * kh * kw, PLAIN_MOD);
+
+    size_t ow = ((iw + 2 * padding - kw) / stride) + 1;
+    size_t oh = ((ih + 2 * padding - kh) / stride) + 1;
+    vector<INT_TYPE> c(bs * oc * oh * ow);
+
+    conv2d(ios, party, x.data(), w.data(), c.data(), bs, ic, ih, iw, kh, kw, oc, stride, padding,
+           mod_switch);
+}
+
+void conv2d_ab2(IO::NetIO** ios, int party, INT_TYPE* x, INT_TYPE* w, INT_TYPE* c, size_t bs,
                 size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
                 bool mod_switch) {
     using namespace troy;
     auto he = setup();
-    linear::PolynomialEncoderRing2k<uint32_t> encoder(he, BIT_LEN);
+    linear::PolynomialEncoderRing2k<INT_TYPE> encoder(he, BIT_LEN);
     if (utils::device_count() > 0) {
         he->to_device_inplace();
         encoder.to_device_inplace();
@@ -87,7 +92,7 @@ void conv2d_ab2(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* 
 
         auto y_serialized = recv(ios);
         auto y_encrypted  = helper.deserialize_outputs(evaluator, y_serialized);
-        vector<uint32_t> y_decrypted
+        vector<INT_TYPE> y_decrypted
             = helper.decrypt_outputs_ring2k(encoder, decryptor, y_encrypted);
         [[maybe_unused]] auto size
             = apply_stride(c, y_decrypted, stride, bs, ic, ih, iw, kh, kw, oc);
@@ -99,17 +104,17 @@ void conv2d_ab2(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* 
         std::cout << PURPLE << "[" << ic << ", " << ih << ", " << iw << "] x [" << ic << ", " << kh
                   << ", " << kw << "] = [" << oc << ", " << nh << ", " << nw << "]" << NC << "\n";
 
-        std::vector<uint32_t> x2(bs * ic * ih * iw);
-        std::vector<uint32_t> w2(oc * ic * kh * kw);
-        std::vector<uint32_t> R(bs * oc * nh * nw);
+        std::vector<INT_TYPE> x2(bs * ic * ih * iw);
+        std::vector<INT_TYPE> w2(oc * ic * kh * kw);
+        std::vector<INT_TYPE> R(bs * oc * nh * nw);
 
-        ios[0]->recv_data(x2.data(), bs * ic * ih * iw * sizeof(uint32_t));
-        ios[0]->recv_data(w2.data(), w2.size() * sizeof(uint32_t));
-        ios[0]->recv_data(R.data(), R.size() * sizeof(uint32_t));
+        ios[0]->recv_data(x2.data(), bs * ic * ih * iw * sizeof(INT_TYPE));
+        ios[0]->recv_data(w2.data(), w2.size() * sizeof(INT_TYPE));
+        ios[0]->recv_data(R.data(), R.size() * sizeof(INT_TYPE));
 
         add_inplace(R, c, PLAIN_MOD);
         add_inplace(x2, x, PLAIN_MOD);
-        vector<uint32_t> ideal
+        vector<INT_TYPE> ideal
             = ideal_conv(x2.data(), w2.data(), PLAIN_MOD, bs, ic, ih, iw, kh, kw, oc, stride);
         if (vector_equal(R, ideal)) {
             std::cout << GREEN << "GPU-CONV: PASSED" << NC << "\n";
@@ -131,7 +136,7 @@ void conv2d_ab2(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* 
         }
 #endif
     } else {
-        vector<uint32_t> R = random_polynomial(bs * oc * oh * ow);
+        vector<INT_TYPE> R = random_polynomial(bs * oc * oh * ow);
 
         linear::Plain2d x_encoded;
         if (x)
@@ -157,24 +162,24 @@ void conv2d_ab2(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* 
         [[maybe_unused]] auto size = apply_stride(c, R, stride, bs, ic, ih, iw, kh, kw, oc);
 #ifdef VERIFY
         if (x)
-            ios[0]->send_data(x, bs * ic * ih * iw * sizeof(uint32_t));
+            ios[0]->send_data(x, bs * ic * ih * iw * sizeof(INT_TYPE));
         else {
-            std::vector<uint32_t> zeros(bs * ic * ih * iw, 0);
-            ios[0]->send_data(zeros.data(), bs * ic * ih * iw * sizeof(uint32_t));
+            std::vector<INT_TYPE> zeros(bs * ic * ih * iw, 0);
+            ios[0]->send_data(zeros.data(), bs * ic * ih * iw * sizeof(INT_TYPE));
         }
-        ios[0]->send_data(w, oc * ic * kw * kh * sizeof(uint32_t));
-        ios[0]->send_data(c, size * sizeof(uint32_t));
+        ios[0]->send_data(w, oc * ic * kw * kh * sizeof(INT_TYPE));
+        ios[0]->send_data(c, size * sizeof(INT_TYPE));
         ios[0]->flush();
 #endif
     }
 }
 
-void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
+void conv2d_ab(IO::NetIO** ios, int party, INT_TYPE* x, INT_TYPE* w, INT_TYPE* c, size_t bs,
                size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
                bool mod_switch) {
     using namespace troy;
     auto he = setup();
-    linear::PolynomialEncoderRing2k<uint32_t> encoder(he, BIT_LEN);
+    linear::PolynomialEncoderRing2k<INT_TYPE> encoder(he, BIT_LEN);
     if (utils::device_count() > 0) {
         he->to_device_inplace();
         encoder.to_device_inplace();
@@ -200,7 +205,7 @@ void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c
 
         std::stringstream a1_serialized;
         x_encrypted.save(a1_serialized, he);
-        vector<uint32_t> R1 = random_polynomial(bs * oc * oh * ow);
+        vector<INT_TYPE> R1 = random_polynomial(bs * oc * oh * ow);
 
         linear::Plain2d w_encoded  = helper.encode_weights_ring2k(encoder, w, std::nullopt, false);
         linear::Plain2d R1_encoded = helper.encode_outputs_ring2k(encoder, R1.data(), std::nullopt);
@@ -219,7 +224,7 @@ void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c
         auto y_serialized = recv(ios);
         auto y_encrypted  = helper.deserialize_outputs(evaluator, y_serialized);
 
-        vector<uint32_t> y_decrypted
+        vector<INT_TYPE> y_decrypted
             = helper.decrypt_outputs_ring2k(encoder, decryptor, y_encrypted);
         [[maybe_unused]] auto size
             = apply_stride(c, y_decrypted, stride, bs, ic, ih, iw, kh, kw, oc);
@@ -231,14 +236,14 @@ void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c
         std::cout << PURPLE << "[" << ic << ", " << ih << ", " << iw << "] x [" << ic << ", " << kh
                   << ", " << kw << "] = [" << oc << ", " << nh << ", " << nw << "]" << NC << "\n";
 
-        std::vector<uint32_t> w(oc * ic * kh * kw);
-        std::vector<uint32_t> R(bs * oc * nh * nw);
+        std::vector<INT_TYPE> w(oc * ic * kh * kw);
+        std::vector<INT_TYPE> R(bs * oc * nh * nw);
 
-        ios[0]->recv_data(w.data(), w.size() * sizeof(uint32_t));
-        ios[0]->recv_data(R.data(), R.size() * sizeof(uint32_t));
+        ios[0]->recv_data(w.data(), w.size() * sizeof(INT_TYPE));
+        ios[0]->recv_data(R.data(), R.size() * sizeof(INT_TYPE));
 
         add_inplace(R, c, PLAIN_MOD);
-        vector<uint32_t> ideal
+        vector<INT_TYPE> ideal
             = ideal_conv(x, w.data(), PLAIN_MOD, bs, ic, ih, iw, kh, kw, oc, stride);
         if (vector_equal(R, ideal)) {
             std::cout << GREEN << "GPU-CONV: PASSED" << NC << "\n";
@@ -253,7 +258,7 @@ void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c
         std::stringstream a2_serialized;
         a2_encrypted.save(a2_serialized, he);
 
-        vector<uint32_t> R2 = random_polynomial(bs * oc * oh * ow);
+        vector<INT_TYPE> R2 = random_polynomial(bs * oc * oh * ow);
 
         linear::Plain2d w_encoded  = helper.encode_weights_ring2k(encoder, w, std::nullopt, false);
         linear::Plain2d R2_encoded = helper.encode_outputs_ring2k(encoder, R2.data(), std::nullopt);
@@ -276,27 +281,27 @@ void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c
 
         [[maybe_unused]] auto size = apply_stride(c, R2, stride, bs, ic, ih, iw, kh, kw, oc);
 #ifdef VERIFY
-        ios[0]->send_data(w, oc * ic * kw * kh * sizeof(uint32_t));
-        ios[0]->send_data(c, size * sizeof(uint32_t));
+        ios[0]->send_data(w, oc * ic * kw * kh * sizeof(INT_TYPE));
+        ios[0]->send_data(c, size * sizeof(INT_TYPE));
         ios[0]->flush();
 #endif
     }
 }
 
-std::vector<uint32_t> random_polynomial(size_t size, uint64_t max_value) {
-    std::vector<uint32_t> result(size);
+std::vector<INT_TYPE> random_polynomial(size_t size, uint64_t max_value) {
+    std::vector<INT_TYPE> result(size);
     for (size_t i = 0; i < size; i++) {
         result[i] = rand() % max_value;
     }
     return result;
 }
 
-vector<uint32_t> ideal_conv(uint32_t* x, uint32_t* w, size_t t, size_t bs, size_t ic, size_t ih,
+vector<INT_TYPE> ideal_conv(INT_TYPE* x, INT_TYPE* w, size_t t, size_t bs, size_t ic, size_t ih,
                             size_t iw, size_t kh, size_t kw, size_t oc, size_t stride) {
     size_t oh = (ih - kh) / stride + 1;
     size_t ow = (iw - kw) / stride + 1;
 
-    vector<uint32_t> y_truth(bs * oc * oh * ow, 0);
+    vector<INT_TYPE> y_truth(bs * oc * oh * ow, 0);
 
     for (size_t b = 0; b < bs; b++) {
         for (size_t o = 0; o < oc; o++) {
@@ -321,7 +326,7 @@ vector<uint32_t> ideal_conv(uint32_t* x, uint32_t* w, size_t t, size_t bs, size_
     return y_truth;
 }
 
-size_t apply_stride(uint32_t* dest, std::vector<uint32_t>& x, const size_t& stride,
+size_t apply_stride(INT_TYPE* dest, std::vector<INT_TYPE>& x, const size_t& stride,
                     const size_t& bs, const size_t& ic, const size_t& ih, const size_t& iw,
                     const size_t& kh, const size_t& kw, const size_t& oc) {
     size_t oh  = (ih - kh) + 1;
@@ -345,16 +350,16 @@ size_t apply_stride(uint32_t* dest, std::vector<uint32_t>& x, const size_t& stri
     return bs * nsize;
 }
 
-void add_inplace(std::vector<uint32_t>& a, const uint32_t* b, size_t t) {
+void add_inplace(std::vector<INT_TYPE>& a, const INT_TYPE* b, size_t t) {
     for (size_t i = 0; i < a.size(); ++i) add_mod_inplace(a[i], b[i], t);
 }
 
-void conv2d_ab2_reverse(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c,
+void conv2d_ab2_reverse(IO::NetIO** ios, int party, INT_TYPE* x, INT_TYPE* w, INT_TYPE* c,
                         size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
                         size_t stride, bool mod_switch) {
     using namespace troy;
     auto he = setup();
-    linear::PolynomialEncoderRing2k<uint32_t> encoder(he, BIT_LEN);
+    linear::PolynomialEncoderRing2k<INT_TYPE> encoder(he, BIT_LEN);
     if (utils::device_count() > 0) {
         he->to_device_inplace();
         encoder.to_device_inplace();
@@ -383,7 +388,7 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, ui
 
         auto y_serialized = recv(ios);
         auto y_encrypted  = helper.deserialize_outputs(evaluator, y_serialized);
-        vector<uint32_t> y_decrypted
+        vector<INT_TYPE> y_decrypted
             = helper.decrypt_outputs_ring2k(encoder, decryptor, y_encrypted);
         [[maybe_unused]] auto size
             = apply_stride(c, y_decrypted, stride, bs, ic, ih, iw, kh, kw, oc);
@@ -395,14 +400,14 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, ui
         std::cout << PURPLE << "[" << ic << ", " << ih << ", " << iw << "] x [" << ic << ", " << kh
                   << ", " << kw << "] = [" << oc << ", " << nh << ", " << nw << "]" << NC << "\n";
 
-        std::vector<uint32_t> x2(bs * ic * ih * iw);
-        std::vector<uint32_t> R(size);
+        std::vector<INT_TYPE> x2(bs * ic * ih * iw);
+        std::vector<INT_TYPE> R(size);
 
-        ios[0]->recv_data(x2.data(), x2.size() * sizeof(uint32_t));
-        ios[0]->recv_data(R.data(), R.size() * sizeof(uint32_t));
+        ios[0]->recv_data(x2.data(), x2.size() * sizeof(INT_TYPE));
+        ios[0]->recv_data(R.data(), R.size() * sizeof(INT_TYPE));
 
         add_inplace(R, c, PLAIN_MOD);
-        vector<uint32_t> ideal
+        vector<INT_TYPE> ideal
             = ideal_conv(x2.data(), w, PLAIN_MOD, bs, ic, ih, iw, kh, kw, oc, stride);
         if (vector_equal(R, ideal)) {
             std::cout << GREEN << "GPU-CONV: PASSED" << NC << "\n";
@@ -424,7 +429,7 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, ui
         }
 #endif
     } else {
-        vector<uint32_t> R = random_polynomial(bs * oc * oh * ow);
+        vector<INT_TYPE> R = random_polynomial(bs * oc * oh * ow);
 
         linear::Plain2d x_encoded = helper.encode_inputs_ring2k(encoder, x, std::nullopt, false);
         linear::Plain2d R_encoded = helper.encode_outputs_ring2k(encoder, R.data(), std::nullopt);
@@ -443,8 +448,8 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, ui
 
         [[maybe_unused]] auto size = apply_stride(c, R, stride, bs, ic, ih, iw, kh, kw, oc);
 #ifdef VERIFY
-        ios[0]->send_data(x, bs * ic * ih * iw * sizeof(uint32_t));
-        ios[0]->send_data(c, size * sizeof(uint32_t));
+        ios[0]->send_data(x, bs * ic * ih * iw * sizeof(INT_TYPE));
+        ios[0]->send_data(c, size * sizeof(INT_TYPE));
         ios[0]->flush();
 #endif
     }

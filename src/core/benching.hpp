@@ -9,8 +9,8 @@
 #include <gemini/cheetah/hom_conv2d_ss.h>
 #include <gemini/cheetah/hom_fc_ss.h>
 
-#include <net_io_channel.hpp>
-#include <send.hpp>
+#include "io/net_io_channel.hpp"
+#include "io/send.hpp"
 
 #include <ot/cheetah-ot_pack.h>
 

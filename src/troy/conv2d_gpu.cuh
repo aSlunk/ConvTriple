@@ -14,31 +14,37 @@ class HeContext;
 
 namespace TROY {
 
+using INT_TYPE = uint32_t;
+
 std::shared_ptr<troy::HeContext> setup();
 
-void conv2d(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
-            size_t kw, size_t oc, size_t stride, size_t padding, bool mod_switch = false);
+void conv2d(IO::NetIO** ios, int party, INT_TYPE* a, INT_TYPE* b, INT_TYPE* c, size_t bs, size_t ic,
+            size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride, size_t padding,
+            bool mod_switch = false);
 
-void conv2d_ab2(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
+void conv2d_dummy(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
+                  size_t kw, size_t oc, size_t stride, size_t padding, bool mod_switch = false);
+
+void conv2d_ab2(IO::NetIO** ios, int party, INT_TYPE* x, INT_TYPE* w, INT_TYPE* c, size_t bs,
                 size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
                 bool mod_switch);
 
-void conv2d_ab2_reverse(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c,
+void conv2d_ab2_reverse(IO::NetIO** ios, int party, INT_TYPE* x, INT_TYPE* w, INT_TYPE* c,
                         size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
                         size_t stride, bool mod_switch);
 
-void conv2d_ab(IO::NetIO** ios, int party, uint32_t* x, uint32_t* w, uint32_t* c, size_t bs,
+void conv2d_ab(IO::NetIO** ios, int party, INT_TYPE* x, INT_TYPE* w, INT_TYPE* c, size_t bs,
                size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
                bool mod_switch);
 
 template <class T>
 bool vector_equal(const vector<T>& a, const vector<T>& b);
-vector<uint32_t> ideal_conv(uint32_t* x, uint32_t* w, size_t t, size_t bs, size_t ic, size_t ih,
+vector<INT_TYPE> ideal_conv(INT_TYPE* x, INT_TYPE* w, size_t t, size_t bs, size_t ic, size_t ih,
                             size_t iw, size_t kh, size_t kw, size_t oc, size_t stride = 1);
-vector<uint32_t> random_polynomial(size_t size, uint64_t max_value = (1UL << 32));
+vector<INT_TYPE> random_polynomial(size_t size, uint64_t max_value = (1UL << 32));
 
-void add_inplace(std::vector<uint32_t>& a, const uint32_t* b, size_t t);
-size_t apply_stride(uint32_t* dest, std::vector<uint32_t>& x, const size_t& stride,
+void add_inplace(std::vector<INT_TYPE>& a, const INT_TYPE* b, size_t t);
+size_t apply_stride(INT_TYPE* dest, std::vector<INT_TYPE>& x, const size_t& stride,
                     const size_t& bs, const size_t& ic, const size_t& ih, const size_t& iw,
                     const size_t& kh, const size_t& kw, const size_t& oc);
 

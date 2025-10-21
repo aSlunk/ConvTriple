@@ -68,7 +68,8 @@ bool IO::read_from_file(const char* path, T* a, const size_t& a_size, T* b, cons
                         const size_t& e_size, bool trunc) {
     auto total = (a_size + b_size + c_size + d_size + e_size) * sizeof(T);
 
-    if (!total) return true;
+    if (!total)
+        return true;
 
     std::fstream file;
     file.open(path, std::ios_base::in | std::ios_base::ate | std::ios_base::binary);

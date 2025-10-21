@@ -10,6 +10,10 @@
 #include "ot/bit-triple-generator.h"
 #include "ot/cheetah-ot_pack.h"
 
+#if USE_CONV_CUDA
+#include "troy/conv2d_gpu.cuh"
+#endif
+
 constexpr uint64_t MAX_BOOL  = 20'000'000;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
@@ -340,6 +344,21 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
                                        Utils::ConvParm parm, int batch, std::string ip, int port,
                                        int party, int threads, Utils::PROTO proto, int factor,
                                        unsigned io_offset) {
+#if USE_CONV_CUDA
+    if (factor == 1 && proto == Utils::PROTO::AB2) {
+        const char* addr = ip.c_str();
+
+        if (party == emp::ALICE) {
+            addr = nullptr;
+        }
+
+        IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
+
+        TROY::conv2d(ios, party, batch, parm.ic, parm.ih, parm.iw, parm.fh, parm.fw, parm.n_filters,
+                     parm.stride, parm.padding, false);
+        return;
+    }
+#endif
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding);
 
