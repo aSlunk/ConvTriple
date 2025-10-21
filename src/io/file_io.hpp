@@ -66,6 +66,10 @@ template <class T>
 bool IO::read_from_file(const char* path, T* a, const size_t& a_size, T* b, const size_t& b_size,
                         T* c, const size_t& c_size, T* d, const size_t& d_size, T* e,
                         const size_t& e_size, bool trunc) {
+    auto total = (a_size + b_size + c_size + d_size + e_size) * sizeof(T);
+
+    if (!total) return true;
+
     std::fstream file;
     file.open(path, std::ios_base::in | std::ios_base::ate | std::ios_base::binary);
     if (!file.is_open()) {
@@ -78,7 +82,6 @@ bool IO::read_from_file(const char* path, T* a, const size_t& a_size, T* b, cons
         Utils::log(Utils::Level::ERROR, "Couln't read file size");
     }
 
-    auto total = (a_size + b_size + c_size + d_size + e_size) * sizeof(T);
     if (total > size) {
         file.close();
         Utils::log(Utils::Level::ERROR, "file too small");
