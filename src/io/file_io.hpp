@@ -37,11 +37,16 @@ bool IO::save_to_file(const char* path, const T* a, const size_t& a_size, const 
     if (!file.is_open())
         return false;
 
-    file.write((char*)a, a_size * sizeof(T));
-    file.write((char*)b, b_size * sizeof(T));
-    file.write((char*)c, c_size * sizeof(T));
-    file.write((char*)d, d_size * sizeof(T));
-    file.write((char*)e, e_size * sizeof(T));
+    if (a_size)
+        file.write((char*)a, a_size * sizeof(T));
+    if (b_size)
+        file.write((char*)b, b_size * sizeof(T));
+    if (c_size)
+        file.write((char*)c, c_size * sizeof(T));
+    if (d_size)
+        file.write((char*)d, d_size * sizeof(T));
+    if (e_size)
+        file.write((char*)e, e_size * sizeof(T));
 
     file.close();
     return !file.fail();
@@ -49,6 +54,8 @@ bool IO::save_to_file(const char* path, const T* a, const size_t& a_size, const 
 
 template <class T>
 bool IO::save_to_file(const char* path, const T* a, const T* b, const T* c, const size_t& n) {
+    if (!n)
+        return true;
     std::fstream file(path, std::ios_base::out | std::ios_base::app | std::ios_base::binary);
 
     if (!file.is_open())
@@ -91,11 +98,16 @@ bool IO::read_from_file(const char* path, T* a, const size_t& a_size, T* b, cons
 
     file.seekg(0, std::ios::beg);
 
-    file.read((char*)a, a_size * sizeof(T));
-    file.read((char*)b, b_size * sizeof(T));
-    file.read((char*)c, c_size * sizeof(T));
-    file.read((char*)d, d_size * sizeof(T));
-    file.read((char*)e, e_size * sizeof(T));
+    if (a_size)
+        file.read((char*)a, a_size * sizeof(T));
+    if (b_size)
+        file.read((char*)b, b_size * sizeof(T));
+    if (c_size)
+        file.read((char*)c, c_size * sizeof(T));
+    if (d_size)
+        file.read((char*)d, d_size * sizeof(T));
+    if (e_size)
+        file.read((char*)e, e_size * sizeof(T));
 
     file.close();
 
@@ -127,6 +139,8 @@ bool IO::read_from_file(const char* path, T* a, const size_t& a_size, T* b, cons
 
 template <class T>
 bool IO::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, bool trunc) {
+    if (!n)
+        return true;
     std::fstream file;
     file.open(path, std::ios_base::in | std::ios_base::ate | std::ios_base::binary);
     if (!file.is_open()) {

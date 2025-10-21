@@ -38,17 +38,17 @@ void conv2d(IO::NetIO** ios, int party, INT_TYPE* a, INT_TYPE* b, INT_TYPE* c, s
             ai       = dest.data();
         }
 
-        auto ac_batch = bs / factor;
+        size_t ac_batch = bs / factor;
 
         auto oh = dim(ih, kh, stride, padding);
         auto ow = dim(iw, kw, stride, padding);
 
-        size_t size_img = ac_batch * ih * iw * ic;
-        size_t size_w   = ic * kh * kw * oc;
-        size_t size_c   = oc * oh * ow;
+        size_t i_size = ac_batch * ih * iw * ic;
+        size_t w_size = ic * kh * kw * oc;
+        size_t c_size = ac_batch * oc * oh * ow;
 
-        for (size_t i = 0; i < factor; ++i) {
-            conv2d_ab2(ios, party, ai + size_img * i, b + size_w * i, c + size_c * i, ac_batch, ic,
+        for (int i = 0; i < factor; ++i) {
+            conv2d_ab2(ios, party, ai + i_size * i, b + w_size * i, c + c_size * i, ac_batch, ic,
                        ih, iw, kh, kw, oc, stride, mod_switch);
         }
 
