@@ -345,7 +345,7 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
                                        int party, int threads, Utils::PROTO proto, int factor,
                                        unsigned io_offset) {
 #if USE_CONV_CUDA
-    if (factor == 1 && proto == Utils::PROTO::AB2) {
+    if (proto == Utils::PROTO::AB2) {
         const char* addr = ip.c_str();
 
         if (party == emp::ALICE) {
@@ -355,7 +355,7 @@ void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uin
         IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
 
         TROY::conv2d(ios, party, batch, parm.ic, parm.ih, parm.iw, parm.fh, parm.fw, parm.n_filters,
-                     parm.stride, parm.padding, false);
+                     parm.stride, parm.padding, false, factor);
         return;
     }
 #endif

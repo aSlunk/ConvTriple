@@ -20,7 +20,7 @@ std::shared_ptr<troy::HeContext> setup();
 
 void conv2d(IO::NetIO** ios, int party, INT_TYPE* a, INT_TYPE* b, INT_TYPE* c, size_t bs, size_t ic,
             size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride, size_t padding,
-            bool mod_switch = false);
+            bool mod_switch = false, int factor = 1);
 
 void conv2d_dummy(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
                   size_t kw, size_t oc, size_t stride, size_t padding, bool mod_switch = false);
@@ -102,6 +102,10 @@ bool TROY::vector_equal(const vector<T>& a, const vector<T>& b) {
             return false;
     }
     return true;
+}
+
+inline size_t dim(size_t dim_i, size_t dim_k, size_t stride, size_t padding) {
+    return ((dim_i + 2 * padding - dim_k) / stride) + 1;
 }
 
 #endif
