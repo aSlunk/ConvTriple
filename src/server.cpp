@@ -108,6 +108,7 @@ int main(int argc, char** argv) {
         }
     }
 
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(nullptr, port, threads);
     {
         int n       = 3;
         int out     = 2;
@@ -122,7 +123,7 @@ int main(int argc, char** argv) {
             }
         }
 
-        Iface::generateFCTriplesCheetah(nullptr, b, c, batchSize, n, out, PARTY, std::string(""),
+        Iface::generateFCTriplesCheetah(ios, nullptr, b, c, batchSize, n, out, PARTY, std::string(""),
                                         port, threads, Utils::PROTO::AB2);
 
         // for (size_t i = 0; i < batchSize; ++i) {
@@ -138,13 +139,13 @@ int main(int argc, char** argv) {
 
     {
         Utils::ConvParm conv{
-            .ic        = 3,
-            .iw        = 230,
-            .ih        = 230,
-            .fc        = 3,
-            .fw        = 7,
-            .fh        = 7,
-            .n_filters = 64,
+            .ic        = 64,
+            .iw        = 56,
+            .ih        = 56,
+            .fc        = 64,
+            .fw        = 1,
+            .fh        = 1,
+            .n_filters = 256,
             .stride    = 1,
             .padding   = 0,
         };
@@ -157,7 +158,9 @@ int main(int argc, char** argv) {
         memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t) * batchSize);
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(nullptr, b, c, conv, batchSize, std::string(""),
+        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, batchSize, std::string(""),
+                                                 port, PARTY, threads, Utils::PROTO::AB2);
+        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, batchSize, std::string(""),
                                                  port, PARTY, threads, Utils::PROTO::AB2);
 
         delete[] a;
@@ -173,9 +176,15 @@ int main(int argc, char** argv) {
         std::vector<uint32_t> B(rows * batchSize, 0);
         std::vector<uint32_t> C(rows * h * w * batchSize);
 
-        Iface::generateBNTriplesCheetah(A.data(), B.data(), C.data(), batchSize, rows, h, w,
+        Iface::generateBNTriplesCheetah(ios, A.data(), B.data(), C.data(), batchSize, rows, h, w,
                                         std::string(""), port, PARTY, threads, Utils::PROTO::AB2);
     }
+
+    for (size_t i = 0; i < threads; ++i) {
+        delete ios[i];
+    }
+    delete[] ios;
+
 
     // HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, samples, true);
     // all.run_ot(20'000'000);

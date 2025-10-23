@@ -41,22 +41,22 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
                                  int party, int threads = 1, Utils::PROTO proto = Utils::PROTO::AB,
                                  unsigned io_offset = 1);
 
-void generateFCTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
+void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
                               uint64_t com_dim, uint64_t dim2, int party, std::string ip, int port,
                               int threads, Utils::PROTO proto, int factor = 1,
                               unsigned io_offset = 1);
 
-void generateConvTriplesCheetahWrapper(const uint32_t* a, const uint32_t* b, uint32_t* c,
+void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
                                        Utils::ConvParm parm, int batch, std::string ip, int port,
                                        int party, int threads, Utils::PROTO proto, int factor = 1,
                                        unsigned io_offset = 1);
 
-void generateConvTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c,
+void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, std::string ip,
                                 int port, int party, int threads, Utils::PROTO proto, int factor,
                                 unsigned io_offset);
 
-void generateBNTriplesCheetah(const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
+void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
                               size_t num_ele, size_t h, size_t w, std::string ip, int port,
                               int party, int threads, Utils::PROTO proto, int factor = 1,
                               unsigned io_offset = 1);
