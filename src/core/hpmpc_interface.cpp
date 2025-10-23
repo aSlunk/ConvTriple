@@ -70,7 +70,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         // setup += Utils::time_diff(start_setup);
 
         for (int total = start; total < end;) {
-            int current = std::min(end - total, static_cast<int>(MAX_BOOL / threads));
+            int current = std::min(end - total, static_cast<int>(MAX_BOOL));
             switch (cur_party) {
             case emp::ALICE:
                 Server::triple_gen(triple_gen, a + total, b + total, c + total, current, true,
@@ -335,18 +335,8 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
                                        unsigned io_offset) {
 #if USE_CONV_CUDA
     if (proto == Utils::PROTO::AB2) {
-        const char* addr = ip.c_str();
-
-        if (party == emp::ALICE) {
-            addr = nullptr;
-        }
-
-        IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, 1, io_offset);
-
         TROY::conv2d(ios, OTHER_PARTY(party), a, b, c, batch, parm.ic, parm.ih, parm.iw, parm.fh, parm.fw,
                      parm.n_filters, parm.stride, parm.padding, false, factor);
-        delete ios[0];
-        delete[] ios;
         return;
     }
 #endif
