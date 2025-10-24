@@ -16,7 +16,7 @@
 
 #include "elem.hpp"
 
-constexpr uint64_t MAX_BOOL  = 20'000'000;
+constexpr uint64_t MAX_BOOL  = 1ULL << 24;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
 #define OTHER_PARTY(party) (3 - party)
@@ -72,7 +72,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         // setup += Utils::time_diff(start_setup);
 
         for (int total = start; total < end;) {
-            int current = std::min(end - total, static_cast<int>(MAX_BOOL));
+            int current = std::min(end - total, static_cast<int>(MAX_BOOL / threads));
             switch (cur_party) {
             case emp::ALICE:
                 Server::triple_gen(triple_gen, a + total, b + total, c + total, current, true,

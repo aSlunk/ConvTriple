@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
     delete[] ios;
 #endif
 
-    Iface::tmp(PARTY, threads);
+    // Iface::tmp(PARTY, threads);
     {
         int tmp = 37'996'272;
         tmp     = 3;

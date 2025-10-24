@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     delete[] ios;
 #endif
 
-    Iface::tmp(PARTY, threads);
+    // Iface::tmp(PARTY, threads);
     {
         int tmp = 37'996'272;
         tmp     = 3;
@@ -67,9 +67,6 @@ int main(int argc, char** argv) {
             std::vector<uint32_t> a(num_triples, 0);
             std::vector<uint32_t> b(num_triples, 0);
             std::vector<uint32_t> c(num_triples, 0);
-
-            a[2] = 2;
-            b[2] = 2;
 
             Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 1, num_triples,
                                                std::string(""), port, PARTY, threads,
