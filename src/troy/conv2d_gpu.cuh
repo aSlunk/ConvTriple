@@ -39,8 +39,9 @@ void conv2d_ab(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w,
 
 template <class T>
 bool vector_equal(const vector<T>& a, const vector<T>& b);
-vector<INT_TYPE> ideal_conv(const INT_TYPE* x, const INT_TYPE* w, size_t t, size_t bs, size_t ic, size_t ih,
-                            size_t iw, size_t kh, size_t kw, size_t oc, size_t stride = 1);
+vector<INT_TYPE> ideal_conv(const INT_TYPE* x, const INT_TYPE* w, size_t t, size_t bs, size_t ic,
+                            size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
+                            size_t stride = 1);
 vector<INT_TYPE> random_polynomial(size_t size, uint64_t max_value = (1UL << 32));
 
 void add_inplace(std::vector<INT_TYPE>& a, const INT_TYPE* b, size_t t);

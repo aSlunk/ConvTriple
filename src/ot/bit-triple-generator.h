@@ -293,12 +293,13 @@ class TripleGenerator {
 
   public:
     // Buffer implementation to use pre-generated triples from the offline phase
-    uint8_t* _Bai = nullptr;   // Buffer for Ai
-    uint8_t* _Bbi = nullptr;   // Buffer for Bi
-    uint8_t* _Bci = nullptr;   // Buffer for Ci
-    uint64_t _buffSize = BSIZE;        // Number of triples in the buffer (always multiple of 8)
-    uint64_t _buffBytes = BSIZE >> 3;       // Number of bytes in the buffer (always = _buffSize/8)
-    uint64_t _chunkSize = CSIZE;       // Number of triples to be generated in one go (always multiple of 8)
+    uint8_t* _Bai       = nullptr;    // Buffer for Ai
+    uint8_t* _Bbi       = nullptr;    // Buffer for Bi
+    uint8_t* _Bci       = nullptr;    // Buffer for Ci
+    uint64_t _buffSize  = BSIZE;      // Number of triples in the buffer (always multiple of 8)
+    uint64_t _buffBytes = BSIZE >> 3; // Number of bytes in the buffer (always = _buffSize/8)
+    uint64_t _chunkSize
+        = CSIZE;               // Number of triples to be generated in one go (always multiple of 8)
     bool _buffEnable  = false; // Flag to enable/disable buffer
     uint64_t _buffPtr = 0;     // Pointer to the current triple in the buffer
     int _nRefill      = 0;     // Number of times the buffer has been refilled

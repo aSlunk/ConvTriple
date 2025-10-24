@@ -91,9 +91,8 @@ void flood_ciphertext(seal::Ciphertext& ct,
 }
 
 void elemwise_product(seal::SEALContext* context, IO::NetIO* io, seal::Encryptor* encryptor,
-                      seal::Decryptor* decryptor, int32_t size, vector<uint64_t>& inArr,
-                      vector<uint64_t>& multArr, vector<uint64_t>& outputArr, uint64_t prime_mod,
-                      int party) {
+                      seal::Decryptor* decryptor, int32_t size, uint64_t* inArr, uint64_t* multArr,
+                      uint64_t* outputArr, uint64_t prime_mod, int party) {
     using namespace seal;
     auto encoder   = new BatchEncoder(*context);
     auto evaluator = new Evaluator(*context);
@@ -127,27 +126,46 @@ void elemwise_product(seal::SEALContext* context, IO::NetIO* io, seal::Encryptor
                 outputArr[j + offset] = tmp_vec[j];
             }
         }
-        
+
+#ifdef VERIFY
+        Utils::log(Utils::Level::DEBUG, "VERIFIYING ELEM. MULT");
+        std::vector<uint64_t> a(size);
         std::vector<uint64_t> b(size);
         std::vector<uint64_t> R(size);
+        io->recv_data(a.data(), size * sizeof(uint64_t));
         io->recv_data(b.data(), size * sizeof(uint64_t));
         io->recv_data(R.data(), size * sizeof(uint64_t));
-        auto result = ideal_functionality(inArr, b);
+
+        for (int i = 0; i < size; ++i) {
+            a[i] += inArr[i];
+        }
+        auto result = ideal_functionality(a, b);
+        bool passed = true;
         for (int i = 0; i < size; i++) {
             if (((outputArr[i] + R[i]) % prime_mod) != result[i] % prime_mod) {
-                std::cout << outputArr[i] << ", " << result[i] << "\n";
+                passed = false;
             }
         }
+        if (passed)
+            Utils::log(Utils::Level::PASSED, "ELEM. MULT.: PASSED");
+        else
+            Utils::log(Utils::Level::PASSED, "ELEM. MULT.: FAILED");
+#endif
     } else // party == ALICE
     {
         vector<Plaintext> multArr_pt(num_ct);
+        vector<Plaintext> inArr_pt(num_ct);
+
         for (int i = 0; i < num_ct; i++) {
             int offset = i * slot_count;
             vector<uint64_t> tmp_vec(slot_count, 0);
+            vector<uint64_t> tmp_vec2(slot_count, 0);
             for (int j = 0; j < slot_count && j + offset < size; j++) {
-                tmp_vec[j] = multArr[j + offset] % prime_mod;
+                tmp_vec[j]  = multArr[j + offset] % prime_mod;
+                tmp_vec2[j] = inArr[j + offset] % prime_mod;
             }
             encoder->encode(tmp_vec, multArr_pt[i]);
+            encoder->encode(tmp_vec2, inArr_pt[i]);
         }
 
         sci::PRG128 prg;
@@ -156,17 +174,19 @@ void elemwise_product(seal::SEALContext* context, IO::NetIO* io, seal::Encryptor
         vector<uint64_t> secret_share(num_ct * slot_count, 0);
         for (int i = 0; i < num_ct; i++) {
             prg.random_mod_p<uint64_t>(secret_share.data() + i * slot_count, slot_count, prime_mod);
-            std::vector<uint64_t> tmp(secret_share.data() + i * slot_count, secret_share.data() + (i + 1) * slot_count);
+            std::vector<uint64_t> tmp(secret_share.data() + i * slot_count,
+                                      secret_share.data() + (i + 1) * slot_count);
             encoder->encode(tmp, enc_noise[i]);
         }
-        std::memcpy(outputArr.data(), secret_share.data(), sizeof(uint64_t) * size);
+        std::memcpy(outputArr, secret_share.data(), sizeof(uint64_t) * size);
 
         vector<Ciphertext> ct(num_ct);
         IO::recv_encrypted_vector(*io, *context, ct);
 
         vector<Ciphertext> enc_result(num_ct);
         for (int i = 0; i < num_ct; i++) {
-            evaluator->multiply_plain(ct[i], multArr_pt[i], enc_result[i]);
+            evaluator->add_plain(ct[i], inArr_pt[i], enc_result[i]);
+            evaluator->multiply_plain_inplace(enc_result[i], multArr_pt[i]);
             evaluator->sub_plain_inplace(enc_result[i], enc_noise[i]);
 
             // evaluator->mod_switch_to_next_inplace(enc_result[i]);
@@ -182,9 +202,12 @@ void elemwise_product(seal::SEALContext* context, IO::NetIO* io, seal::Encryptor
         IO::send_encrypted_vector(*io, enc_result);
         io->flush();
 
-        io->send_data(multArr.data(), size * sizeof(uint64_t));
-        io->send_data(outputArr.data(), size * sizeof(uint64_t));
+#ifdef VERIFY
+        io->send_data(inArr, size * sizeof(uint64_t));
+        io->send_data(multArr, size * sizeof(uint64_t));
+        io->send_data(outputArr, size * sizeof(uint64_t));
         io->flush();
+#endif
     }
     delete encoder;
     delete evaluator;

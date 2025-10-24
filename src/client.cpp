@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
 
             Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples,
                                                std::string(addr), port, PARTY, threads,
-                                               Utils::PROTO::AB2);
+                                               Utils::PROTO::AB);
         }
     }
 
@@ -91,8 +91,8 @@ int main(int argc, char** argv) {
 
         uint32_t* c = new uint32_t[out * batchSize];
 
-        Iface::generateFCTriplesCheetah(ios, a, nullptr, c, batchSize, n, out, PARTY, std::string(addr),
-                                        port, threads, Utils::PROTO::AB2);
+        Iface::generateFCTriplesCheetah(ios, a, nullptr, c, batchSize, n, out, PARTY,
+                                        std::string(addr), port, threads, Utils::PROTO::AB2);
 
         for (size_t i = 0; i < batchSize; ++i) {
             for (int j = 0; j < out; ++j) {
@@ -130,10 +130,12 @@ int main(int argc, char** argv) {
 
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(ios, a, nullptr, c, conv, batchSize, std::string(addr),
-                                                 port, PARTY, threads, Utils::PROTO::AB2);
-        Iface::generateConvTriplesCheetahWrapper(ios, a, nullptr, c, conv, batchSize, std::string(addr),
-                                                 port, PARTY, threads, Utils::PROTO::AB2);
+        Iface::generateConvTriplesCheetahWrapper(ios, a, nullptr, c, conv, batchSize,
+                                                 std::string(addr), port, PARTY, threads,
+                                                 Utils::PROTO::AB2);
+        Iface::generateConvTriplesCheetahWrapper(ios, a, nullptr, c, conv, batchSize,
+                                                 std::string(addr), port, PARTY, threads,
+                                                 Utils::PROTO::AB2);
 
         delete[] a;
         delete[] b;

@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
 
             Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 1, num_triples,
                                                std::string(""), port, PARTY, threads,
-                                               Utils::PROTO::AB2);
+                                               Utils::PROTO::AB);
 
             if (!IO::save_to_file("arith.triple", a.data(), b.data(), c.data(), num_triples)) {
                 Utils::log(Utils::Level::FAILED, "Failed to save triples");
@@ -125,8 +125,8 @@ int main(int argc, char** argv) {
             }
         }
 
-        Iface::generateFCTriplesCheetah(ios, nullptr, b, c, batchSize, n, out, PARTY, std::string(""),
-                                        port, threads, Utils::PROTO::AB2);
+        Iface::generateFCTriplesCheetah(ios, nullptr, b, c, batchSize, n, out, PARTY,
+                                        std::string(""), port, threads, Utils::PROTO::AB2);
 
         // for (size_t i = 0; i < batchSize; ++i) {
         //     for (int j = 0; j < out; ++j) {
@@ -160,10 +160,12 @@ int main(int argc, char** argv) {
         memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t) * batchSize);
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, batchSize, std::string(""),
-                                                 port, PARTY, threads, Utils::PROTO::AB2);
-        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, batchSize, std::string(""),
-                                                 port, PARTY, threads, Utils::PROTO::AB2);
+        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, batchSize,
+                                                 std::string(""), port, PARTY, threads,
+                                                 Utils::PROTO::AB2);
+        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, batchSize,
+                                                 std::string(""), port, PARTY, threads,
+                                                 Utils::PROTO::AB2);
 
         delete[] a;
         delete[] b;
@@ -186,7 +188,6 @@ int main(int argc, char** argv) {
         delete ios[i];
     }
     delete[] ios;
-
 
     // HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, samples, true);
     // all.run_ot(20'000'000);

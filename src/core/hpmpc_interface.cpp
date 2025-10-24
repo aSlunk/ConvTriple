@@ -55,7 +55,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         addr = nullptr;
 
     // std::atomic<int> setup = 0;
-    auto start             = measure::now();
+    auto start = measure::now();
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
 
@@ -63,7 +63,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         if (start >= end)
             return Code::OK;
 
-        int cur_party    = wid & 1 ? OTHER_PARTY(party) : party;
+        int cur_party = wid & 1 ? OTHER_PARTY(party) : party;
         // auto start_setup = measure::now();
 
         sci::OTPack<IO::NetIO> ot_pack(ios + wid, 1, cur_party, true, false);
@@ -259,9 +259,10 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     delete[] ios;
 }
 
-void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
-                              uint64_t com_dim, uint64_t dim2, int party, std::string ip, int port,
-                              int threads, Utils::PROTO proto, int factor, unsigned io_offset) {
+void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
+                              int batch, uint64_t com_dim, uint64_t dim2, int party, std::string ip,
+                              int port, int threads, Utils::PROTO proto, int factor,
+                              unsigned io_offset) {
     auto meta = Utils::init_meta_fc(com_dim, dim2);
     Utils::log(Utils::Level::INFO, "P", party - 1, " FC: ", meta.input_shape, " x ",
                meta.weight_shape, " ", Utils::proto_str(proto));
@@ -331,14 +332,14 @@ void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
     delete[] bi;
 }
 
-void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
-                                       Utils::ConvParm parm, int batch, std::string ip, int port,
-                                       int party, int threads, Utils::PROTO proto, int factor,
-                                       unsigned io_offset) {
+void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const uint32_t* b,
+                                       uint32_t* c, Utils::ConvParm parm, int batch, std::string ip,
+                                       int port, int party, int threads, Utils::PROTO proto,
+                                       int factor, unsigned io_offset) {
 #if USE_CONV_CUDA
     if (proto == Utils::PROTO::AB2) {
-        TROY::conv2d(ios, OTHER_PARTY(party), a, b, c, batch, parm.ic, parm.ih, parm.iw, parm.fh, parm.fw,
-                     parm.n_filters, parm.stride, parm.padding, false, factor);
+        TROY::conv2d(ios, OTHER_PARTY(party), a, b, c, batch, parm.ic, parm.ih, parm.iw, parm.fh,
+                     parm.fw, parm.n_filters, parm.stride, parm.padding, false, factor);
         return;
     }
 #endif
@@ -351,8 +352,8 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
-        generateConvTriplesCheetah(ios, a, b, c, meta, batch, ip, port, party, threads, proto, factor,
-                                   io_offset);
+        generateConvTriplesCheetah(ios, a, b, c, meta, batch, ip, port, party, threads, proto,
+                                   factor, io_offset);
     } else {
         Utils::log(Utils::Level::INFO, "Adding padding manually");
 
@@ -367,8 +368,8 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
 
         meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                      parm.n_filters, parm.stride, parm.padding);
-        generateConvTriplesCheetah(ios, ai.data(), b, c, meta, batch, ip, port, party, threads, proto,
-                                   factor, io_offset);
+        generateConvTriplesCheetah(ios, ai.data(), b, c, meta, batch, ip, port, party, threads,
+                                   proto, factor, io_offset);
     }
 }
 
@@ -442,9 +443,9 @@ void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32
     delete[] bi;
 }
 
-void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c, int batch,
-                              size_t num_ele, size_t h, size_t w, std::string ip, int port,
-                              int party, int threads, Utils::PROTO proto, int factor,
+void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
+                              int batch, size_t num_ele, size_t h, size_t w, std::string ip,
+                              int port, int party, int threads, Utils::PROTO proto, int factor,
                               unsigned io_offset) {
     auto meta = Utils::init_meta_bn(num_ele, h, w);
     Utils::log(Utils::Level::INFO, "P", party - 1, " BN: ", meta.ishape, " x ", meta.vec_shape,
@@ -512,7 +513,8 @@ void tmp(int party, int threads) {
     parms.set_plain_modulus(prime_mod);
     seal::SEALContext context(parms, true, seal::sec_level_type::tc128);
 
-    auto io = Utils::init_ios<IO::NetIO>(party == emp::ALICE ? nullptr : "127.0.0.1", 6969, threads);
+    auto io
+        = Utils::init_ios<IO::NetIO>(party == emp::ALICE ? nullptr : "127.0.0.1", 6969, threads);
 
     seal::KeyGenerator keygen(context);
     seal::SecretKey skey = keygen.secret_key();
@@ -527,7 +529,7 @@ void tmp(int party, int threads) {
 
     uint64_t num_triples = 9'006'592;
 
-    auto func = [&] (int wid, size_t start, size_t end) {
+    auto func = [&](int wid, size_t start, size_t end) {
         if (start >= end)
             return Code::OK;
         size_t triple = end - start;
@@ -540,10 +542,10 @@ void tmp(int party, int threads) {
             B[i] = rand();
         }
 
-        elemwise_product(&context, io[wid], &enc, &dec, triple, A, B, C, prime_mod, party);
+        elemwise_product(&context, io[wid], &enc, &dec, triple, A.data(), B.data(), C.data(),
+                         prime_mod, party);
         return Code::OK;
     };
-
 
     gemini::ThreadPool tpool(threads);
     gemini::LaunchWorks(tpool, num_triples, func);

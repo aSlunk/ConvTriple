@@ -21,9 +21,9 @@ troy::HeContextPointer setup() {
     return HeContext::create(parms, true, SecurityLevel::Classical128, 0x42);
 }
 
-void conv2d(IO::NetIO** ios, int party, const INT_TYPE* a, const INT_TYPE* b, INT_TYPE* c, size_t bs, size_t ic,
-            size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride, size_t padding,
-            bool mod_switch, int factor) {
+void conv2d(IO::NetIO** ios, int party, const INT_TYPE* a, const INT_TYPE* b, INT_TYPE* c,
+            size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
+            size_t stride, size_t padding, bool mod_switch, int factor) {
     auto start = measure::now();
 
     vector<INT_TYPE> dest;
@@ -72,9 +72,9 @@ void conv2d_dummy(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, s
            mod_switch);
 }
 
-void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w, INT_TYPE* c, size_t bs,
-                size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
-                bool mod_switch) {
+void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w, INT_TYPE* c,
+                size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
+                size_t stride, bool mod_switch) {
     using namespace troy;
     auto he = setup();
     linear::PolynomialEncoderRing2k<INT_TYPE> encoder(he, BIT_LEN);
@@ -188,9 +188,9 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
     }
 }
 
-void conv2d_ab(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w, INT_TYPE* c, size_t bs,
-               size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride,
-               bool mod_switch) {
+void conv2d_ab(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w, INT_TYPE* c,
+               size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
+               size_t stride, bool mod_switch) {
     using namespace troy;
     auto he = setup();
     linear::PolynomialEncoderRing2k<INT_TYPE> encoder(he, BIT_LEN);
@@ -310,8 +310,8 @@ std::vector<INT_TYPE> random_polynomial(size_t size, uint64_t max_value) {
     return result;
 }
 
-vector<INT_TYPE> ideal_conv(const INT_TYPE* x, const INT_TYPE* w, size_t t, size_t bs, size_t ic, size_t ih,
-                            size_t iw, size_t kh, size_t kw, size_t oc, size_t stride) {
+vector<INT_TYPE> ideal_conv(const INT_TYPE* x, const INT_TYPE* w, size_t t, size_t bs, size_t ic,
+                            size_t ih, size_t iw, size_t kh, size_t kw, size_t oc, size_t stride) {
     size_t oh = (ih - kh) / stride + 1;
     size_t ow = (iw - kw) / stride + 1;
 
@@ -368,9 +368,9 @@ void add_inplace(std::vector<INT_TYPE>& a, const INT_TYPE* b, size_t t) {
     for (size_t i = 0; i < a.size(); ++i) add_mod_inplace(a[i], b[i], t);
 }
 
-void conv2d_ab2_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w, INT_TYPE* c,
-                        size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
-                        size_t stride, bool mod_switch) {
+void conv2d_ab2_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w,
+                        INT_TYPE* c, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
+                        size_t kw, size_t oc, size_t stride, bool mod_switch) {
     using namespace troy;
     auto he = setup();
     linear::PolynomialEncoderRing2k<INT_TYPE> encoder(he, BIT_LEN);
