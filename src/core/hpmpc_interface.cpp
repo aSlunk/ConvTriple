@@ -528,31 +528,34 @@ void tmp(int party, int threads) {
     seal::Decryptor dec(context, skey);
 
     uint64_t num_triples = 9'006'592;
+    std::vector<uint64_t> A(num_triples);
+    std::vector<uint64_t> B(num_triples);
+    std::vector<uint64_t> C(num_triples);
 
     auto func = [&](int wid, size_t start, size_t end) {
         if (start >= end)
             return Code::OK;
         size_t triple = end - start;
-        std::vector<uint64_t> A(triple);
-        std::vector<uint64_t> B(triple);
-        std::vector<uint64_t> C(triple);
 
-        for (size_t i = 0; i < triple; ++i) {
+        for (size_t i = start; i < end; ++i) {
             A[i] = rand();
             B[i] = rand();
         }
 
-        elemwise_product(&context, io[wid], &enc, &dec, triple, A.data(), B.data(), C.data(),
-                         prime_mod, party);
+        elemwise_product(&context, io[wid], &enc, &dec, triple, A.data() + start, B.data() + start, C.data() + start,
+                         prime_mod, party, *o_pkey);
         return Code::OK;
     };
 
     gemini::ThreadPool tpool(threads);
     gemini::LaunchWorks(tpool, num_triples, func);
 
+    size_t data = 0;
+    for (int i = 0; i < threads; ++i)
+        data += io[i]->counter;
     string st;
     std::cout << Utils::to_sec(Utils::time_diff(start)) << "\n";
-    std::cout << Utils::to_MB(io[0]->counter, st) << st << "\n";
+    std::cout << Utils::to_MB(data, st) << st << "\n";
 
     for (int i = 0; i < threads; ++i) {
         delete io[i];
