@@ -14,6 +14,8 @@
 #include "troy/conv2d_gpu.cuh"
 #endif
 
+#include "elem.hpp"
+
 constexpr uint64_t MAX_BOOL  = 20'000'000;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
@@ -500,36 +502,60 @@ void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
     Utils::log(Utils::Level::INFO, "P", party - 1, ": BN triple data[", unit, "]: ", data);
 }
 
-// void tmp(int party) {
-//     // auto context = Utils::init_he_context();
-//     seal::EncryptionParameters parms(seal::scheme_type::bfv);
-//     parms.set_poly_modulus_degree(POLY_MOD);
-//     parms.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 60, 60, 49}));
-//     size_t prime_mod = seal::PlainModulus::Batching(POLY_MOD, 20).value();
-//     parms.set_plain_modulus(prime_mod);
-//     seal::SEALContext context(parms, true, seal::sec_level_type::none);
-//
-//     auto io = Utils::init_ios<IO::NetIO>(party == emp::ALICE ? nullptr : "127.0.0.1", 6969, 1);
-//
-//     seal::KeyGenerator keygen(context);
-//     seal::SecretKey skey = keygen.secret_key();
-//     auto pkey            = std::make_shared<seal::PublicKey>();
-//     auto o_pkey          = std::make_shared<seal::PublicKey>();
-//     keygen.create_public_key(*pkey);
-//     exchange_keys(io, *pkey, *o_pkey, context, party);
-//
-//     uint64_t num_triples = 20'000'000;
-//
-//     std::vector<uint64_t> A(num_triples);
-//     std::vector<uint64_t> B(num_triples);
-//     std::vector<uint64_t> C(num_triples);
-//
-//     seal::Encryptor enc(context, *o_pkey);
-//     seal::Decryptor dec(context, skey);
-//
-//     elemwise_product(&context, io[0], &enc, &dec, num_triples, A, B, C, prime_mod, party);
-//     std::cout << "okay\n";
-//     std::cout << io[0]->counter << "\n";
-// }
+void tmp(int party, int threads) {
+    // auto context = Utils::init_he_context();
+    auto start = measure::now();
+    seal::EncryptionParameters parms(seal::scheme_type::bfv);
+    parms.set_poly_modulus_degree(POLY_MOD);
+    parms.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
+    size_t prime_mod = seal::PlainModulus::Batching(POLY_MOD, 20).value();
+    parms.set_plain_modulus(prime_mod);
+    seal::SEALContext context(parms, true, seal::sec_level_type::tc128);
+
+    auto io = Utils::init_ios<IO::NetIO>(party == emp::ALICE ? nullptr : "127.0.0.1", 6969, threads);
+
+    seal::KeyGenerator keygen(context);
+    seal::SecretKey skey = keygen.secret_key();
+    auto pkey            = std::make_shared<seal::PublicKey>();
+    auto o_pkey          = std::make_shared<seal::PublicKey>();
+    keygen.create_public_key(*pkey);
+    exchange_keys(io, *pkey, *o_pkey, context, party);
+
+    seal::Encryptor enc(context, *o_pkey);
+    enc.set_secret_key(skey);
+    seal::Decryptor dec(context, skey);
+
+    uint64_t num_triples = 9'006'592;
+
+    auto func = [&] (int wid, size_t start, size_t end) {
+        if (start >= end)
+            return Code::OK;
+        size_t triple = end - start;
+        std::vector<uint64_t> A(triple);
+        std::vector<uint64_t> B(triple);
+        std::vector<uint64_t> C(triple);
+
+        for (size_t i = 0; i < triple; ++i) {
+            A[i] = rand();
+            B[i] = rand();
+        }
+
+        elemwise_product(&context, io[wid], &enc, &dec, triple, A, B, C, prime_mod, party);
+        return Code::OK;
+    };
+
+
+    gemini::ThreadPool tpool(threads);
+    gemini::LaunchWorks(tpool, num_triples, func);
+
+    string st;
+    std::cout << Utils::to_sec(Utils::time_diff(start)) << "\n";
+    std::cout << Utils::to_MB(io[0]->counter, st) << st << "\n";
+
+    for (int i = 0; i < threads; ++i) {
+        delete io[i];
+    }
+    delete[] io;
+}
 
 } // namespace Iface

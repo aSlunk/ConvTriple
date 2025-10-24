@@ -38,6 +38,7 @@ int main(int argc, char** argv) {
     delete[] ios;
 #endif
 
+    Iface::tmp(PARTY, threads);
     {
         int tmp = 37'996'272;
         tmp     = 3;
@@ -55,7 +56,8 @@ int main(int argc, char** argv) {
     }
 
     {
-        num_triples = 22;
+        num_triples = 9'006'592;
+        // num_triples = 22;
         std::vector<uint32_t> a_cp(num_triples * 1);
         std::vector<uint32_t> b_cp(num_triples * 1);
         std::vector<uint32_t> c_cp(num_triples * 1);
@@ -71,7 +73,7 @@ int main(int argc, char** argv) {
 
             Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 1, num_triples,
                                                std::string(""), port, PARTY, threads,
-                                               Utils::PROTO::AB);
+                                               Utils::PROTO::AB2);
 
             if (!IO::save_to_file("arith.triple", a.data(), b.data(), c.data(), num_triples)) {
                 Utils::log(Utils::Level::FAILED, "Failed to save triples");

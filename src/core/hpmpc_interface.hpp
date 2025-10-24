@@ -60,7 +60,7 @@ void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
                               size_t num_ele, size_t h, size_t w, std::string ip, int port,
                               int party, int threads, Utils::PROTO proto, int factor = 1,
                               unsigned io_offset = 1);
-// void tmp(int party);
+void tmp(int party, int threads);
 
 } // namespace Iface
 
