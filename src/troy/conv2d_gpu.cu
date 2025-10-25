@@ -155,7 +155,8 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
         linear::Plain2d x_encoded;
         if (x)
             x_encoded = helper.encode_inputs_ring2k(encoder, x, std::nullopt, true);
-        linear::Plain2d w_encoded = helper.encode_weights_ring2k(encoder, w, std::nullopt, false, evaluator, true);
+        linear::Plain2d w_encoded
+            = helper.encode_weights_ring2k(encoder, w, std::nullopt, false, evaluator, true);
         linear::Plain2d R_encoded = helper.encode_outputs_ring2k(encoder, R.data(), std::nullopt);
 
         auto stream      = recv(ios);

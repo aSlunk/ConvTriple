@@ -7,10 +7,6 @@
 #include <core/networks/resnet50.hpp>
 #include <io/file_io.hpp>
 
-#if USE_CONV_CUDA
-#include <troy/conv2d_gpu.cuh>
-#endif
-
 #define PARTY 1
 
 int main(int argc, char** argv) {
@@ -29,15 +25,6 @@ int main(int argc, char** argv) {
         threads = std::min(strtoul(argv[4], NULL, 10), (size_t)N_THREADS);
 
     int num_triples = 10;
-
-#if USE_CONV_CUDA
-    {
-        auto ios = Utils::init_ios<IO::NetIO>(nullptr, port, 1);
-        TROY::conv2d_dummy(ios, PARTY, batchSize, 64, 65, 65, 1, 1, 256, 1, 0);
-        delete ios[0];
-        delete[] ios;
-    }
-#endif
 
     {
         int tmp = 37'996'272;
