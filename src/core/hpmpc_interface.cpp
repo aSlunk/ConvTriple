@@ -260,9 +260,8 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
 }
 
 void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
-                              int batch, uint64_t com_dim, uint64_t dim2, int party, std::string ip,
-                              int port, int threads, Utils::PROTO proto, int factor,
-                              unsigned io_offset) {
+                              int batch, uint64_t com_dim, uint64_t dim2, int party, int threads,
+                              Utils::PROTO proto, int factor) {
     auto meta = Utils::init_meta_fc(com_dim, dim2);
     Utils::log(Utils::Level::INFO, "P", party - 1, " FC: ", meta.input_shape, " x ",
                meta.weight_shape, " ", Utils::proto_str(proto));
@@ -333,9 +332,8 @@ void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
 }
 
 void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const uint32_t* b,
-                                       uint32_t* c, Utils::ConvParm parm, int batch, std::string ip,
-                                       int port, int party, int threads, Utils::PROTO proto,
-                                       int factor, unsigned io_offset) {
+                                       uint32_t* c, Utils::ConvParm parm, int batch, int party,
+                                       int threads, Utils::PROTO proto, int factor) {
 #if USE_CONV_CUDA
     if (proto == Utils::PROTO::AB2) {
         TROY::conv2d(ios, OTHER_PARTY(party), a, b, c, batch, parm.ic, parm.ih, parm.iw, parm.fh,
@@ -352,8 +350,7 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
-        generateConvTriplesCheetah(ios, a, b, c, meta, batch, ip, port, party, threads, proto,
-                                   factor, io_offset);
+        generateConvTriplesCheetah(ios, a, b, c, meta, batch, party, threads, proto, factor);
     } else {
         Utils::log(Utils::Level::INFO, "Adding padding manually");
 
@@ -368,15 +365,14 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
 
         meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                      parm.n_filters, parm.stride, parm.padding);
-        generateConvTriplesCheetah(ios, ai.data(), b, c, meta, batch, ip, port, party, threads,
-                                   proto, factor, io_offset);
+        generateConvTriplesCheetah(ios, ai.data(), b, c, meta, batch, party, threads, proto,
+                                   factor);
     }
 }
 
 void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
-                                const gemini::HomConv2DSS::Meta& meta, int batch, std::string ip,
-                                int port, int party, int threads, Utils::PROTO proto, int factor,
-                                unsigned io_offset) {
+                                const gemini::HomConv2DSS::Meta& meta, int batch, int party,
+                                int threads, Utils::PROTO proto, int factor) {
     auto start = measure::now();
 
     static gemini::HomConv2DSS conv = [&ios, &party] {
@@ -444,9 +440,8 @@ void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32
 }
 
 void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
-                              int batch, size_t num_ele, size_t h, size_t w, std::string ip,
-                              int port, int party, int threads, Utils::PROTO proto, int factor,
-                              unsigned io_offset) {
+                              int batch, size_t num_ele, size_t h, size_t w, int party, int threads,
+                              Utils::PROTO proto, int factor) {
     auto meta = Utils::init_meta_bn(num_ele, h, w);
     Utils::log(Utils::Level::INFO, "P", party - 1, " BN: ", meta.ishape, " x ", meta.vec_shape,
                ", ", Utils::proto_str(proto));
@@ -510,7 +505,7 @@ void tmp(int party, int threads) {
     parms.set_poly_modulus_degree(POLY_MOD);
     parms.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
     parms.set_n_special_primes(0);
-    // size_t prime_mod = seal::PlainModulus::Batching(POLY_MOD, 32).value();
+    size_t prime_mod = seal::PlainModulus::Batching(POLY_MOD, 32).value();
     // std::cout << prime_mod << "\n";
     parms.set_plain_modulus(PLAIN_MOD);
     seal::SEALContext context(parms, true, seal::sec_level_type::tc128);
@@ -545,7 +540,7 @@ void tmp(int party, int threads) {
         }
 
         elemwise_product_ab(&context, io[wid], &enc, &dec, triple, A.data() + start,
-                            B.data() + start, C.data() + start, PLAIN_MOD, party, *o_pkey);
+                            B.data() + start, C.data() + start, prime_mod, party, *o_pkey);
         return Code::OK;
     };
 

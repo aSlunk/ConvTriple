@@ -42,24 +42,20 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
                                  unsigned io_offset = 1);
 
 void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
-                              int batch, uint64_t com_dim, uint64_t dim2, int party, std::string ip,
-                              int port, int threads, Utils::PROTO proto, int factor = 1,
-                              unsigned io_offset = 1);
+                              int batch, uint64_t com_dim, uint64_t dim2, int party, int threads,
+                              Utils::PROTO proto, int factor = 1);
 
 void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const uint32_t* b,
-                                       uint32_t* c, Utils::ConvParm parm, int batch, std::string ip,
-                                       int port, int party, int threads, Utils::PROTO proto,
-                                       int factor = 1, unsigned io_offset = 1);
+                                       uint32_t* c, Utils::ConvParm parm, int batch, int party,
+                                       int threads, Utils::PROTO proto, int factor = 1);
 
 void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
-                                const gemini::HomConv2DSS::Meta& meta, int batch, std::string ip,
-                                int port, int party, int threads, Utils::PROTO proto, int factor,
-                                unsigned io_offset);
+                                const gemini::HomConv2DSS::Meta& meta, int batch, int party,
+                                int threads, Utils::PROTO proto, int factor);
 
 void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
-                              int batch, size_t num_ele, size_t h, size_t w, std::string ip,
-                              int port, int party, int threads, Utils::PROTO proto, int factor = 1,
-                              unsigned io_offset = 1);
+                              int batch, size_t num_ele, size_t h, size_t w, int party, int threads,
+                              Utils::PROTO proto, int factor = 1);
 void tmp(int party, int threads);
 
 } // namespace Iface

@@ -38,7 +38,6 @@ int main(int argc, char** argv) {
     delete[] ios;
 #endif
 
-    Iface::tmp(PARTY, threads);
     {
         int tmp = 37'996'272;
         tmp     = 3;
@@ -122,8 +121,8 @@ int main(int argc, char** argv) {
             }
         }
 
-        Iface::generateFCTriplesCheetah(ios, nullptr, b, c, batchSize, n, out, PARTY,
-                                        std::string(""), port, threads, Utils::PROTO::AB2);
+        Iface::generateFCTriplesCheetah(ios, nullptr, b, c, batchSize, n, out, PARTY, threads,
+                                        Utils::PROTO::AB2);
 
         // for (size_t i = 0; i < batchSize; ++i) {
         //     for (int j = 0; j < out; ++j) {
@@ -157,12 +156,10 @@ int main(int argc, char** argv) {
         memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t) * batchSize);
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, batchSize,
-                                                 std::string(""), port, PARTY, threads,
-                                                 Utils::PROTO::AB2);
-        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, batchSize,
-                                                 std::string(""), port, PARTY, threads,
-                                                 Utils::PROTO::AB2);
+        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, batchSize, PARTY,
+                                                 threads, Utils::PROTO::AB2);
+        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, batchSize, PARTY,
+                                                 threads, Utils::PROTO::AB2);
 
         delete[] a;
         delete[] b;
@@ -178,7 +175,7 @@ int main(int argc, char** argv) {
         std::vector<uint32_t> C(rows * h * w * batchSize);
 
         Iface::generateBNTriplesCheetah(ios, A.data(), B.data(), C.data(), batchSize, rows, h, w,
-                                        std::string(""), port, PARTY, threads, Utils::PROTO::AB2);
+                                        PARTY, threads, Utils::PROTO::AB2);
     }
 
     for (size_t i = 0; i < threads; ++i) {
