@@ -511,7 +511,7 @@ void tmp(int party, int threads) {
     parms.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
     size_t prime_mod = seal::PlainModulus::Batching(POLY_MOD, 20).value();
     parms.set_plain_modulus(prime_mod);
-    seal::SEALContext context(parms, true, seal::sec_level_type::tc128);
+    seal::SEALContext context(parms, true, seal::sec_level_type::none);
 
     auto io
         = Utils::init_ios<IO::NetIO>(party == emp::ALICE ? nullptr : "127.0.0.1", 6969, threads);
@@ -542,7 +542,7 @@ void tmp(int party, int threads) {
             B[i] = rand();
         }
 
-        elemwise_product(&context, io[wid], &enc, &dec, triple, A.data() + start, B.data() + start, C.data() + start,
+        elemwise_product_ab(&context, io[wid], &enc, &dec, triple, A.data() + start, B.data() + start, C.data() + start,
                          prime_mod, party, *o_pkey);
         return Code::OK;
     };
@@ -554,8 +554,8 @@ void tmp(int party, int threads) {
     for (int i = 0; i < threads; ++i)
         data += io[i]->counter;
     string st;
-    std::cout << Utils::to_sec(Utils::time_diff(start)) << "\n";
-    std::cout << Utils::to_MB(data, st) << st << "\n";
+    std::cout << "P" << party - 1 << ": time[s]: " << Utils::to_sec(Utils::time_diff(start)) << "\n";
+    std::cout << "P" << party - 1 << ": data: " << Utils::to_MB(data, st) << st << "\n";
 
     for (int i = 0; i < threads; ++i) {
         delete io[i];
