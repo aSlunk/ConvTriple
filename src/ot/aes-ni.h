@@ -291,8 +291,9 @@ static inline void block_decrypt(AESNI_KEY* self, const u8* in, u8* out)
 #pragma GCC optimize("unroll-loops")
 #endif
 #endif
-static inline void __attribute__((target("aes,sse2")))
-AESNI_ecb_encrypt_blks_8(block128* blks, const AESNI_KEY* keys) {
+static inline void
+    __attribute__((target("aes,sse2"))) AESNI_ecb_encrypt_blks_8(block128* blks,
+                                                                 const AESNI_KEY* keys) {
     for (unsigned int i = 0; i < 8; ++i) blks[i] = _mm_xor_si128(blks[i], keys[i].rk[0]);
     for (int j = 1; j < 14; ++j)
         for (unsigned int i = 0; i < 8; ++i) blks[i] = _mm_aesenc_si128(blks[i], keys[i].rk[j]);
@@ -362,8 +363,9 @@ AESNI_ecb_encrypt_blks(block128* blks, unsigned int nblks, const AESNI_KEY* key)
 #endif
 #endif
 
-static inline void __attribute__((target("aes,sse2")))
-AESNI_ecb_decrypt_blks(block128* blks, unsigned nblks, const AESNI_KEY* key) {
+static inline void
+    __attribute__((target("aes,sse2"))) AESNI_ecb_decrypt_blks(block128* blks, unsigned nblks,
+                                                               const AESNI_KEY* key) {
     unsigned i, j, rnds = key->rounds;
     for (i = 0; i < nblks; ++i) blks[i] = _mm_xor_si128(blks[i], key->rk[0]);
     for (j = 1; j < rnds; ++j)

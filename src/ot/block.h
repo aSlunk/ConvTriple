@@ -68,8 +68,7 @@ const block global_all_one_block = makeBlock(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFF
 #ifdef __x86_64__
 __attribute__((target("sse2")))
 #endif
-inline block
-sigma(block a) {
+inline block sigma(block a) {
     return _mm_shuffle_epi32(a, 78) ^ (a & makeBlock(0xFFFFFFFFFFFFFFFF, 0x00));
 }
 //// End: block

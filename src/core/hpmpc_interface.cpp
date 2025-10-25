@@ -509,9 +509,11 @@ void tmp(int party, int threads) {
     seal::EncryptionParameters parms(seal::scheme_type::bfv);
     parms.set_poly_modulus_degree(POLY_MOD);
     parms.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
-    size_t prime_mod = seal::PlainModulus::Batching(POLY_MOD, 20).value();
-    parms.set_plain_modulus(prime_mod);
-    seal::SEALContext context(parms, true, seal::sec_level_type::none);
+    parms.set_n_special_primes(0);
+    // size_t prime_mod = seal::PlainModulus::Batching(POLY_MOD, 32).value();
+    // std::cout << prime_mod << "\n";
+    parms.set_plain_modulus(PLAIN_MOD);
+    seal::SEALContext context(parms, true, seal::sec_level_type::tc128);
 
     auto io
         = Utils::init_ios<IO::NetIO>(party == emp::ALICE ? nullptr : "127.0.0.1", 6969, threads);
@@ -538,12 +540,12 @@ void tmp(int party, int threads) {
         size_t triple = end - start;
 
         for (size_t i = start; i < end; ++i) {
-            A[i] = rand();
-            B[i] = rand();
+            A[i] = 2;
+            B[i] = 3;
         }
 
-        elemwise_product_ab(&context, io[wid], &enc, &dec, triple, A.data() + start, B.data() + start, C.data() + start,
-                         prime_mod, party, *o_pkey);
+        elemwise_product_ab(&context, io[wid], &enc, &dec, triple, A.data() + start,
+                            B.data() + start, C.data() + start, PLAIN_MOD, party, *o_pkey);
         return Code::OK;
     };
 
@@ -551,10 +553,10 @@ void tmp(int party, int threads) {
     gemini::LaunchWorks(tpool, num_triples, func);
 
     size_t data = 0;
-    for (int i = 0; i < threads; ++i)
-        data += io[i]->counter;
+    for (int i = 0; i < threads; ++i) data += io[i]->counter;
     string st;
-    std::cout << "P" << party - 1 << ": time[s]: " << Utils::to_sec(Utils::time_diff(start)) << "\n";
+    std::cout << "P" << party - 1 << ": time[s]: " << Utils::to_sec(Utils::time_diff(start))
+              << "\n";
     std::cout << "P" << party - 1 << ": data: " << Utils::to_MB(data, st) << st << "\n";
 
     for (int i = 0; i < threads; ++i) {
