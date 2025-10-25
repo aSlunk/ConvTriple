@@ -36,11 +36,12 @@ int main(int argc, char** argv) {
     int num_triples = 10;
 
 #if USE_CONV_CUDA
-    auto ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
-    TROY::conv2d_dummy(ios, PARTY, batchSize, 3, 230, 230, 7, 7, 64, 1, 0);
-    // TROY::conv2d(ios, PARTY, 1, 1, 5, 5, 3, 3, 1, 1, 0);
-    delete ios[0];
-    delete[] ios;
+    {
+        auto ios = Utils::init_ios<IO::NetIO>(addr, port, 1);
+        TROY::conv2d_dummy(ios, PARTY, batchSize, 64, 65, 65, 1, 1, 256, 1, 0);
+        delete ios[0];
+        delete[] ios;
+    }
 #endif
 
     {
@@ -129,8 +130,6 @@ int main(int argc, char** argv) {
 
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(ios, a, nullptr, c, conv, batchSize, PARTY,
-                                                 threads, Utils::PROTO::AB2);
         Iface::generateConvTriplesCheetahWrapper(ios, a, nullptr, c, conv, batchSize, PARTY,
                                                  threads, Utils::PROTO::AB2);
 

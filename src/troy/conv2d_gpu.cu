@@ -155,7 +155,7 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
         linear::Plain2d x_encoded;
         if (x)
             x_encoded = helper.encode_inputs_ring2k(encoder, x, std::nullopt, true);
-        linear::Plain2d w_encoded = helper.encode_weights_ring2k(encoder, w, std::nullopt, false);
+        linear::Plain2d w_encoded = helper.encode_weights_ring2k(encoder, w, std::nullopt, false, evaluator, true);
         linear::Plain2d R_encoded = helper.encode_outputs_ring2k(encoder, R.data(), std::nullopt);
 
         auto stream      = recv(ios);
@@ -164,7 +164,7 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
         if (x)
             x_encrypted.add_plain_inplace(evaluator, x_encoded);
 
-        linear::Cipher2d y_encrypted = helper.conv2d(evaluator, x_encrypted, w_encoded);
+        linear::Cipher2d y_encrypted = helper.conv2d(evaluator, x_encrypted, w_encoded, true);
         if (mod_switch)
             y_encrypted.mod_switch_to_next_inplace(evaluator);
         y_encrypted.sub_plain_inplace(evaluator, R_encoded);
