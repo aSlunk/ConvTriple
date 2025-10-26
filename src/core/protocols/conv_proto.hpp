@@ -18,7 +18,7 @@ namespace Server {
 
 template <class Channel>
 Result send(const gemini::HomConv2DSS::Meta& meta, Channel** server,
-            const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1, const size_t& threads);
+            const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1, const size_t& threads, bool flush = true);
 
 template <class Channel>
 Result recv(const gemini::HomConv2DSS::Meta& meta, Channel** server,
@@ -66,7 +66,7 @@ Result recv(Channel** client, const gemini::HomConv2DSS& conv,
 
 template <class Channel>
 Result send(Channel** client, const gemini::HomConv2DSS& conv, const vector<seal::Ciphertext>& M2,
-            const size_t& threads);
+            const size_t& threads, bool flush = true);
 
 template <class Channel>
 Result Protocol1(Channel** client, const gemini::HomConv2DSS& conv,
@@ -133,11 +133,11 @@ Result Client::recv(Channel** client, const gemini::HomConv2DSS& conv,
 
 template <class Channel>
 Result Client::send(Channel** client, const gemini::HomConv2DSS& conv,
-                    const vector<seal::Ciphertext>& M2, const size_t& threads) {
+                    const vector<seal::Ciphertext>& M2, const size_t& threads, bool flush) {
     Result measures;
     auto start = measure::now();
 
-    IO::send_encrypted_vector(client, M2, threads);
+    IO::send_encrypted_vector(client, M2, threads, flush);
 
     measures.send_recv += Utils::time_diff(start);
 
@@ -276,7 +276,7 @@ Result Client::Protocol1(Channel** client, const gemini::HomConv2DSS& conv,
 template <class Channel>
 Result Server::send(const gemini::HomConv2DSS::Meta& meta, Channel** server,
                     const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1,
-                    const size_t& threads) {
+                    const size_t& threads, bool flush) {
     Result measures;
     auto start = measure::now();
 
@@ -289,7 +289,7 @@ Result Server::send(const gemini::HomConv2DSS::Meta& meta, Channel** server,
 
     start = measure::now();
 
-    IO::send_encrypted_vector(server, enc_A1, threads);
+    IO::send_encrypted_vector(server, enc_A1, threads, flush);
     enc_A1.clear();
 
     measures.send_recv = Utils::time_diff(start);

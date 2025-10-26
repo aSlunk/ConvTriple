@@ -68,7 +68,7 @@ template <class EncVecCtType>
 void send_encrypted_vector(IO::NetIO& io, const EncVecCtType& ct_vec);
 
 template <class EncVecCtType>
-void send_encrypted_vector(IO::NetIO** ios, const EncVecCtType& ct_vec, const size_t& threads = 1);
+void send_encrypted_vector(IO::NetIO** ios, const EncVecCtType& ct_vec, const size_t& threads = 1, bool flush = true);
 
 template <class EncVecCtType>
 void send_encrypted_vector(vector<IO::NetIO>& io, const EncVecCtType& ct_vec);
@@ -143,7 +143,7 @@ void IO::send_encrypted_filters(IO::NetIO& io, const EncVecCtType& ct_vec) {
 }
 
 template <class EncVecCtType>
-void IO::send_encrypted_vector(IO::NetIO** ios, const EncVecCtType& ct_vec, const size_t& threads) {
+void IO::send_encrypted_vector(IO::NetIO** ios, const EncVecCtType& ct_vec, const size_t& threads, bool flush) {
     uint32_t ncts = ct_vec.size();
     ios[0]->send_data(&ncts, sizeof(uint32_t));
 
@@ -151,8 +151,8 @@ void IO::send_encrypted_vector(IO::NetIO** ios, const EncVecCtType& ct_vec, cons
         auto& io = *(ios[wid]);
         for (size_t i = start; i < end; ++i) {
             send_ciphertext(io, ct_vec.at(i));
-            io.flush();
         }
+        if (flush) io.flush();
         return Code::OK;
     };
 
