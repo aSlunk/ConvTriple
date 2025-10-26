@@ -332,11 +332,11 @@ void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
 }
 
 void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const uint32_t* b,
-                                       uint32_t* c, Utils::ConvParm parm, int batch, int party,
+                                       uint32_t* c, Utils::ConvParm parm, int party,
                                        int threads, Utils::PROTO proto, int factor) {
 #if USE_CONV_CUDA
     if (proto == Utils::PROTO::AB2) {
-        TROY::conv2d(ios, OTHER_PARTY(party), a, b, c, batch, parm.ic, parm.ih, parm.iw, parm.fh,
+        TROY::conv2d(ios, OTHER_PARTY(party), a, b, c, parm.batchsize, parm.ic, parm.ih, parm.iw, parm.fh,
                      parm.fw, parm.n_filters, parm.stride, parm.padding, false, factor);
         return;
     }
@@ -350,14 +350,14 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
-        generateConvTriplesCheetah(ios, a, b, c, meta, batch, party, threads, proto, factor);
+        generateConvTriplesCheetah(ios, a, b, c, meta, parm.batchsize, party, threads, proto, factor);
     } else {
         Utils::log(Utils::Level::INFO, "Adding padding manually");
 
         std::vector<uint32_t> ai;
         std::tuple<int, int> dim;
 
-        dim = Utils::pad_zero(a, ai, parm.ic, parm.ih, parm.iw, parm.padding, batch);
+        dim = Utils::pad_zero(a, ai, parm.ic, parm.ih, parm.iw, parm.padding, parm.batchsize);
 
         parm.ih      = std::get<0>(dim);
         parm.iw      = std::get<1>(dim);
@@ -365,9 +365,110 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
 
         meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                      parm.n_filters, parm.stride, parm.padding);
-        generateConvTriplesCheetah(ios, ai.data(), b, c, meta, batch, party, threads, proto,
+        generateConvTriplesCheetah(ios, ai.data(), b, c, meta, parm.batchsize, party, threads, proto,
                                    factor);
     }
+}
+
+void generateConvTriplesCheetahPhase1(IO::NetIO** ios, const gemini::HomConv2DSS& hom_conv,
+                                      const uint32_t* a, const uint32_t* b, Utils::ConvParm parm,
+                                      vector<vector<seal::Plaintext>>& enc_a,
+                                      vector<vector<vector<seal::Plaintext>>>& enc_b,
+                                      vector<vector<seal::Ciphertext>>& enc_a2,
+                                      int party, int threads, Utils::PROTO proto,
+                                      int factor) {
+    auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                      parm.n_filters, parm.stride, parm.padding);
+
+    uint64_t* ai = new uint64_t[meta.ishape.num_elements() * parm.batchsize];
+    for (long i = 0; i < meta.ishape.num_elements() * parm.batchsize; ++i) ai[i] = a != nullptr ? a[i] : 0;
+
+    uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters * factor];
+    if (b)
+        for (size_t i = 0; i < meta.fshape.num_elements() * meta.n_filters * factor; ++i)
+            bi[i] = b[i];
+
+    int ac_batch_size = parm.batchsize / factor;
+    for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
+        Tensor<uint64_t> A
+            = Tensor<uint64_t>::Wrap(ai + meta.ishape.num_elements() * cur_batch, meta.ishape);
+
+        std::vector<Tensor<uint64_t>> B(meta.n_filters);
+        for (size_t i = 0; i < meta.n_filters; ++i)
+            B[i] = Tensor<uint64_t>::Wrap(
+                bi + meta.fshape.num_elements() * meta.n_filters * (cur_batch / ac_batch_size)
+                    + meta.fshape.num_elements() * i,
+                meta.fshape);
+
+        Result result;
+        switch (party) {
+        case emp::ALICE: {
+            result = Client::recv(ios, hom_conv, meta, A, B, enc_a[cur_batch], enc_b[cur_batch],
+                                  enc_a2[cur_batch], threads);
+            break;
+        }
+        case emp::BOB: {
+            result = Server::send(meta, ios, hom_conv, A, threads);
+            break;
+        }
+        }
+    }
+}
+
+void generateConvTriplesCheetahPhase2(IO::NetIO** ios, const gemini::HomConv2DSS& hom_conv,
+                                      vector<vector<seal::Ciphertext>>& enc_A1,
+                                      vector<vector<seal::Plaintext>>& enc_A2,
+                                      vector<vector<vector<seal::Plaintext>>>& enc_B2,
+                                      vector<Tensor<uint64_t>>& C,
+                                      vector<vector<seal::Ciphertext>>& M,
+                                      Utils::ConvParm parm, int party, int threads,
+                                      Utils::PROTO proto, int factor) {
+    auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                      parm.n_filters, parm.stride, parm.padding);
+    Result result;
+    for (int i = 0; i < parm.batchsize; ++i) {
+        std::cout << enc_A1[i].size() << ", ";
+        std::cout << enc_A2[i].size() << ", ";
+        std::cout << enc_B2[i].size() << "\n";
+        switch (party) {
+        case emp::ALICE: {
+            result.ret
+                = hom_conv.conv2DSS(enc_A1[i], enc_A2[i], enc_B2[i], meta, M[i], C[i], threads);
+            enc_A1[i].clear();
+            enc_A2[i].clear();
+            enc_B2[i].clear();
+            break;
+        }
+        }
+    }
+}
+
+void generateConvTriplesCheetahPhase3(IO::NetIO** ios, const gemini::HomConv2DSS& hom_conv,
+                                      vector<vector<seal::Ciphertext>>& M,
+                                      uint32_t* c,
+                                      vector<Tensor<uint64_t>>& C,
+                                      Utils::ConvParm parm, int party, int threads,
+                                      Utils::PROTO proto, int factor) {
+    auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                      parm.n_filters, parm.stride, parm.padding);
+    for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
+        Result res;
+        switch (party) {
+        case emp::ALICE: {
+            res = Client::send(ios, hom_conv, M[cur_batch], threads);
+            break;
+        }
+        case emp::BOB: {
+            res = Server::recv(meta, ios, hom_conv, C[cur_batch], threads);
+            break;
+        }
+        }
+
+        for (long i = 0; i < C[cur_batch].NumElements(); ++i) c[i + C[cur_batch].NumElements() * cur_batch] = C[cur_batch].data()[i];
+    }
+
+    C.clear();
+    M.clear();
 }
 
 void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,

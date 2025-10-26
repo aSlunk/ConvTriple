@@ -125,6 +125,7 @@ int main(int argc, char** argv) {
 
     {
         Utils::ConvParm conv{
+            .batchsize = static_cast<int>(batchSize),
             .ic        = 64,
             .iw        = 56,
             .ih        = 56,
@@ -144,7 +145,7 @@ int main(int argc, char** argv) {
         memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t) * batchSize);
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, batchSize, PARTY,
+        Iface::generateConvTriplesCheetahWrapper(ios, nullptr, b, c, conv, PARTY,
                                                  threads, Utils::PROTO::AB2);
 
         delete[] a;

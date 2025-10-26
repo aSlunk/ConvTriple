@@ -22,6 +22,7 @@ constexpr seal::sec_level_type SEC_LEVEL = seal::sec_level_type::tc128;
 namespace Utils {
 
 struct ConvParm {
+    int batchsize;
     int ic;
     int iw;
     int ih;
