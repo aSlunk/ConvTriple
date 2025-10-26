@@ -18,7 +18,8 @@ namespace Server {
 
 template <class Channel>
 Result send(const gemini::HomConv2DSS::Meta& meta, Channel** server,
-            const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1, const size_t& threads, bool flush = true);
+            const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1, const size_t& threads,
+            bool flush = true);
 
 template <class Channel>
 Result recv(const gemini::HomConv2DSS::Meta& meta, Channel** server,
