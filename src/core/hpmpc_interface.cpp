@@ -378,6 +378,7 @@ void generateConvTriplesCheetah(IO::NetIO** ios, gemini::HomConv2DSS& hom_conv,
     vector<vector<seal::Plaintext>> enc_a(total_batches);
     vector<vector<vector<seal::Plaintext>>> enc_b(total_batches);
     vector<vector<seal::Ciphertext>> enc_a2(total_batches);
+    vector<vector<seal::Serializable<seal::Ciphertext>>> enc_a1(total_batches);
 
     size_t offset = 0;
 
@@ -388,7 +389,7 @@ void generateConvTriplesCheetah(IO::NetIO** ios, gemini::HomConv2DSS& hom_conv,
                                            parm.n_filters, parm.stride, parm.padding);
 
         meta.is_shared_input = false;
-        uint64_t* ai = new uint64_t[meta.ishape.num_elements() * parm.batchsize];
+        uint64_t* ai         = new uint64_t[meta.ishape.num_elements() * parm.batchsize];
         for (long i = 0; i < meta.ishape.num_elements() * parm.batchsize; ++i)
             ai[i] = a != nullptr ? a[n][i] : 0;
 
@@ -411,13 +412,17 @@ void generateConvTriplesCheetah(IO::NetIO** ios, gemini::HomConv2DSS& hom_conv,
 
             switch (party) {
             case emp::ALICE: {
-                result
-                    = Client::recv(ios, hom_conv, meta, A, B, enc_a[cur_batch + offset],
-                                   enc_b[cur_batch + offset], enc_a2[cur_batch + offset], threads);
+                // result
+                //     = Client::recv(ios, hom_conv, meta, A, B, enc_a[cur_batch + offset],
+                //                    enc_b[cur_batch + offset], enc_a2[cur_batch + offset],
+                //                    threads);
+                hom_conv.encodeImage(A, meta, enc_a[cur_batch + offset], threads);
+                hom_conv.encodeFilters(B, meta, enc_b[cur_batch + offset], threads);
                 break;
             }
             case emp::BOB: {
-                result = Server::send(meta, ios, hom_conv, A, threads);
+                // result = Server::send(meta, ios, hom_conv, A, threads);
+                hom_conv.encryptImage(A, meta, enc_a1[cur_batch + offset], threads);
                 break;
             }
             }
@@ -426,6 +431,26 @@ void generateConvTriplesCheetah(IO::NetIO** ios, gemini::HomConv2DSS& hom_conv,
         delete[] ai;
         delete[] bi;
     }
+
+    offset = 0;
+    for (size_t n = 0; n < parms.size(); ++n) {
+        for (int batch = 0; batch < parms[n].batchsize; ++batch) {
+            switch (party) {
+            case emp::BOB: {
+                IO::send_encrypted_vector(ios, enc_a1[batch + offset], threads, false);
+                break;
+            }
+            case emp::ALICE: {
+                IO::recv_encrypted_vector(ios, hom_conv.getContext(), enc_a2[batch + offset],
+                                          threads);
+            }
+            }
+        }
+        offset += parms[n].batchsize;
+    }
+
+    for (int i = 0; i < threads; ++i) ios[i]->flush();
+
     vector<vector<seal::Ciphertext>> M(total_batches);
     vector<Tensor<uint64_t>> C(total_batches);
     offset = 0;
@@ -453,7 +478,7 @@ void generateConvTriplesCheetah(IO::NetIO** ios, gemini::HomConv2DSS& hom_conv,
     enc_b.clear();
     enc_a2.clear();
 
-    offset = 0;
+    offset          = 0;
     size_t c_offset = 0;
     for (size_t n = 0; n < parms.size(); ++n) {
         auto& parm = parms[n];
@@ -472,9 +497,8 @@ void generateConvTriplesCheetah(IO::NetIO** ios, gemini::HomConv2DSS& hom_conv,
             }
             }
 
-            std::cout << C[cur_batch + offset].NumElements() << "\n";
             for (long i = 0; i < C[cur_batch + offset].NumElements(); ++i)
-                 c[c_offset + i] = C[cur_batch + offset].data()[i];
+                c[c_offset + i] = C[cur_batch + offset].data()[i];
             c_offset += C[cur_batch].NumElements();
         }
         offset += parm.batchsize;
