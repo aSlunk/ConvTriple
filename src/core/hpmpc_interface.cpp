@@ -294,6 +294,8 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
                                 std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
                                 uint32_t* c, Utils::PROTO proto, int party, int threads,
                                 int factor) {
+    auto start = measure::now();
+
     vector<vector<seal::Plaintext>> enc_a(total_batches);
     vector<vector<vector<seal::Plaintext>>> enc_b(total_batches);
     vector<vector<seal::Ciphertext>> enc_a2(total_batches);
@@ -427,6 +429,9 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
         }
         offset += parm.batchsize;
     }
+
+    auto time = Utils::to_sec(Utils::time_diff(start));
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": Conv triple time [s]: ", time);
 }
 
 void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,

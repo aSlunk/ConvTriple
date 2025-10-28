@@ -2,7 +2,9 @@
 #ifndef KEYS_HPP_
 #define KEYS_HPP_
 
+#include "core/utils.hpp"
 #include "io/send.hpp"
+
 #include <iostream>
 
 namespace Iface {
@@ -27,7 +29,8 @@ class Keys {
 
     template <class Channel>
     Keys(Channel** ios, int party) {
-        Utils::log(Utils::Level::INFO, "EXCHANGING KEYS");
+        auto start = measure::now();
+
         seal::SEALContext ctx = Utils::init_he_context();
 
         seal::KeyGenerator keygen(ctx);
@@ -41,6 +44,9 @@ class Keys {
         _hom_conv.setUp(ctx, skey, o_pkey);
         _bn.setUp(PLAIN_MOD, ctx, skey, o_pkey);
         setupBn(ios, ctx, party);
+
+        auto time = Utils::to_sec(Utils::time_diff(start));
+        Utils::log(Utils::Level::INFO, "P", party - 1, ": Keyexchange took [s]: ", time);
     };
 
     ~Keys() noexcept {}
