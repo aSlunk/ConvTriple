@@ -369,7 +369,7 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
         }
         offset += parms[n].batchsize;
     }
-    for (int i = 0; i < threads; ++i) ios[i]->flush();
+    if (party == emp::BOB) for (int i = 0; i < threads; ++i) ios[i]->flush();
 
     vector<vector<seal::Ciphertext>> M(total_batches);
     vector<Tensor<uint64_t>> C(total_batches);
@@ -415,7 +415,7 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
         }
         offset += parms[n].batchsize;
     }
-    for (int i = 0; i < threads; ++i) ios[i]->flush();
+    if (party == emp::ALICE) for (int i = 0; i < threads; ++i) ios[i]->flush();
 
     offset          = 0;
     size_t c_offset = 0;
