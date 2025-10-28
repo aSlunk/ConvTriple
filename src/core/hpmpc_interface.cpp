@@ -10,6 +10,8 @@
 #include "ot/bit-triple-generator.h"
 #include "ot/cheetah-ot_pack.h"
 
+#include "core/keys.hpp"
+
 #if USE_CONV_CUDA
 #include "troy/conv2d_gpu.cuh"
 #endif
@@ -108,75 +110,10 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     delete[] ios;
 }
 
-void setupBn(IO::NetIO** ios, gemini::HomBNSS& bn, const seal::SEALContext& ctx, const int& party) {
-    using namespace seal;
-    KeyGenerator keygen(ctx);
-    SecretKey skey = keygen.secret_key();
-    auto pkey      = std::make_shared<PublicKey>();
-    auto o_pkey    = std::make_shared<PublicKey>();
-    keygen.create_public_key(*pkey);
-    exchange_keys(ios, *pkey, *o_pkey, ctx, party);
-
-    size_t ntarget_bits = BIT_LEN;
-    size_t crt_bits     = 2 * ntarget_bits + 1 + gemini::HomBNSS::kStatBits;
-
-    const size_t nbits_per_crt_plain = [](size_t crt_bits) {
-        constexpr size_t kMaxCRTPrime = 50;
-        for (size_t nCRT = 1;; ++nCRT) {
-            size_t np = gemini::CeilDiv(crt_bits, nCRT);
-            if (np <= kMaxCRTPrime)
-                return np;
-        }
-    }(crt_bits + 1);
-
-    const size_t nCRT = gemini::CeilDiv<size_t>(crt_bits, nbits_per_crt_plain);
-    std::vector<int> crt_primes_bits(nCRT, nbits_per_crt_plain);
-
-    const size_t N  = POLY_MOD;
-    auto plain_crts = CoeffModulus::Create(N, crt_primes_bits);
-    EncryptionParameters seal_parms(scheme_type::bfv);
-    seal_parms.set_n_special_primes(0);
-    // We are not exporting the pk/ct with more than 109-bit.
-    std::vector<int> cipher_moduli_bits{60, 49};
-    seal_parms.set_poly_modulus_degree(N);
-    seal_parms.set_coeff_modulus(CoeffModulus::Create(N, cipher_moduli_bits));
-
-    std::vector<std::shared_ptr<seal::SEALContext>> bn_contexts_(nCRT);
-    for (size_t i = 0; i < nCRT; ++i) {
-        seal_parms.set_plain_modulus(plain_crts[i]);
-        bn_contexts_[i] = std::make_shared<SEALContext>(seal_parms, true, sec_level_type::tc128);
-    }
-
-    std::vector<seal::SEALContext> contexts;
-    std::vector<std::optional<SecretKey>> opt_sks;
-
-    std::vector<std::shared_ptr<seal::PublicKey>> bn_pks_(nCRT); // public keys (BN)
-    std::vector<std::shared_ptr<seal::SecretKey>> bn_sks_(nCRT); // secret keys (BN)
-
-    for (size_t i = 0; i < nCRT; ++i) {
-        KeyGenerator keygen(*bn_contexts_[i]);
-        bn_sks_[i]                   = std::make_shared<SecretKey>(keygen.secret_key());
-        bn_pks_[i]                   = std::make_shared<PublicKey>();
-        Serializable<PublicKey> s_pk = keygen.create_public_key();
-
-        exchange_keys(ios, s_pk, *bn_pks_[i], *bn_contexts_[i], party);
-        contexts.emplace_back(*bn_contexts_[i]);
-        opt_sks.emplace_back(*bn_sks_[i]);
-    }
-
-    Code code;
-    code = bn.setUp(PLAIN_MOD, ctx, skey, o_pkey);
-    if (code != Code::OK)
-        Utils::log(Utils::Level::ERROR, "P", party - 1, ": ", CodeMessage(code));
-    code = bn.setUp(PLAIN_MOD, contexts, opt_sks, bn_pks_);
-    if (code != Code::OK)
-        Utils::log(Utils::Level::ERROR, "P", party - 1, ": ", CodeMessage(code));
-}
-
 void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],
-                                 int bitlength [[maybe_unused]], uint64_t num_triples,
-                                 std::string ip, int port, int party, int threads,
-                                 Utils::PROTO proto, unsigned io_offset) {
+                                 int bitlength, uint64_t num_triples, std::string ip, int port,
+                                 int party, int threads, Utils::PROTO proto, unsigned io_offset) {
+    assert(bitlength == 32 && "[arith. triples] Unsupported bitlength");
     Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (ARITH): ", num_triples,
                " " + Utils::proto_str(proto));
     const char* addr = ip.c_str();
@@ -187,12 +124,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
 
-    static gemini::HomBNSS bn = [&ios, &party] {
-        gemini::HomBNSS bn;
-        auto ctx = Utils::init_he_context();
-        setupBn(ios, bn, ctx, party);
-        return bn;
-    }();
+    auto& bn = Keys::instance(ios, party).get_bn();
 
     auto pool = seal::MemoryPoolHandle::New();
     auto pg   = seal::MMProfGuard(std::make_unique<seal::MMProfFixed>(std::move(pool)));
@@ -269,20 +201,7 @@ void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
     auto start = measure::now();
 
     // meta.is_shared_input = proto == Utils::PROTO::AB;
-    static gemini::HomFCSS fc = [&ios, &party] {
-        gemini::HomFCSS fc;
-        seal::SEALContext ctx = Utils::init_he_context();
-
-        seal::KeyGenerator keygen(ctx);
-        seal::SecretKey skey = keygen.secret_key();
-        auto pkey            = std::make_shared<seal::PublicKey>();
-        auto o_pkey          = std::make_shared<seal::PublicKey>();
-        keygen.create_public_key(*pkey);
-        exchange_keys(ios, *pkey, *o_pkey, ctx, party);
-
-        fc.setUp(ctx, skey, o_pkey);
-        return fc;
-    }();
+    auto& fc = Keys::instance(ios, party).get_fc();
 
     uint64_t* ai = new uint64_t[meta.input_shape.num_elements() * batch];
     for (uint i = 0; i < meta.input_shape.num_elements() * batch; ++i)
@@ -371,14 +290,19 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
     }
 }
 
-void generateConvTriplesCheetah(IO::NetIO** ios, gemini::HomConv2DSS& hom_conv,
-                                size_t total_batches, std::vector<Utils::ConvParm>& parms,
-                                uint32_t** a, uint32_t** b, uint32_t* c, Utils::PROTO proto,
-                                int party, int threads, int factor) {
+void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
+                                std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
+                                uint32_t* c, Utils::PROTO proto, int party, int threads,
+                                int factor) {
     vector<vector<seal::Plaintext>> enc_a(total_batches);
     vector<vector<vector<seal::Plaintext>>> enc_b(total_batches);
     vector<vector<seal::Ciphertext>> enc_a2(total_batches);
     vector<vector<seal::Serializable<seal::Ciphertext>>> enc_a1(total_batches);
+
+    auto& hom_conv = Keys::instance(ios, party).get_conv();
+
+    auto pool = seal::MemoryPoolHandle::New();
+    auto pg   = seal::MMProfGuard(std::make_unique<seal::MMProfFixed>(std::move(pool)));
 
     size_t offset = 0;
 
@@ -505,124 +429,12 @@ void generateConvTriplesCheetah(IO::NetIO** ios, gemini::HomConv2DSS& hom_conv,
     }
 }
 
-void generateConvTriplesCheetahPhase1(IO::NetIO** ios, const gemini::HomConv2DSS& hom_conv,
-                                      const uint32_t* a, const uint32_t* b, Utils::ConvParm parm,
-                                      vector<vector<seal::Plaintext>>& enc_a,
-                                      vector<vector<vector<seal::Plaintext>>>& enc_b,
-                                      vector<vector<seal::Ciphertext>>& enc_a2, int party,
-                                      int threads, Utils::PROTO proto, int factor) {
-    auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
-                                      parm.n_filters, parm.stride, parm.padding);
-
-    uint64_t* ai = new uint64_t[meta.ishape.num_elements() * parm.batchsize];
-    for (long i = 0; i < meta.ishape.num_elements() * parm.batchsize; ++i)
-        ai[i] = a != nullptr ? a[i] : 0;
-
-    uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters * factor];
-    if (b)
-        for (size_t i = 0; i < meta.fshape.num_elements() * meta.n_filters * factor; ++i)
-            bi[i] = b[i];
-
-    int ac_batch_size = parm.batchsize / factor;
-    for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
-        Tensor<uint64_t> A
-            = Tensor<uint64_t>::Wrap(ai + meta.ishape.num_elements() * cur_batch, meta.ishape);
-
-        std::vector<Tensor<uint64_t>> B(meta.n_filters);
-        for (size_t i = 0; i < meta.n_filters; ++i)
-            B[i] = Tensor<uint64_t>::Wrap(
-                bi + meta.fshape.num_elements() * meta.n_filters * (cur_batch / ac_batch_size)
-                    + meta.fshape.num_elements() * i,
-                meta.fshape);
-
-        Result result;
-        switch (party) {
-        case emp::ALICE: {
-            result = Client::recv(ios, hom_conv, meta, A, B, enc_a[cur_batch], enc_b[cur_batch],
-                                  enc_a2[cur_batch], threads);
-            break;
-        }
-        case emp::BOB: {
-            result = Server::send(meta, ios, hom_conv, A, threads);
-            break;
-        }
-        }
-    }
-}
-
-void generateConvTriplesCheetahPhase2(IO::NetIO** ios, const gemini::HomConv2DSS& hom_conv,
-                                      vector<vector<seal::Ciphertext>>& enc_A1,
-                                      vector<vector<seal::Plaintext>>& enc_A2,
-                                      vector<vector<vector<seal::Plaintext>>>& enc_B2,
-                                      vector<Tensor<uint64_t>>& C,
-                                      vector<vector<seal::Ciphertext>>& M, Utils::ConvParm parm,
-                                      int party, int threads, Utils::PROTO proto, int factor) {
-    auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
-                                      parm.n_filters, parm.stride, parm.padding);
-    Result result;
-    for (int i = 0; i < parm.batchsize; ++i) {
-        std::cout << enc_A1[i].size() << ", ";
-        std::cout << enc_A2[i].size() << ", ";
-        std::cout << enc_B2[i].size() << "\n";
-        switch (party) {
-        case emp::ALICE: {
-            result.ret
-                = hom_conv.conv2DSS(enc_A1[i], enc_A2[i], enc_B2[i], meta, M[i], C[i], threads);
-            enc_A1[i].clear();
-            enc_A2[i].clear();
-            enc_B2[i].clear();
-            break;
-        }
-        }
-    }
-}
-
-void generateConvTriplesCheetahPhase3(IO::NetIO** ios, const gemini::HomConv2DSS& hom_conv,
-                                      vector<vector<seal::Ciphertext>>& M, uint32_t* c,
-                                      vector<Tensor<uint64_t>>& C, Utils::ConvParm parm, int party,
-                                      int threads, Utils::PROTO proto, int factor) {
-    auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
-                                      parm.n_filters, parm.stride, parm.padding);
-    for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
-        Result res;
-        switch (party) {
-        case emp::ALICE: {
-            res = Client::send(ios, hom_conv, M[cur_batch], threads);
-            break;
-        }
-        case emp::BOB: {
-            res = Server::recv(meta, ios, hom_conv, C[cur_batch], threads);
-            break;
-        }
-        }
-
-        for (long i = 0; i < C[cur_batch].NumElements(); ++i)
-            c[i + C[cur_batch].NumElements() * cur_batch] = C[cur_batch].data()[i];
-    }
-
-    C.clear();
-    M.clear();
-}
-
 void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, int party,
                                 int threads, Utils::PROTO proto, int factor) {
     auto start = measure::now();
 
-    static gemini::HomConv2DSS conv = [&ios, &party] {
-        gemini::HomConv2DSS conv;
-        seal::SEALContext ctx = Utils::init_he_context();
-
-        seal::KeyGenerator keygen(ctx);
-        seal::SecretKey skey = keygen.secret_key();
-        auto pkey            = std::make_shared<seal::PublicKey>();
-        auto o_pkey          = std::make_shared<seal::PublicKey>();
-        keygen.create_public_key(*pkey);
-        exchange_keys(ios, *pkey, *o_pkey, ctx, party);
-
-        conv.setUp(ctx, skey, o_pkey);
-        return conv;
-    }();
+    auto& conv = Keys::instance(ios, party).get_conv();
 
     uint64_t* ai = new uint64_t[meta.ishape.num_elements() * batch];
     for (long i = 0; i < meta.ishape.num_elements() * batch; ++i) ai[i] = a != nullptr ? a[i] : 0;
@@ -682,13 +494,8 @@ void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
 
     auto start = measure::now();
 
-    meta.is_shared_input      = proto == Utils::PROTO::AB;
-    static gemini::HomBNSS bn = [&ios, &party] {
-        gemini::HomBNSS bn;
-        seal::SEALContext ctx = Utils::init_he_context();
-        setupBn(ios, bn, ctx, party);
-        return bn;
-    }();
+    meta.is_shared_input = proto == Utils::PROTO::AB;
+    auto& bn             = Keys::instance(ios, party).get_bn();
 
     size_t ac_batch_size = batch / factor;
     for (int cur_batch = 0; cur_batch < batch; ++cur_batch) {

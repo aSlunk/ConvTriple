@@ -29,8 +29,6 @@ void exchange_keys(Channel** ios, const SerKey& pkey, seal::PublicKey& o_pkey,
     }
 }
 
-void setupBn(IO::NetIO** ios, gemini::HomBNSS& bn, const seal::SEALContext& ctx, const int& party);
-
 void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[], int bitlength,
                                 uint64_t num_triples, std::string ip, int port, int party,
                                 int threads = 1, TripleGenMethod method = _16KKOT_to_4OT,
@@ -52,30 +50,10 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
                                        uint32_t* c, Utils::ConvParm parm, int party, int threads,
                                        Utils::PROTO proto, int factor = 1);
 
-void generateConvTriplesCheetah(IO::NetIO** ios, gemini::HomConv2DSS& hom_conv,
-                                size_t total_batches, std::vector<Utils::ConvParm>& parms,
-                                uint32_t** a, uint32_t** b, uint32_t* c, Utils::PROTO proto,
-                                int party, int threads, int factor);
-
-void generateConvTriplesCheetahPhase1(IO::NetIO** ios, const gemini::HomConv2DSS& hom_conv,
-                                      const uint32_t* a, const uint32_t* b, Utils::ConvParm parm,
-                                      vector<vector<seal::Plaintext>>& enc_a,
-                                      vector<vector<vector<seal::Plaintext>>>& enc_b,
-                                      vector<vector<seal::Ciphertext>>& enc_a2, int party,
-                                      int threads, Utils::PROTO proto, int factor);
-
-void generateConvTriplesCheetahPhase2(IO::NetIO** ios, const gemini::HomConv2DSS& hom_conv,
-                                      vector<vector<seal::Ciphertext>>& enc_A1,
-                                      vector<vector<seal::Plaintext>>& enc_A2,
-                                      vector<vector<vector<seal::Plaintext>>>& enc_B2,
-                                      vector<Tensor<uint64_t>>& C,
-                                      vector<vector<seal::Ciphertext>>& M, Utils::ConvParm parm,
-                                      int party, int threads, Utils::PROTO proto, int factor);
-
-void generateConvTriplesCheetahPhase3(IO::NetIO** ios, const gemini::HomConv2DSS& hom_conv,
-                                      vector<vector<seal::Ciphertext>>& M, uint32_t* c,
-                                      vector<Tensor<uint64_t>>& C, Utils::ConvParm parm, int party,
-                                      int threads, Utils::PROTO proto, int factor);
+void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
+                                std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
+                                uint32_t* c, Utils::PROTO proto, int party, int threads,
+                                int factor);
 
 void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, int party,
