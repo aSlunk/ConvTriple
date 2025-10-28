@@ -46,7 +46,7 @@ class Keys {
         setupBn(ios, ctx, party);
 
         auto time = Utils::to_sec(Utils::time_diff(start));
-        Utils::log(Utils::Level::INFO, "P", party - 1, ": Keyexchange took [s]: ", time);
+        Utils::log(Utils::Level::INFO, "P", party - 1, ": Key exchange took [s]: ", time);
     };
 
     ~Keys() noexcept {}

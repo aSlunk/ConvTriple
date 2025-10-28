@@ -338,16 +338,11 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
 
             switch (party) {
             case emp::ALICE: {
-                // result
-                //     = Client::recv(ios, hom_conv, meta, A, B, enc_a[cur_batch + offset],
-                //                    enc_b[cur_batch + offset], enc_a2[cur_batch + offset],
-                //                    threads);
                 hom_conv.encodeImage(A, meta, enc_a[cur_batch + offset], threads);
                 hom_conv.encodeFilters(B, meta, enc_b[cur_batch + offset], threads);
                 break;
             }
             case emp::BOB: {
-                // result = Server::send(meta, ios, hom_conv, A, threads);
                 hom_conv.encryptImage(A, meta, enc_a1[cur_batch + offset], threads);
                 break;
             }
@@ -374,7 +369,6 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
         }
         offset += parms[n].batchsize;
     }
-
     for (int i = 0; i < threads; ++i) ios[i]->flush();
 
     vector<vector<seal::Ciphertext>> M(total_batches);
@@ -404,6 +398,25 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
     enc_b.clear();
     enc_a2.clear();
 
+    offset = 0;
+    for (size_t n = 0; n < parms.size(); ++n) {
+        for (int cur_batch = 0; cur_batch < parms[n].batchsize; ++cur_batch) {
+            switch (party) {
+                case emp::ALICE: { // send
+                    IO::send_encrypted_vector(ios, M[cur_batch + offset], threads, false);
+                    M[cur_batch + offset].clear();
+                    break;
+                }
+                case emp::BOB: { // recv
+                    IO::recv_encrypted_vector(ios, hom_conv.getContext(), M[cur_batch + offset], threads);
+                    break;
+                }
+            }
+        }
+        offset += parms[n].batchsize;
+    }
+    for (int i = 0; i < threads; ++i) ios[i]->flush();
+
     offset          = 0;
     size_t c_offset = 0;
     for (size_t n = 0; n < parms.size(); ++n) {
@@ -413,12 +426,8 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
 
         for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
             switch (party) {
-            case emp::ALICE: {
-                result = Client::send(ios, hom_conv, M[cur_batch + offset], threads);
-                break;
-            }
             case emp::BOB: {
-                result = Server::recv(meta, ios, hom_conv, C[cur_batch + offset], threads);
+                result.ret = hom_conv.decryptToTensor(M[cur_batch + offset], meta, C[cur_batch + offset], threads);
                 break;
             }
             }
