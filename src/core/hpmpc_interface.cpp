@@ -434,7 +434,7 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
 
             for (long i = 0; i < C[cur_batch + offset].NumElements(); ++i)
                 c[c_offset + i] = C[cur_batch + offset].data()[i];
-            c_offset += C[cur_batch].NumElements();
+            c_offset += C[cur_batch + offset].NumElements();
         }
         offset += parm.batchsize;
     }

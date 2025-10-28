@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BUILD_TYPE=Debug
+BUILD_TYPE=Release
 BUILD_DIR=build
 FERRET_DIR="data"
 

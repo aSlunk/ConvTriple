@@ -45,7 +45,8 @@ enum class LastCall { None, Send, Recv };
 
 namespace IO {
 
-constexpr size_t NETWORK_BUFFER_SIZE = 1024 * 16;
+// constexpr size_t NETWORK_BUFFER_SIZE = 1024 * 16;
+constexpr size_t NETWORK_BUFFER_SIZE = 1 << 22;
 
 class NetIO : public IOChannel<NetIO> {
   public:
