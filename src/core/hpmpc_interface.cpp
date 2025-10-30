@@ -18,7 +18,7 @@
 
 #include "elem.hpp"
 
-constexpr uint64_t MAX_BOOL  = 1ULL << 24;
+constexpr uint64_t MAX_BOOL  = 1ULL << 30;
 constexpr uint64_t MAX_ARITH = 20'000'000;
 
 #define OTHER_PARTY(party) (3 - party)
