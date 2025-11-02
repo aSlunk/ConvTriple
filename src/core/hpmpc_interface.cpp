@@ -297,7 +297,7 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
     auto start = measure::now();
 
     vector<vector<seal::Plaintext>> enc_a(total_batches);
-    vector<vector<vector<seal::Plaintext>>> enc_b(total_batches);
+    vector<vector<vector<seal::Plaintext>>> enc_b(parms.size());
     vector<vector<seal::Ciphertext>> enc_a2(total_batches);
     vector<vector<seal::Serializable<seal::Ciphertext>>> enc_a1(total_batches);
 
@@ -339,7 +339,8 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
             switch (party) {
             case emp::ALICE: {
                 hom_conv.encodeImage(A, meta, enc_a[cur_batch + offset], threads);
-                hom_conv.encodeFilters(B, meta, enc_b[cur_batch + offset], threads);
+                if (cur_batch == 0)
+                    hom_conv.encodeFilters(B, meta, enc_b[n], threads);
                 break;
             }
             case emp::BOB: {
@@ -383,15 +384,15 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
             case emp::ALICE: {
                 result.ret
                     = hom_conv.conv2DSS(enc_a2[cur_batch + offset], enc_a[cur_batch + offset],
-                                        enc_b[cur_batch + offset], meta, M[cur_batch + offset],
+                                        enc_b[n], meta, M[cur_batch + offset],
                                         C[cur_batch + offset], threads);
-                enc_a[n].clear();
-                enc_b[n].clear();
-                enc_a2[n].clear();
                 break;
             }
             }
         }
+        enc_a[n].clear();
+        enc_b[n].clear();
+        enc_a2[n].clear();
         offset += parm.batchsize;
     }
     enc_a.clear();
