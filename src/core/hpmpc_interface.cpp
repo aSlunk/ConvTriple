@@ -316,9 +316,8 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
                                            parm.n_filters, parm.stride, parm.padding);
 
         meta.is_shared_input = is_shared_input;
-        uint64_t* ai         = new uint64_t[meta.ishape.num_elements() * parm.batchsize];
-        if (meta.is_shared_input)
-            for (long i = 0; i < meta.ishape.num_elements() * parm.batchsize; ++i) ai[i] = a[n][i];
+        uint64_t* ai = new uint64_t[meta.ishape.num_elements() * parm.batchsize];
+        for (long i = 0; i < meta.ishape.num_elements() * parm.batchsize; ++i) ai[i] = a != nullptr ? a[n][i] : 0;
 
         uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters * factor];
         if (b)
