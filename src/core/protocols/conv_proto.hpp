@@ -352,8 +352,8 @@ Result Client::Protocol1(Channel** client, const gemini::HomConv2DSS& conv,
 template <class Channel>
 Result Client::Protocol1(Channel** client, const gemini::HomConv2DSS& conv,
                          const gemini::HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
-                         const std::vector<std::vector<seal::Plaintext>>& enc_B2, Tensor<uint64_t>& C2,
-                         const size_t& threads) {
+                         const std::vector<std::vector<seal::Plaintext>>& enc_B2,
+                         Tensor<uint64_t>& C2, const size_t& threads) {
     Result measures;
 
     ////////////////////////////////////////////////////////////////////////////
@@ -384,7 +384,8 @@ Result Client::Protocol1(Channel** client, const gemini::HomConv2DSS& conv,
 
     std::vector<seal::Ciphertext> enc_M2;
     Tensor<uint64_t> R2;
-    measures.ret = conv.conv2DSS(enc_A1, encoded_A2, enc_B2, meta, enc_M2, R2, threads, true, false, true);
+    measures.ret
+        = conv.conv2DSS(enc_A1, encoded_A2, enc_B2, meta, enc_M2, R2, threads, true, false, true);
     enc_A1.clear();
     encoded_A2.clear();
     if (measures.ret != Code::OK)
