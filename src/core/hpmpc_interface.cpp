@@ -252,7 +252,7 @@ void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
 
 void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const uint32_t* b,
                                        uint32_t* c, Utils::ConvParm parm, int party, int threads,
-                                       Utils::PROTO proto, int factor) {
+                                       Utils::PROTO proto, int factor, bool is_shared_input) {
 #if USE_CONV_CUDA
     if (proto == Utils::PROTO::AB2) {
         TROY::conv2d(ios, OTHER_PARTY(party), a, b, c, parm.batchsize, parm.ic, parm.ih, parm.iw,
@@ -262,6 +262,7 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
 #endif
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding);
+    meta.is_shared_input = is_shared_input;
 
     Utils::log(Utils::Level::INFO, "P", party - 1, " CONV: ", meta.ishape, " x ", meta.fshape,
                " x ", parm.n_filters, ", ", parm.stride, ", ", parm.padding, ", ",
@@ -292,10 +293,9 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
 
 void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
                                 std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
-                                uint32_t* c, Utils::PROTO proto, int party, int threads,
-                                int factor) {
-    bool is_shared_input = proto == Utils::PROTO::AB;
-    auto start           = measure::now();
+                                uint32_t* c, Utils::PROTO proto, int party, int threads, int factor,
+                                bool is_shared_input) {
+    auto start = measure::now();
 
     vector<vector<seal::Plaintext>> enc_a(total_batches);
     vector<vector<vector<seal::Plaintext>>> enc_b(parms.size());

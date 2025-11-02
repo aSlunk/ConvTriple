@@ -43,17 +43,15 @@ void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
                               int batch, uint64_t com_dim, uint64_t dim2, int party, int threads,
                               Utils::PROTO proto, int factor = 1);
 
-template <class Channel>
-gemini::HomConv2DSS setupConv(Channel** ios, int party);
-
 void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const uint32_t* b,
                                        uint32_t* c, Utils::ConvParm parm, int party, int threads,
-                                       Utils::PROTO proto, int factor = 1);
+                                       Utils::PROTO proto, int factor = 1,
+                                       bool is_shared_input = false);
 
 void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
                                 std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
-                                uint32_t* c, Utils::PROTO proto, int party, int threads,
-                                int factor);
+                                uint32_t* c, Utils::PROTO proto, int party, int threads, int factor,
+                                bool is_shared_input = false);
 
 void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, int party,
@@ -66,21 +64,5 @@ void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
 void tmp(int party, int threads);
 
 } // namespace Iface
-
-template <class Channel>
-gemini::HomConv2DSS Iface::setupConv(Channel** ios, int party) {
-    gemini::HomConv2DSS conv;
-    seal::SEALContext ctx = Utils::init_he_context();
-
-    seal::KeyGenerator keygen(ctx);
-    seal::SecretKey skey = keygen.secret_key();
-    auto pkey            = std::make_shared<seal::PublicKey>();
-    auto o_pkey          = std::make_shared<seal::PublicKey>();
-    keygen.create_public_key(*pkey);
-    exchange_keys(ios, *pkey, *o_pkey, ctx, party);
-
-    conv.setUp(ctx, skey, o_pkey);
-    return conv;
-}
 
 #endif
