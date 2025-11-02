@@ -493,12 +493,14 @@ void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32
         switch (party) {
         case emp::ALICE: {
             Code c;
-            if ((c = conv.encodeFilters(B, meta, enc_B, threads)) != Code::OK) {
-                Utils::log(Utils::Level::ERROR, "Filter encoding failed");
+            if (cur_batch % ac_batch_size == 0) {
+                enc_B.clear();
+                if ((c = conv.encodeFilters(B, meta, enc_B, threads)) != Code::OK) {
+                    Utils::log(Utils::Level::ERROR, "Filter encoding failed");
+                }
+                conv.filtersToNtt(enc_B, threads);
             }
-            conv.filtersToNtt(enc_B, threads);
             result = Client::perform_proto(meta, ios, conv, A, B, enc_B, C, threads, proto);
-            enc_B.clear();
             break;
         }
         case emp::BOB: {
