@@ -294,7 +294,8 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
                                 std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
                                 uint32_t* c, Utils::PROTO proto, int party, int threads,
                                 int factor) {
-    auto start = measure::now();
+    bool is_shared_input = proto == Utils::PROTO::AB;
+    auto start           = measure::now();
 
     vector<vector<seal::Plaintext>> enc_a(total_batches);
     vector<vector<vector<seal::Plaintext>>> enc_b(parms.size());
@@ -314,10 +315,10 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
         auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                            parm.n_filters, parm.stride, parm.padding);
 
-        meta.is_shared_input = false;
+        meta.is_shared_input = is_shared_input;
         uint64_t* ai         = new uint64_t[meta.ishape.num_elements() * parm.batchsize];
-        for (long i = 0; i < meta.ishape.num_elements() * parm.batchsize; ++i)
-            ai[i] = a != nullptr ? a[n][i] : 0;
+        if (meta.is_shared_input)
+            for (long i = 0; i < meta.ishape.num_elements() * parm.batchsize; ++i) ai[i] = a[n][i];
 
         uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters * factor];
         if (b)
@@ -338,9 +339,12 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
 
             switch (party) {
             case emp::ALICE: {
-                hom_conv.encodeImage(A, meta, enc_a[cur_batch + offset], threads);
-                if (cur_batch == 0)
+                if (meta.is_shared_input)
+                    hom_conv.encodeImage(A, meta, enc_a[cur_batch + offset], threads);
+                if (cur_batch == 0) {
                     hom_conv.encodeFilters(B, meta, enc_b[n], threads);
+                    hom_conv.filtersToNtt(enc_b[n], threads);
+                }
                 break;
             }
             case emp::BOB: {
@@ -352,6 +356,11 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
         }
         delete[] ai;
         delete[] bi;
+    }
+
+    if (party == emp::ALICE) {
+        Utils::log(Utils::Level::INFO, "P", party,
+                   ": Time for encoding filters[s]:", Utils::to_sec(Utils::time_diff(start)));
     }
 
     offset = 0;
@@ -370,7 +379,8 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
         }
         offset += parms[n].batchsize;
     }
-    if (party == emp::BOB) for (int i = 0; i < threads; ++i) ios[i]->flush();
+    if (party == emp::BOB)
+        for (int i = 0; i < threads; ++i) ios[i]->flush();
 
     vector<vector<seal::Ciphertext>> M(total_batches);
     vector<Tensor<uint64_t>> C(total_batches);
@@ -379,13 +389,13 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
         auto& parm = parms[n];
         auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                            parm.n_filters, parm.stride, parm.padding);
+        meta.is_shared_input = is_shared_input;
         for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
             switch (party) {
             case emp::ALICE: {
-                result.ret
-                    = hom_conv.conv2DSS(enc_a2[cur_batch + offset], enc_a[cur_batch + offset],
-                                        enc_b[n], meta, M[cur_batch + offset],
-                                        C[cur_batch + offset], threads);
+                result.ret = hom_conv.conv2DSS(
+                    enc_a2[cur_batch + offset], enc_a[cur_batch + offset], enc_b[n], meta,
+                    M[cur_batch + offset], C[cur_batch + offset], threads, true, false, true);
                 break;
             }
             }
@@ -403,20 +413,22 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
     for (size_t n = 0; n < parms.size(); ++n) {
         for (int cur_batch = 0; cur_batch < parms[n].batchsize; ++cur_batch) {
             switch (party) {
-                case emp::ALICE: { // send
-                    IO::send_encrypted_vector(ios, M[cur_batch + offset], threads, false);
-                    M[cur_batch + offset].clear();
-                    break;
-                }
-                case emp::BOB: { // recv
-                    IO::recv_encrypted_vector(ios, hom_conv.getContext(), M[cur_batch + offset], threads);
-                    break;
-                }
+            case emp::ALICE: { // send
+                IO::send_encrypted_vector(ios, M[cur_batch + offset], threads, false);
+                M[cur_batch + offset].clear();
+                break;
+            }
+            case emp::BOB: { // recv
+                IO::recv_encrypted_vector(ios, hom_conv.getContext(), M[cur_batch + offset],
+                                          threads);
+                break;
+            }
             }
         }
         offset += parms[n].batchsize;
     }
-    if (party == emp::ALICE) for (int i = 0; i < threads; ++i) ios[i]->flush();
+    if (party == emp::ALICE)
+        for (int i = 0; i < threads; ++i) ios[i]->flush();
 
     offset          = 0;
     size_t c_offset = 0;
@@ -424,11 +436,13 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
         auto& parm = parms[n];
         auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                            parm.n_filters, parm.stride, parm.padding);
+        meta.is_shared_input = is_shared_input;
 
         for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
             switch (party) {
             case emp::BOB: {
-                result.ret = hom_conv.decryptToTensor(M[cur_batch + offset], meta, C[cur_batch + offset], threads);
+                result.ret = hom_conv.decryptToTensor(M[cur_batch + offset], meta,
+                                                      C[cur_batch + offset], threads);
                 break;
             }
             }
