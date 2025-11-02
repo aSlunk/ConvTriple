@@ -18,9 +18,9 @@ class Keys {
         return k;
     }
 
-    gemini::HomFCSS& get_fc() { return _fc; }
-    gemini::HomBNSS& get_bn() { return _bn; }
-    gemini::HomConv2DSS& get_conv() { return _hom_conv; }
+    const gemini::HomFCSS& get_fc() const { return _fc; }
+    const gemini::HomBNSS& get_bn() const { return _bn; }
+    const gemini::HomConv2DSS& get_conv() const { return _hom_conv; }
 
   private:
     gemini::HomFCSS _fc;

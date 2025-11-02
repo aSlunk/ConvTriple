@@ -359,8 +359,8 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
     }
 
     if (party == emp::ALICE) {
-        Utils::log(Utils::Level::INFO, "P", party,
-                   ": Time for encoding filters[s]:", Utils::to_sec(Utils::time_diff(start)));
+        Utils::log(Utils::Level::INFO, "P", party - 1,
+                   ": CONV NTT preprocessing time[s]:", Utils::to_sec(Utils::time_diff(start)));
     }
 
     offset = 0;
@@ -465,6 +465,8 @@ void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32
 
     auto& conv = Keys::instance(ios, party).get_conv();
 
+    double time_ntt = 0;
+
     std::vector<std::vector<seal::Plaintext>> enc_B;
 
     uint64_t* ai = new uint64_t[meta.ishape.num_elements() * batch];
@@ -493,13 +495,17 @@ void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32
         switch (party) {
         case emp::ALICE: {
             Code c;
+            auto start_ntt = measure::now();
             if (cur_batch % ac_batch_size == 0) {
                 enc_B.clear();
                 if ((c = conv.encodeFilters(B, meta, enc_B, threads)) != Code::OK) {
-                    Utils::log(Utils::Level::ERROR, "Filter encoding failed");
+                    Utils::log(Utils::Level::ERROR, "Filters encoding failed: ", CodeMessage(c));
                 }
-                conv.filtersToNtt(enc_B, threads);
+                if ((c = conv.filtersToNtt(enc_B, threads)) != Code::OK) {
+                    Utils::log(Utils::Level::ERROR, "Filters to NTT failed: ", CodeMessage(c));
+                }
             }
+            time_ntt += Utils::to_sec(Utils::time_diff(start_ntt));
             result = Client::perform_proto(meta, ios, conv, A, B, enc_B, C, threads, proto);
             break;
         }
@@ -509,10 +515,15 @@ void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32
         }
         }
 
+        if (result.ret != Code::OK) {
+            Utils::log(Utils::Level::ERROR, "CONV failed: ", CodeMessage(result.ret));
+        }
+
         // Utils::print_results(result, 0, batch, threads);
         for (long i = 0; i < C.NumElements(); ++i) c[i + C.NumElements() * cur_batch] = C.data()[i];
     }
 
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV NTT preprocessing time[s]: ", time_ntt);
     Utils::log(Utils::Level::INFO, "P", party - 1,
                ": CONV triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
