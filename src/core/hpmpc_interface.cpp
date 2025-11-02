@@ -465,6 +465,8 @@ void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32
 
     auto& conv = Keys::instance(ios, party).get_conv();
 
+    std::vector<std::vector<seal::Plaintext>> enc_B;
+
     uint64_t* ai = new uint64_t[meta.ishape.num_elements() * batch];
     for (long i = 0; i < meta.ishape.num_elements() * batch; ++i) ai[i] = a != nullptr ? a[i] : 0;
 
@@ -490,7 +492,13 @@ void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32
         Result result;
         switch (party) {
         case emp::ALICE: {
-            result = Client::perform_proto(meta, ios, conv, A, B, C, threads, proto);
+            Code c;
+            if ((c = conv.encodeFilters(B, meta, enc_B, threads)) != Code::OK) {
+                Utils::log(Utils::Level::ERROR, "Filter encoding failed");
+            }
+            conv.filtersToNtt(enc_B, threads);
+            result = Client::perform_proto(meta, ios, conv, A, B, enc_B, C, threads, proto);
+            enc_B.clear();
             break;
         }
         case emp::BOB: {
