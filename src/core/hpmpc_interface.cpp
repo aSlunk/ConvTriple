@@ -352,10 +352,10 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
                 break;
             }
             }
-            offset += parm.batchsize;
         }
         delete[] ai;
         delete[] bi;
+        offset += parm.batchsize;
     }
 
     if (party == emp::ALICE) {
