@@ -456,6 +456,10 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
 
     auto time = Utils::to_sec(Utils::time_diff(start));
     Utils::log(Utils::Level::INFO, "P", party - 1, ": Conv triple time [s]: ", time);
+    std::string unit;
+    double data = 0;
+    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV triple data[", unit, "]: ", data);
 }
 
 void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
