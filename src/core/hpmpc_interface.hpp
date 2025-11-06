@@ -63,6 +63,82 @@ void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
 
 void tmp(int party, int threads);
 
+template <class Channel, class Serial>
+void send_vec(Channel** ios, std::vector<std::vector<Serial>>& vec, int threads) {
+    uint64_t n = vec.size();
+    ios[0]->send_data(&n, sizeof(uint64_t));
+
+    auto func = [&](int wid, size_t start, size_t end) -> Code {
+        if (start >= end)
+            return Code::OK;
+
+        auto* io = ios[wid];
+        std::vector<uint64_t> idxs(end - start + 1);
+
+        std::stringstream stream;
+        for (size_t i = start; i < end; ++i) {
+            idxs[i - start] = vec[i].size();
+            for (auto& ele : vec[i]) {
+                ele.save(stream);
+            }
+        }
+
+        auto data   = stream.str();
+        idxs.back() = data.size();
+        io->send_data(idxs.data(), idxs.size() * sizeof(uint64_t));
+        if (idxs.back() == 0) {
+            io->flush();
+            return Code::OK;
+        }
+        io->send_data(data.c_str(), idxs.back());
+
+        io->flush();
+
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(threads);
+    gemini::LaunchWorks(tpool, vec.size(), func);
+}
+
+template <class Channel, class Serial>
+void recv_vec(Channel** ios, const seal::SEALContext& ctx, std::vector<std::vector<Serial>>& vec,
+              int threads) {
+    uint64_t n = 0;
+    ios[0]->recv_data(&n, sizeof(uint64_t));
+    vec.resize(n);
+
+    auto func = [&](int wid, size_t start, size_t end) -> Code {
+        if (start >= end)
+            return Code::OK;
+        auto* io = ios[wid];
+
+        std::vector<uint64_t> idxs(end - start + 1);
+        io->recv_data(idxs.data(), idxs.size() * sizeof(uint64_t));
+
+        if (idxs.back() == 0)
+            return Code::OK;
+
+        char* data = new char[idxs.back()];
+        io->recv_data((void*)data, idxs.back());
+
+        std::stringstream stream(std::string(data, idxs.back()));
+        for (size_t i = 0; i < idxs.size() - 1; ++i) {
+            vec[start + i].resize(idxs[i]);
+
+            for (auto& ct : vec[start + i]) {
+                ct.load(ctx, stream);
+            }
+        }
+
+        delete[] data;
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(threads);
+    gemini::LaunchWorks(tpool, vec.size(), func);
+}
+
 } // namespace Iface
 
 #endif
