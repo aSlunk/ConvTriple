@@ -677,7 +677,9 @@ void tmp(int party, int threads) {
     delete[] io;
 }
 
-void do_multiplex(int num_input, int party, const std::string& ip, int port, int io_offset, int threads) {
+void do_multiplex(int num_input, int party, const std::string& ip, int port, int io_offset,
+                  int threads) {
+    auto start = measure::now();
     int bitlen = 32;
 
     const char* addr = ip.c_str();
@@ -687,13 +689,15 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
 
     uint8_t* sel = new uint8_t[num_input];
-    uint64_t* x = new uint64_t[num_input];
-    uint64_t* y = new uint64_t[num_input];
+    uint64_t* x  = new uint64_t[num_input];
+    uint64_t* y  = new uint64_t[num_input];
 
-    auto func = [&] (int wid, size_t start, size_t end) -> Code {
-        if (start >= end) return Code::OK;
+    auto func = [&](int wid, size_t start, size_t end) -> Code {
+        if (start >= end)
+            return Code::OK;
         sci::OTPack<IO::NetIO> ot_pack(ios + wid, 1, party, true, false);
-        Aux::multiplexer(&ot_pack, party, sel + start, x + start, y + start, end - start, bitlen, bitlen);
+        Aux::multiplexer(&ot_pack, party, sel + start, x + start, y + start, end - start, bitlen,
+                         bitlen);
         return Code::OK;
     };
 
@@ -702,10 +706,17 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
     if ((c = gemini::LaunchWorks(tpool, num_input, func)) != Code::OK) {
         Utils::log(Utils::Level::ERROR, "[do_multiplex] failed: ", CodeMessage(c));
     }
-    
+
     delete[] sel;
     delete[] x;
     delete[] y;
+
+    std::cout << "P" << party - 1 << ": time[s]: " << Utils::to_sec(Utils::time_diff(start))
+              << "\n";
+    std::string unit;
+    double data = 0;
+    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": Bool triple data[", unit, "]: ", data);
 
     for (int i = 0; i < threads; ++i) delete ios[i];
     delete[] ios;
