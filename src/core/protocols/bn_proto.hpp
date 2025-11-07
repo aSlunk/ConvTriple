@@ -97,7 +97,7 @@ Result Client::Protocol2_alt(Channel** client, const gemini::HomBNSS& bn,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_A1;
-    bn.recvEncryptVector(client[0], enc_A1, meta);
+    bn.recvEncryptVector(client, enc_A1, meta, threads);
 
     measures.send_recv += Utils::time_diff(start);
 
@@ -122,7 +122,7 @@ Result Client::Protocol2_alt(Channel** client, const gemini::HomBNSS& bn,
     ////////////////////////////////////////////////////////////////////////////
     start = measure::now();
 
-    measures.ret = bn.sendEncryptVector(client[0], M2, meta);
+    measures.ret = bn.sendEncryptVector(client, M2, meta, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -160,8 +160,8 @@ Result Client::Protocol1_alt(Channel** client, const gemini::HomBNSS& bn,
 
     std::vector<seal::Ciphertext> enc_A1;
     // measures.ret = IO::recv_send(context, client, enc_A2, enc_A1, threads);
-    bn.recvEncryptVector(client[0], enc_A1, meta);
-    bn.sendEncryptVector(client[0], enc_A2, meta);
+    bn.recvEncryptVector(client, enc_A1, meta, threads);
+    bn.sendEncryptVector(client, enc_A2, meta, threads);
 
     measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -182,8 +182,8 @@ Result Client::Protocol1_alt(Channel** client, const gemini::HomBNSS& bn,
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M1;
-    bn.recvEncryptVector(client[0], enc_M1, meta);
-    bn.sendEncryptVector(client[0], enc_M2, meta);
+    bn.recvEncryptVector(client, enc_M1, meta, threads);
+    bn.sendEncryptVector(client, enc_M2, meta, threads);
 
     measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -229,7 +229,7 @@ Result Server::Protocol2_alt(const gemini::HomBNSS::Meta& meta, Channel** server
 
     start = measure::now();
 
-    bn.sendEncryptVector(server[0], enc_A1, meta);
+    bn.sendEncryptVector(server, enc_A1, meta, threads);
 
     measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -238,7 +238,7 @@ Result Server::Protocol2_alt(const gemini::HomBNSS::Meta& meta, Channel** server
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_C1;
-    measures.ret = bn.recvEncryptVector(server[0], enc_C1, meta);
+    measures.ret = bn.recvEncryptVector(server, enc_C1, meta, threads);
     if (measures.ret != Code::OK)
         return measures;
 
@@ -281,8 +281,8 @@ Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_A2;
-    bn.sendEncryptVector(server[0], enc_A1, meta);
-    bn.recvEncryptVector(server[0], enc_A2, meta);
+    bn.sendEncryptVector(server, enc_A1, meta, threads);
+    bn.recvEncryptVector(server, enc_A2, meta, threads);
 
     measures.send_recv = Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////
@@ -303,8 +303,8 @@ Result Server::Protocol1_alt(const gemini::HomBNSS::Meta& meta, Channel** server
     start = measure::now();
 
     std::vector<seal::Ciphertext> enc_M2;
-    bn.sendEncryptVector(server[0], M1, meta);
-    bn.recvEncryptVector(server[0], enc_M2, meta);
+    bn.sendEncryptVector(server, M1, meta, threads);
+    bn.recvEncryptVector(server, enc_M2, meta, threads);
 
     measures.send_recv += Utils::time_diff(start);
     ////////////////////////////////////////////////////////////////////////////

@@ -28,33 +28,33 @@ void remove_unused_coeffs(seal::Ciphertext& ct, const seal::Evaluator& evaluator
 void truncate_for_decryption(seal::Ciphertext& ct, const seal::Evaluator& evaluator,
                              const seal::SEALContext& context);
 
-static Code LaunchWorks(ThreadPool& tpool, size_t num_works,
-                        std::function<Code(long wid, size_t start, size_t end)> program) {
-    if (num_works == 0)
-        return Code::OK;
-    const long pool_sze = tpool.pool_size();
-    if (pool_sze <= 1L) {
-        return program(0, 0, num_works);
-    } else {
-        Code code;
-        std::vector<std::future<Code>> futures;
-        size_t work_load = (num_works + pool_sze - 1) / pool_sze;
-        for (long wid = 0; wid < pool_sze; ++wid) {
-            size_t start = wid * work_load;
-            size_t end   = std::min(start + work_load, num_works);
-            futures.push_back(tpool.enqueue(program, wid, start, end));
-        }
-
-        code = Code::OK;
-        for (auto&& work : futures) {
-            Code c = work.get();
-            if (code == Code::OK && c != Code::OK) {
-                code = c;
-            }
-        }
-        return code;
-    }
-}
+// static Code LaunchWorks(ThreadPool& tpool, size_t num_works,
+//                         std::function<Code(long wid, size_t start, size_t end)> program) {
+//     if (num_works == 0)
+//         return Code::OK;
+//     const long pool_sze = tpool.pool_size();
+//     if (pool_sze <= 1L) {
+//         return program(0, 0, num_works);
+//     } else {
+//         Code code;
+//         std::vector<std::future<Code>> futures;
+//         size_t work_load = (num_works + pool_sze - 1) / pool_sze;
+//         for (long wid = 0; wid < pool_sze; ++wid) {
+//             size_t start = wid * work_load;
+//             size_t end   = std::min(start + work_load, num_works);
+//             futures.push_back(tpool.enqueue(program, wid, start, end));
+//         }
+//
+//         code = Code::OK;
+//         for (auto&& work : futures) {
+//             Code c = work.get();
+//             if (code == Code::OK && c != Code::OK) {
+//                 code = c;
+//             }
+//         }
+//         return code;
+//     }
+// }
 
 TensorShape getSplitBN(const TensorShape& ishape, size_t N) {
     // NOTE(wen-jie) current implementation does not split along the C-axis

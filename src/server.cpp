@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
 
     {
         num_triples = 9'006'592;
-        num_triples = 22;
+        // num_triples = 22;
         std::vector<uint32_t> a_cp(num_triples * 1);
         std::vector<uint32_t> b_cp(num_triples * 1);
         std::vector<uint32_t> c_cp(num_triples * 1);

@@ -620,9 +620,10 @@ void tmp(int party, int threads) {
     parms.set_poly_modulus_degree(POLY_MOD);
     parms.set_coeff_modulus(seal::CoeffModulus::Create(POLY_MOD, {60, 49}));
     parms.set_n_special_primes(0);
-    size_t prime_mod = seal::PlainModulus::Batching(POLY_MOD, 32).value();
+    // size_t prime_mod = seal::PlainModulus::Batching(POLY_MOD, 32).value();
+    size_t prime_mod = PLAIN_MOD;
     // std::cout << prime_mod << "\n";
-    parms.set_plain_modulus(PLAIN_MOD);
+    parms.set_plain_modulus(prime_mod);
     seal::SEALContext context(parms, true, seal::sec_level_type::tc128);
 
     auto io

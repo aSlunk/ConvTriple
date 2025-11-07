@@ -8,6 +8,7 @@
 #include <optional>
 #include <vector>
 
+#include "gemini/cheetah/hom_conv2d_ss.h"
 #include "gemini/cheetah/tensor.h"
 #include "gemini/cheetah/tensor_shape.h"
 
@@ -104,7 +105,7 @@ class HomBNSS {
                          Tensor<uint64_t>& out_tensor, size_t nthreads = 1) const;
 
     template <class IO, class CtVecType>
-    Code sendEncryptVector(IO* io, const CtVecType& ct, const Meta& meta) const {
+    Code sendEncryptVector(IO** ios, const CtVecType& ct, const Meta& meta, int threads = 1) const {
         TensorShape split_shape  = getSplit(meta);
         const size_t nCRT        = split_shape.dim_size(0);
         const size_t sub_vec_len = split_shape.dim_size(1);
@@ -115,26 +116,33 @@ class HomBNSS {
             return Code::ERR_INVALID_ARG;
         }
         uint32_t n = n_ct;
-        io->send_data(&n, sizeof(uint32_t));
+        ios[0]->send_data(&n, sizeof(uint32_t));
 
-        for (size_t i = 0; i < nCRT; ++i) {
-            for (size_t j = 0; j < n_sub_vecs; ++j) {
-                size_t cid = i * n_sub_vecs + j;
-                std::stringstream os;
-                uint64_t ct_size;
-                ct.at(cid).save(os);
-                ct_size            = os.tellp();
-                std::string ct_ser = os.str();
-                io->send_data(&ct_size, sizeof(uint64_t));
-                io->send_data(ct_ser.c_str(), ct_ser.size());
+        auto func = [&](int wid, size_t start, size_t end) -> Code {
+            auto* io = ios[wid];
+            for (size_t i = 0; i < nCRT; ++i) {
+                for (size_t j = start; j < end; ++j) {
+                    size_t cid = i * n_sub_vecs + j;
+                    std::stringstream os;
+                    uint64_t ct_size;
+                    ct.at(cid).save(os);
+                    ct_size            = os.tellp();
+                    std::string ct_ser = os.str();
+                    io->send_data(&ct_size, sizeof(uint64_t));
+                    io->send_data(ct_ser.c_str(), ct_ser.size());
+                }
             }
-        }
-        io->flush();
-        return Code::OK;
+            io->flush();
+            return Code::OK;
+        };
+
+        gemini::ThreadPool tpool(threads);
+        return gemini::LaunchWorks(tpool, n_sub_vecs, func);
     }
 
     template <class IO>
-    Code recvEncryptVector(IO* io, std::vector<seal::Ciphertext>& ct, const Meta& meta) const {
+    Code recvEncryptVector(IO** ios, std::vector<seal::Ciphertext>& ct, const Meta& meta,
+                           int threads = 1) const {
         TensorShape split_shape  = getSplit(meta);
         const size_t nCRT        = split_shape.dim_size(0);
         const size_t sub_vec_len = split_shape.dim_size(1);
@@ -142,32 +150,37 @@ class HomBNSS {
         const size_t n_ct        = nCRT * n_sub_vecs;
 
         uint32_t n;
-        io->recv_data(&n, sizeof(uint32_t));
+        ios[0]->recv_data(&n, sizeof(uint32_t));
         if (n != n_ct) {
             LOG(WARNING) << "sendEncryptVector number of ct mismatch";
             return Code::ERR_INVALID_ARG;
         }
 
         ct.resize(n_ct);
-        for (size_t i = 0; i < nCRT; ++i) {
-            for (size_t j = 0; j < n_sub_vecs; ++j) {
-                size_t cid = i * n_sub_vecs + j;
+        auto func = [&](int wid, size_t start, size_t end) -> Code {
+            auto* io = ios[wid];
+            for (size_t i = 0; i < nCRT; ++i) {
+                for (size_t j = start; j < end; ++j) {
+                    size_t cid = i * n_sub_vecs + j;
 
-                std::stringstream is;
-                uint64_t ct_size;
-                io->recv_data(&ct_size, sizeof(uint64_t));
-                char* c_enc_result = new char[ct_size];
-                io->recv_data(c_enc_result, ct_size);
-                is.write(c_enc_result, ct_size);
-                ct.at(cid).unsafe_load(*contexts_[i], is);
-                if (!seal::is_valid_for(ct[cid], *contexts_[i])) {
-                    LOG(WARNING) << "bn recvEncryptVector invalid ciphertext";
+                    std::stringstream is;
+                    uint64_t ct_size;
+                    io->recv_data(&ct_size, sizeof(uint64_t));
+                    char* c_enc_result = new char[ct_size];
+                    io->recv_data(c_enc_result, ct_size);
+                    is.write(c_enc_result, ct_size);
+                    ct.at(cid).unsafe_load(*contexts_[i], is);
+                    if (!seal::is_valid_for(ct[cid], *contexts_[i])) {
+                        LOG(WARNING) << "bn recvEncryptVector invalid ciphertext";
+                    }
+                    delete[] c_enc_result;
                 }
-                delete[] c_enc_result;
             }
-        }
+            return Code::OK;
+        };
 
-        return Code::OK;
+        ThreadPool tpool(threads);
+        return gemini::LaunchWorks(tpool, n_sub_vecs, func);
     }
 
     Code idealFunctionality(const Tensor<uint64_t>& image, const Tensor<uint64_t>& scales,

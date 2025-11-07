@@ -370,9 +370,9 @@ void elemwise_product_ab(seal::SEALContext* context, IO::NetIO* io, seal::Encryp
                          uint64_t* multArr, uint64_t* outputArr, uint64_t prime_mod, int party,
                          PKEY pkey) {
     using namespace seal;
-    auto encoder   = new BatchEncoder(*context);
+    // auto encoder   = new BatchEncoder(*context);
     auto evaluator = new Evaluator(*context);
-    // auto mod       = context->first_context_data()->parms().plain_modulus();
+    auto mod       = context->first_context_data()->parms().plain_modulus();
 
     int num_ct = ceil(float(size) / slot_count);
 
@@ -395,12 +395,12 @@ void elemwise_product_ab(seal::SEALContext* context, IO::NetIO* io, seal::Encryp
                 tmp_vec[j]  = multArr[j + offset] % prime_mod;
                 tmp_vec2[j] = inArr[j + offset] % prime_mod;
             }
-            // encode(tmp, enc_noise[i], mod);
-            encoder->encode(tmp, enc_noise[i]);
-            // encode(tmp_vec, multArr_pt[i], mod);
-            encoder->encode(tmp_vec, multArr_pt[i]);
-            // encode(tmp_vec2, inArr_pt[i], mod);
-            encoder->encode(tmp_vec2, inArr_pt[i]);
+            encode(tmp, enc_noise[i], mod);
+            // encoder->encode(tmp, enc_noise[i]);
+            encode(tmp_vec, multArr_pt[i], mod);
+            // encoder->encode(tmp_vec, multArr_pt[i]);
+            encode(tmp_vec2, inArr_pt[i], mod);
+            // encoder->encode(tmp_vec2, inArr_pt[i]);
             A1_ct[i] = encryptor->encrypt_symmetric(inArr_pt[i]);
         }
 
@@ -411,8 +411,8 @@ void elemwise_product_ab(seal::SEALContext* context, IO::NetIO* io, seal::Encryp
         vector<Ciphertext> enc_result(num_ct);
         for (int i = 0; i < num_ct; i++) {
             evaluator->add_plain(ct[i], inArr_pt[i], enc_result[i]);
-            evaluator->multiply_plain_inplace(enc_result[i], multArr_pt[i]);
-            evaluator->sub_plain_inplace(enc_result[i], enc_noise[i]);
+            // evaluator->multiply_plain_inplace(enc_result[i], multArr_pt[i]);
+            // evaluator->sub_plain_inplace(enc_result[i], enc_noise[i]);
 
             parms_id_type parms_id = enc_result[i].parms_id();
             std::shared_ptr<const SEALContext::ContextData> context_data
@@ -436,8 +436,8 @@ void elemwise_product_ab(seal::SEALContext* context, IO::NetIO* io, seal::Encryp
             vector<uint64_t> tmp_vec(slot_count, 0);
             Plaintext tmp_pt;
             decryptor->decrypt(ct[i], tmp_pt);
-            // decode(tmp_pt, tmp_vec);
-            encoder->decode(tmp_pt, tmp_vec);
+            decode(tmp_pt, tmp_vec);
+            // encoder->decode(tmp_pt, tmp_vec);
             for (int j = 0; j < slot_count && j + offset < size; j++) {
                 outputArr[j + offset] = (tmp_vec[j] + secret_share[j + offset]) % prime_mod;
             }
@@ -490,12 +490,12 @@ void elemwise_product_ab(seal::SEALContext* context, IO::NetIO* io, seal::Encryp
                 tmp_vec[j]  = multArr[j + offset] % prime_mod;
                 tmp_vec2[j] = inArr[j + offset] % prime_mod;
             }
-            // encode(tmp, enc_noise[i], mod);
-            encoder->encode(tmp, enc_noise[i]);
-            // encode(tmp_vec, multArr_pt[i], mod);
-            encoder->encode(tmp_vec, multArr_pt[i]);
-            // encode(tmp_vec2, inArr_pt[i], mod);
-            encoder->encode(tmp_vec2, inArr_pt[i]);
+            encode(tmp, enc_noise[i], mod);
+            // encoder->encode(tmp, enc_noise[i]);
+            encode(tmp_vec, multArr_pt[i], mod);
+            // encoder->encode(tmp_vec, multArr_pt[i]);
+            encode(tmp_vec2, inArr_pt[i], mod);
+            // encoder->encode(tmp_vec2, inArr_pt[i]);
             A1_ct[i] = encryptor->encrypt_symmetric(inArr_pt[i]);
         }
 
@@ -506,8 +506,8 @@ void elemwise_product_ab(seal::SEALContext* context, IO::NetIO* io, seal::Encryp
         vector<Ciphertext> enc_result(num_ct);
         for (int i = 0; i < num_ct; i++) {
             evaluator->add_plain(ct[i], inArr_pt[i], enc_result[i]);
-            evaluator->multiply_plain_inplace(enc_result[i], multArr_pt[i]);
-            evaluator->sub_plain_inplace(enc_result[i], enc_noise[i]);
+            // evaluator->multiply_plain_inplace(enc_result[i], multArr_pt[i]);
+            // evaluator->sub_plain_inplace(enc_result[i], enc_noise[i]);
 
             parms_id_type parms_id = enc_result[i].parms_id();
             std::shared_ptr<const SEALContext::ContextData> context_data
@@ -532,8 +532,8 @@ void elemwise_product_ab(seal::SEALContext* context, IO::NetIO* io, seal::Encryp
             vector<uint64_t> tmp_vec(slot_count, 0);
             Plaintext tmp_pt;
             decryptor->decrypt(ct[i], tmp_pt);
-            // decode(tmp_pt, tmp_vec);
-            encoder->decode(tmp_pt, tmp_vec);
+            decode(tmp_pt, tmp_vec);
+            // encoder->decode(tmp_pt, tmp_vec);
             for (int j = 0; j < slot_count && j + offset < size; j++) {
                 outputArr[j + offset] = (tmp_vec[j] + secret_share[j + offset]) % prime_mod;
             }
@@ -545,7 +545,7 @@ void elemwise_product_ab(seal::SEALContext* context, IO::NetIO* io, seal::Encryp
         io->flush();
 #endif
     }
-    delete encoder;
+    // delete encoder;
     delete evaluator;
 }
 
