@@ -127,10 +127,10 @@ class NetIO : public IOChannel<NetIO> {
         }
         // set_nodelay();
         stream = fdopen(consocket, "wb+");
-        // buffer = new char[NETWORK_BUFFER_SIZE];
-        // memset(buffer, 0, NETWORK_BUFFER_SIZE);
+        buffer = new char[NETWORK_BUFFER_SIZE];
+        memset(buffer, 0, NETWORK_BUFFER_SIZE);
         // NOTE(Zhicong): we need _IONBF for the best network performance
-        // setvbuf(stream, buffer, _IOFBF, NETWORK_BUFFER_SIZE);
+        setvbuf(stream, buffer, _IOFBF, NETWORK_BUFFER_SIZE);
         if (!quiet)
             std::cout << "connected\n";
     }
