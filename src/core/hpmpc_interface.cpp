@@ -5,6 +5,7 @@
 #include "protocols/bn_direct_proto.hpp"
 #include "protocols/conv_proto.hpp"
 #include "protocols/fc_proto.hpp"
+#include "protocols/multiplexer.hpp"
 #include "protocols/ot_proto.hpp"
 
 #include "ot/bit-triple-generator.h"
@@ -674,6 +675,28 @@ void tmp(int party, int threads) {
         delete io[i];
     }
     delete[] io;
+}
+
+void do_multiplex(int num_input, int party, const std::string& ip, int port, int io_offset, int threads) {
+    int bitlen = 32;
+    int size = 10;
+
+    const char* addr = ip.c_str();
+    if (party == emp::ALICE)
+        addr = nullptr;
+
+    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
+    sci::OTPack<IO::NetIO> ot_pack(ios + 0, 1, party, true, false);
+
+    uint8_t* sel = new uint8_t[size];
+    uint64_t* x = new uint64_t[size];
+    uint64_t* y = new uint64_t[size];
+
+    Aux::multiplexer(&ot_pack, party, sel, x, y, size, bitlen, bitlen);
+    
+    delete[] sel;
+    delete[] x;
+    delete[] y;
 }
 
 } // namespace Iface
