@@ -26,6 +26,8 @@ int main(int argc, char** argv) {
 
     int num_triples = 10;
 
+    Iface::do_multiplex(10, PARTY, std::string(""), port, 1, threads);
+
     {
         int tmp = 37'996'272;
         tmp     = 3;
@@ -43,8 +45,8 @@ int main(int argc, char** argv) {
     }
 
     {
-        num_triples = 9'006'592;
-        // num_triples = 22;
+        // num_triples = 9'006'592;
+        num_triples = 22;
         std::vector<uint32_t> a_cp(num_triples * 1);
         std::vector<uint32_t> b_cp(num_triples * 1);
         std::vector<uint32_t> c_cp(num_triples * 1);
@@ -55,7 +57,7 @@ int main(int argc, char** argv) {
             std::vector<uint32_t> b(num_triples, 0);
             std::vector<uint32_t> c(num_triples, 0);
 
-            Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 1, num_triples,
+            Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples,
                                                std::string(""), port, PARTY, threads,
                                                Utils::PROTO::AB);
 

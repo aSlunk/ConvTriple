@@ -679,24 +679,36 @@ void tmp(int party, int threads) {
 
 void do_multiplex(int num_input, int party, const std::string& ip, int port, int io_offset, int threads) {
     int bitlen = 32;
-    int size = 10;
 
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
         addr = nullptr;
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
-    sci::OTPack<IO::NetIO> ot_pack(ios + 0, 1, party, true, false);
 
-    uint8_t* sel = new uint8_t[size];
-    uint64_t* x = new uint64_t[size];
-    uint64_t* y = new uint64_t[size];
+    uint8_t* sel = new uint8_t[num_input];
+    uint64_t* x = new uint64_t[num_input];
+    uint64_t* y = new uint64_t[num_input];
 
-    Aux::multiplexer(&ot_pack, party, sel, x, y, size, bitlen, bitlen);
+    auto func = [&] (int wid, size_t start, size_t end) -> Code {
+        if (start >= end) return Code::OK;
+        sci::OTPack<IO::NetIO> ot_pack(ios + wid, 1, party, true, false);
+        Aux::multiplexer(&ot_pack, party, sel + start, x + start, y + start, end - start, bitlen, bitlen);
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(threads);
+    Code c;
+    if ((c = gemini::LaunchWorks(tpool, num_input, func)) != Code::OK) {
+        Utils::log(Utils::Level::ERROR, "[do_multiplex] failed: ", CodeMessage(c));
+    }
     
     delete[] sel;
     delete[] x;
     delete[] y;
+
+    for (int i = 0; i < threads; ++i) delete ios[i];
+    delete[] ios;
 }
 
 } // namespace Iface

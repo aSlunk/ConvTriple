@@ -61,7 +61,7 @@ void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
                               int batch, size_t num_ele, size_t h, size_t w, int party, int threads,
                               Utils::PROTO proto, int factor = 1);
 
-void do_multiplex(int num_input, int party, const std::string& ip, int port, int io_offset, int threads);
+void do_multiplex(int num_input, int party, const std::string& ip, int port, int io_offset = 1, int threads = 1);
 
 void tmp(int party, int threads);
 
