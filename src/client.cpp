@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
 
     int num_triples = 10;
 
-    Iface::do_multiplex(9'000'000, PARTY, std::string(addr), port, 1, threads);
+    Iface::do_multiplex(9'000, PARTY, std::string(addr), port, 1, threads);
 
     {
         int tmp = 37'996'272;

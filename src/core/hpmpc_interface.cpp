@@ -692,6 +692,11 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
     uint64_t* x  = new uint64_t[num_input];
     uint64_t* y  = new uint64_t[num_input];
 
+    for (int i = 0; i < num_input; ++i) {
+        sel[i] = party == 1 ? i % 2 : (i % 2) ^ 1;
+        x[i]   = i;
+    }
+
     auto func = [&](int wid, size_t start, size_t end) -> Code {
         if (start >= end)
             return Code::OK;
@@ -707,10 +712,6 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
         Utils::log(Utils::Level::ERROR, "[do_multiplex] failed: ", CodeMessage(c));
     }
 
-    delete[] sel;
-    delete[] x;
-    delete[] y;
-
     std::cout << "P" << party - 1 << ": time[s]: " << Utils::to_sec(Utils::time_diff(start))
               << "\n";
     std::string unit;
@@ -718,8 +719,43 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party - 1, ": Bool triple data[", unit, "]: ", data);
 
+#ifdef VERIFY
+    if (party == emp::BOB) {
+        ios[0]->send_data(sel, sizeof(*sel) * num_input);
+        ios[0]->send_data(x, sizeof(*x) * num_input);
+        ios[0]->send_data(y, sizeof(*y) * num_input);
+        ios[0]->flush();
+    } else {
+        Utils::log(Utils::Level::DEBUG, "Verifying MULTIPLEX: ", num_input);
+        std::vector<uint8_t> sel_b(num_input);
+        std::vector<uint64_t> x_b(num_input);
+        std::vector<uint64_t> y_b(num_input);
+
+        ios[0]->recv_data(sel_b.data(), sizeof(decltype(sel_b)::value_type) * num_input);
+        ios[0]->recv_data(x_b.data(), sizeof(decltype(x_b)::value_type) * num_input);
+        ios[0]->recv_data(y_b.data(), sizeof(decltype(y_b)::value_type) * num_input);
+
+        bool passed = true;
+        for (int i = 0; i < num_input; ++i) {
+            if (((y[i] + y_b[i]) & moduloMask)
+                != ((x[i] + x_b[i]) & moduloMask) * ((sel[i] + sel_b[i]) & 1)) {
+                passed = false;
+                break;
+            }
+        }
+
+        if (passed)
+            Utils::log(Utils::Level::PASSED, "MULTIPLEX: PASSED");
+        else
+            Utils::log(Utils::Level::FAILED, "MULTIPLEX: FAILED");
+    }
+#endif
+
     for (int i = 0; i < threads; ++i) delete ios[i];
     delete[] ios;
+    delete[] sel;
+    delete[] x;
+    delete[] y;
 }
 
 } // namespace Iface
