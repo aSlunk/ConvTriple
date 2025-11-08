@@ -74,6 +74,7 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
 
     void send_cot(uint64_t* data0, const uint64_t* corr, int length, int l) {
         send_ot_cam_cc(data0, corr, length, l);
+        flush();
     }
 
     void recv_cot(uint64_t* data, const bool* b, int length, int l) {
