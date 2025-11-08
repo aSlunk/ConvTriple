@@ -712,12 +712,11 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
         Utils::log(Utils::Level::ERROR, "[do_multiplex] failed: ", CodeMessage(c));
     }
 
-    std::cout << "P" << party - 1 << ": time[s]: " << Utils::to_sec(Utils::time_diff(start))
-              << "\n";
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": multiplex time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
-    Utils::log(Utils::Level::INFO, "P", party - 1, ": Bool triple data[", unit, "]: ", data);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": multiplex data[", unit, "]: ", data);
 
 #ifdef VERIFY
     if (party == emp::BOB) {
