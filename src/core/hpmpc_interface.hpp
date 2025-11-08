@@ -69,7 +69,7 @@ void tmp(int party, int threads);
 template <class Channel, class Serial>
 void send_vec(Channel** ios, std::vector<std::vector<Serial>>& vec, int threads) {
     uint64_t n = vec.size();
-    ios[0]->send_data(&n, sizeof(uint64_t));
+    ios[0]->send_data(&n, sizeof(n));
 
     auto func = [&](int wid, size_t start, size_t end) -> Code {
         if (start >= end)
@@ -88,7 +88,7 @@ void send_vec(Channel** ios, std::vector<std::vector<Serial>>& vec, int threads)
 
         auto data   = stream.str();
         idxs.back() = data.size();
-        io->send_data(idxs.data(), idxs.size() * sizeof(uint64_t));
+        io->send_data(idxs.data(), idxs.size() * sizeof(decltype(idxs)::value_type));
         if (idxs.back() == 0) {
             io->flush();
             return Code::OK;
@@ -108,7 +108,7 @@ template <class Channel, class Serial>
 void recv_vec(Channel** ios, const seal::SEALContext& ctx, std::vector<std::vector<Serial>>& vec,
               int threads) {
     uint64_t n = 0;
-    ios[0]->recv_data(&n, sizeof(uint64_t));
+    ios[0]->recv_data(&n, sizeof(n));
     vec.resize(n);
 
     auto func = [&](int wid, size_t start, size_t end) -> Code {
@@ -117,7 +117,7 @@ void recv_vec(Channel** ios, const seal::SEALContext& ctx, std::vector<std::vect
         auto* io = ios[wid];
 
         std::vector<uint64_t> idxs(end - start + 1);
-        io->recv_data(idxs.data(), idxs.size() * sizeof(uint64_t));
+        io->recv_data(idxs.data(), idxs.size() * sizeof(decltype(idxs)::value_type));
 
         if (idxs.back() == 0)
             return Code::OK;
