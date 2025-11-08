@@ -21,12 +21,14 @@ template <typename IO>
 class SilentOT : public sci::OT<SilentOT<IO>> {
     std::atomic<int64_t> count_rcot_;
     cheetah::MITCCRH<8> mitccrh;
+    int threads;
+    IO** ios;
 
   public:
     FerretCOT<IO>* ferret;
 
     SilentOT(int party, int threads, IO** ios, bool malicious = false, bool run_setup = true,
-             std::string pre_file = "", bool warm_up = false) {
+             std::string pre_file = "", bool warm_up = false) : threads(threads), ios(ios) {
         ferret = new FerretCOT<IO>(party, threads, ios, malicious, run_setup, ferret_b13, pre_file);
         if (warm_up) {
             block tmp;
@@ -41,8 +43,8 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
     }
 
     void flush() {
-        for (int i = 0; i < ferret->threads; ++i) {
-            ferret->ios[i]->flush();
+        for (int i = 0; i < threads; ++i) {
+            ios[i]->flush();
         }
     }
 
