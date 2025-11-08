@@ -700,8 +700,9 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
     auto func = [&](int wid, size_t start, size_t end) -> Code {
         if (start >= end)
             return Code::OK;
-        sci::OTPack<IO::NetIO> ot_pack(ios + wid, 1, party, true, false);
-        Aux::multiplexer(&ot_pack, party, sel + start, x + start, y + start, end - start, bitlen,
+        int cur_party = (wid % 2) ? party : OTHER_PARTY(party);
+        sci::OTPack<IO::NetIO> ot_pack(ios + wid, 1, cur_party, true, false);
+        Aux::multiplexer(&ot_pack, cur_party, sel + start, x + start, y + start, end - start, bitlen,
                          bitlen);
         return Code::OK;
     };
