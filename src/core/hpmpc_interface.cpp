@@ -679,7 +679,6 @@ void tmp(int party, int threads) {
 
 void do_multiplex(int num_input, int party, const std::string& ip, int port, int io_offset,
                   int threads) {
-    auto start = measure::now();
     int bitlen = 32;
 
     const char* addr = ip.c_str();
@@ -687,6 +686,8 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
         addr = nullptr;
 
     IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
+    ios[0]->sync();
+    auto start = measure::now();
 
     uint8_t* sel = new uint8_t[num_input];
     uint64_t* x  = new uint64_t[num_input];
