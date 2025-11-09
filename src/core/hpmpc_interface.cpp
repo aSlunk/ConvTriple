@@ -697,7 +697,7 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
         x[i]   = i;
     }
 
-    sci::OTPack<IO::NetIO> ot_pack(ios, threads, party, false, false);
+    sci::OTPack<IO::NetIO> ot_pack(ios, threads, party, true, false);
     Aux::multiplexer(&ot_pack, party, sel, x, y, num_input, bitlen, bitlen);
 
     Utils::log(Utils::Level::INFO, "P", party - 1,
