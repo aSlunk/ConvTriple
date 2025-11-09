@@ -679,6 +679,7 @@ void tmp(int party, int threads) {
 
 void do_multiplex(int num_input, int party, const std::string& ip, int port, int io_offset,
                   int threads) {
+    threads = 1;
     auto start = measure::now();
     int bitlen = 32;
 
@@ -701,7 +702,7 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
         if (start >= end)
             return Code::OK;
         int cur_party = (wid % 2) ? party : OTHER_PARTY(party);
-        sci::OTPack<IO::NetIO> ot_pack(ios + wid, 1, cur_party, true, false);
+        sci::OTPack<IO::NetIO> ot_pack(ios + wid, 1, cur_party, false, false);
         Aux::multiplexer(&ot_pack, cur_party, sel + start, x + start, y + start, end - start, bitlen,
                          bitlen);
         return Code::OK;
