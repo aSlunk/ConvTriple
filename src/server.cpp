@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
 
     {
         int tmp = 37'996'272;
-        tmp     = 9'000'000 / 8;
+        tmp     = 32 * 9'000'000 / 8;
         // tmp = 37'500'000;
         uint8_t* a = new uint8_t[tmp];
         uint8_t* b = new uint8_t[tmp];
