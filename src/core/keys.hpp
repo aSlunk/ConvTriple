@@ -35,6 +35,7 @@ class Keys {
     Channel** _ios;
     unsigned _threads;
     std::vector<sci::OTPack<Channel>*> _ot_packs;
+    bool _connected = false;
 
     Keys(int party, const std::string& ip, unsigned port, unsigned threads, unsigned io_offset)
         : _threads(threads) {
@@ -72,6 +73,7 @@ class Keys {
 
         gemini::ThreadPool tpool(threads);
         gemini::LaunchWorks(tpool, threads, init_ot);
+        _connected = true;
     }
 
     ~Keys() noexcept {
@@ -173,6 +175,7 @@ void Keys<Channel>::setupBn(Channel** ios, const seal::SEALContext& ctx, const i
 template <class Channel>
 void Keys<Channel>::connect(int party, const std::string& ip, int port, int threads,
                             int io_offset) {
+    if (_connected) return;
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
         addr = nullptr;
@@ -180,14 +183,17 @@ void Keys<Channel>::connect(int party, const std::string& ip, int port, int thre
     for (int i = 0; i < threads; ++i) {
         _ios[i]->init_connection(addr, port + i * io_offset);
     }
+    _connected = true;
 }
 
 template <class Channel>
 void Keys<Channel>::disconnect() {
+    if (!_connected) return;
     for (unsigned i = 0; i < _threads; ++i) {
         _ios[i]->disconnect();
         _ios[i]->counter = 0;
     }
+    _connected = false;
 }
 } // namespace Iface
 
