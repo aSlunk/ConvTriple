@@ -175,7 +175,8 @@ void Keys<Channel>::setupBn(Channel** ios, const seal::SEALContext& ctx, const i
 template <class Channel>
 void Keys<Channel>::connect(int party, const std::string& ip, int port, int threads,
                             int io_offset) {
-    if (_connected) return;
+    if (_connected)
+        return;
     const char* addr = ip.c_str();
     if (party == emp::ALICE)
         addr = nullptr;
@@ -188,7 +189,8 @@ void Keys<Channel>::connect(int party, const std::string& ip, int port, int thre
 
 template <class Channel>
 void Keys<Channel>::disconnect() {
-    if (!_connected) return;
+    if (!_connected)
+        return;
     for (unsigned i = 0; i < _threads; ++i) {
         _ios[i]->disconnect();
         _ios[i]->counter = 0;

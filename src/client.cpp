@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 
     {
         int tmp = 37'996'272;
-        tmp     = 3;
+        tmp     = 9'000'000 / 8;
         // tmp = 37'500'000;
         uint8_t* a = new uint8_t[tmp];
         uint8_t* b = new uint8_t[tmp];
@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
 
         Iface::generateBoolTriplesCheetah((uint8_t*)a, (uint8_t*)b, (uint8_t*)c, 1,
                                           tmp * sizeof(*a), std::string(addr), port, PARTY, threads,
-                                          _2ROT);
+                                          _16KKOT_to_4OT);
 
         delete[] a;
         delete[] b;
