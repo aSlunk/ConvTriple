@@ -41,10 +41,9 @@ int main(int argc, char** argv) {
         uint8_t* b = new uint8_t[tmp];
         uint8_t* c = new uint8_t[tmp];
 
-        for (uint32_t i = 0; i < 32; ++i)
-            Iface::generateBoolTriplesCheetah((uint8_t*)a, (uint8_t*)b, (uint8_t*)c, 1,
-                                            tmp * sizeof(*a), std::string(addr), port, PARTY, threads,
-                                            _16KKOT_to_4OT);
+        Iface::generateBoolTriplesCheetah((uint8_t*)a, (uint8_t*)b, (uint8_t*)c, 1,
+                                          tmp * sizeof(*a), std::string(addr), port, PARTY, threads,
+                                          _16KKOT_to_4OT);
 
         delete[] a;
         delete[] b;

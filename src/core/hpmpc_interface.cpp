@@ -88,7 +88,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     };
 
     gemini::ThreadPool tpool(threads);
-    gemini::LaunchWorks(tpool, num_triples, func);
+    for (uint32_t i = 0; i < 32; ++i) gemini::LaunchWorks(tpool, num_triples, func);
 
     Utils::log(Utils::Level::INFO, "P", party - 1,
                ": Bool triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
@@ -697,8 +697,9 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
     uint64_t* x  = new uint64_t[num_input];
     uint64_t* y  = new uint64_t[num_input];
 
-    auto func = [&] (int wid, size_t start, size_t end) -> Code {
-        if (start >= end) return Code::OK;
+    auto func = [&](int wid, size_t start, size_t end) -> Code {
+        if (start >= end)
+            return Code::OK;
 
         for (size_t i = start; i < end; ++i) {
             sel[i] = party == 1 ? i % 2 : (i % 2) ^ 1;
@@ -706,9 +707,11 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
         }
 
         if (wid & 1)
-            Aux::multiplexer(keys.get_otpack(wid), OTHER_PARTY(party), sel + start, x + start, y + start, end - start, bitlen, bitlen);
+            Aux::multiplexer(keys.get_otpack(wid), OTHER_PARTY(party), sel + start, x + start,
+                             y + start, end - start, bitlen, bitlen);
         else
-            Aux::multiplexer(keys.get_otpack(wid), party, sel + start, x + start, y + start, end - start, bitlen, bitlen);
+            Aux::multiplexer(keys.get_otpack(wid), party, sel + start, x + start, y + start,
+                             end - start, bitlen, bitlen);
         return Code::OK;
     };
 
