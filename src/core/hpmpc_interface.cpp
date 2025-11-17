@@ -88,7 +88,8 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     };
 
     gemini::ThreadPool tpool(threads);
-    gemini::LaunchWorks(tpool, num_triples, func);
+    for (uint32_t i = 0; i < 32; ++i)
+        gemini::LaunchWorks(tpool, num_triples, func);
 
     Utils::log(Utils::Level::INFO, "P", party - 1,
                ": Bool triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
@@ -712,7 +713,7 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
         return Code::OK;
     };
 
-    gemini::ThreadPool tpool(threads);
+    gemini::ThreadPool tpool(1);
     gemini::LaunchWorks(tpool, num_input, func);
 
     Utils::log(Utils::Level::INFO, "P", party - 1,
