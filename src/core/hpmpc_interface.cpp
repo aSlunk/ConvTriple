@@ -705,7 +705,10 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
             x[i]   = i;
         }
 
-        Aux::multiplexer(keys.get_otpack(wid), party, sel + start, x + start, y + start, end - start, bitlen, bitlen);
+        if (wid & 1)
+            Aux::multiplexer(keys.get_otpack(wid), OTHER_PARTY(party), sel + start, x + start, y + start, end - start, bitlen, bitlen);
+        else
+            Aux::multiplexer(keys.get_otpack(wid), party, sel + start, x + start, y + start, end - start, bitlen, bitlen);
         return Code::OK;
     };
 
