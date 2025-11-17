@@ -13,7 +13,8 @@ namespace Iface {
 template <class Channel>
 class Keys {
   public:
-    static Keys& instance(int party, const std::string& ip, int port, int threads, int io_offset) {
+    static Keys& instance(int party, const std::string& ip, unsigned port, unsigned threads,
+                          unsigned io_offset) {
         static Keys k(party, ip, port, threads, io_offset);
         k.connect(party, ip, port, threads, io_offset);
         return k;
@@ -22,27 +23,26 @@ class Keys {
     const gemini::HomFCSS& get_fc() const { return _fc; }
     const gemini::HomBNSS& get_bn() const { return _bn; }
     const gemini::HomConv2DSS& get_conv() const { return _hom_conv; }
-    Channel** get_ios() { return ios; }
-    sci::OTPack<Channel>* get_otpack(int idx) { return ot_packs[idx]; }
+    Channel** get_ios() { return _ios; }
+    const sci::OTPack<Channel>* get_otpack(int idx) const { return _ot_packs[idx]; }
 
-    void connect(int party, const std::string& ip, int port, int threads, int io_offset);
     void disconnect();
 
   private:
     gemini::HomFCSS _fc;
     gemini::HomConv2DSS _hom_conv;
     gemini::HomBNSS _bn;
-    Channel** ios;
-    int threads;
-    std::vector<sci::OTPack<Channel>*> ot_packs;
+    Channel** _ios;
+    unsigned _threads;
+    std::vector<sci::OTPack<Channel>*> _ot_packs;
 
-    Keys(int party, const std::string& ip, int port, int threads, int io_offset)
-        : threads(threads) {
+    Keys(int party, const std::string& ip, unsigned port, unsigned threads, unsigned io_offset)
+        : _threads(threads) {
         auto start       = measure::now();
         const char* addr = ip.c_str();
         if (party == emp::ALICE)
             addr = nullptr;
-        ios = Utils::init_ios<Channel>(addr, port, threads, io_offset);
+        _ios = Utils::init_ios<Channel>(addr, port, threads, io_offset);
 
         seal::SEALContext ctx = Utils::init_he_context();
 
@@ -51,35 +51,35 @@ class Keys {
         auto pkey            = std::make_shared<seal::PublicKey>();
         auto o_pkey          = std::make_shared<seal::PublicKey>();
         keygen.create_public_key(*pkey);
-        exchange_keys(ios, *pkey, *o_pkey, ctx, party);
+        exchange_keys(_ios, *pkey, *o_pkey, ctx, party);
 
         _fc.setUp(ctx, skey, o_pkey);
         _hom_conv.setUp(ctx, skey, o_pkey);
         _bn.setUp(PLAIN_MOD, ctx, skey, o_pkey);
-        setupBn(ios, ctx, party);
+        setupBn(_ios, ctx, party);
 
         auto time = Utils::to_sec(Utils::time_diff(start));
         Utils::log(Utils::Level::INFO, "P", party - 1, ": Key exchange took [s]: ", time);
 
-        ot_packs.resize(threads);
+        _ot_packs.resize(threads);
         auto init_ot = [&](int wid, size_t start, size_t end) -> Code {
             for (size_t i = start; i < end; ++i) {
                 int cur_party = wid & 1 ? (3 - party) : party;
-                ot_packs[i]   = new sci::OTPack<Channel>(ios + wid, 1, cur_party, true, false);
+                _ot_packs[i]  = new sci::OTPack<Channel>(_ios + wid, 1, cur_party, true, false);
             }
             return Code::OK;
         };
 
         gemini::ThreadPool tpool(threads);
         gemini::LaunchWorks(tpool, threads, init_ot);
-    };
+    }
 
     ~Keys() noexcept {
-        for (int i = 0; i < threads; ++i) {
-            delete ot_packs[i];
-            delete ios[i];
+        for (unsigned i = 0; i < _threads; ++i) {
+            delete _ot_packs[i];
+            delete _ios[i];
         }
-        delete[] ios;
+        delete[] _ios;
     }
 
     template <class SerKey>
@@ -87,6 +87,8 @@ class Keys {
                        const seal::SEALContext& ctx, int party);
 
     void setupBn(Channel** ios, const seal::SEALContext& ctx, const int& party);
+
+    void connect(int party, const std::string& ip, int port, int threads, int io_offset);
 
   public:
     Keys(Keys& copy)             = delete;
@@ -176,15 +178,15 @@ void Keys<Channel>::connect(int party, const std::string& ip, int port, int thre
         addr = nullptr;
 
     for (int i = 0; i < threads; ++i) {
-        ios[i]->init_connection(addr, port + i * io_offset);
+        _ios[i]->init_connection(addr, port + i * io_offset);
     }
 }
 
 template <class Channel>
 void Keys<Channel>::disconnect() {
-    for (int i = 0; i < threads; ++i) {
-        ios[i]->disconnect();
-        ios[i]->counter = 0;
+    for (unsigned i = 0; i < _threads; ++i) {
+        _ios[i]->disconnect();
+        _ios[i]->counter = 0;
     }
 }
 } // namespace Iface

@@ -106,12 +106,12 @@ class Triple {
 template <typename IO>
 class TripleGenerator {
   public:
-    IO* io                  = nullptr;
-    sci::OTPack<IO>* otpack = nullptr;
+    IO* io                        = nullptr;
+    const sci::OTPack<IO>* otpack = nullptr;
     sci::PRG128* prg;
     int party;
 
-    TripleGenerator(int Party, IO* io, sci::OTPack<IO>* otpack, bool enable_buffer = false,
+    TripleGenerator(int Party, IO* io, const sci::OTPack<IO>* otpack, bool enable_buffer = false,
                     uint64_t buffr_size = BSIZE, uint64_t chunk_size = CSIZE) {
         this->io     = io;
         this->otpack = otpack;
