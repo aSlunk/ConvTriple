@@ -64,7 +64,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads);
     {
         int n       = 3;
         int out     = 2;
@@ -80,8 +79,8 @@ int main(int argc, char** argv) {
 
         uint32_t* c = new uint32_t[out * batchSize];
 
-        Iface::generateFCTriplesCheetah(ios, a, nullptr, c, batchSize, n, out, PARTY, threads,
-                                        Utils::PROTO::AB2);
+        Iface::generateFCTriplesCheetah(std::string(addr), port, 1, a, nullptr, c, batchSize, n,
+                                        out, PARTY, threads, Utils::PROTO::AB2);
 
         for (size_t i = 0; i < batchSize; ++i) {
             for (int j = 0; j < out; ++j) {
@@ -120,8 +119,8 @@ int main(int argc, char** argv) {
 
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(ios, a, nullptr, c, conv, PARTY, threads,
-                                                 Utils::PROTO::AB2);
+        Iface::generateConvTriplesCheetahWrapper(std::string(addr), port, 1, a, nullptr, c, conv,
+                                                 PARTY, threads, Utils::PROTO::AB2);
 
         delete[] a;
         delete[] b;
@@ -136,14 +135,10 @@ int main(int argc, char** argv) {
         std::vector<uint32_t> B(rows * batchSize, 1);
         std::vector<uint32_t> C(rows * h * w * batchSize);
 
-        Iface::generateBNTriplesCheetah(ios, A.data(), B.data(), C.data(), batchSize, rows, h, w,
-                                        PARTY, threads, Utils::PROTO::AB2);
+        Iface::generateBNTriplesCheetah(std::string(addr), port, 1, A.data(), B.data(), C.data(),
+                                        batchSize, rows, h, w, PARTY, threads, Utils::PROTO::AB2);
     }
 
-    for (size_t i = 0; i < threads; ++i) {
-        delete ios[i];
-    }
-    delete[] ios;
     // HE_OT::HE<IO::NetIO> all(PARTY, addr, port, threads, samples, true);
     // all.run_ot(20'000'000);
 

@@ -82,6 +82,14 @@ class NetIO : public IOChannel<NetIO> {
 
     NetIO(const NetIO& other) = delete;
     NetIO(const char* address, int port, bool quiet = false) {
+        init_connection(address, port);
+        if (quiet)
+            std::cout << "connected\n";
+    }
+
+    void init_connection(const char* address, int port) {
+        if (connected)
+            return;
         this->port = port;
         is_server  = (address == nullptr);
         if (address == nullptr) {
@@ -131,8 +139,24 @@ class NetIO : public IOChannel<NetIO> {
         memset(buffer, 0, NETWORK_BUFFER_SIZE);
         // NOTE(Zhicong): we need _IONBF for the best network performance
         setvbuf(stream, buffer, _IOFBF, NETWORK_BUFFER_SIZE);
-        if (!quiet)
-            std::cout << "connected\n";
+        connected = true;
+    }
+
+    void disconnect() {
+        if (stream) {
+            fflush(stream);
+            fclose(stream);
+            stream = nullptr;
+        }
+        if (consocket != -1) {
+            close(consocket);
+            consocket = -1;
+        }
+        if (buffer) {
+            delete[] buffer;
+            buffer = nullptr;
+        }
+        connected = false;
     }
 
     void sync() {
@@ -238,6 +262,9 @@ class NetIO : public IOChannel<NetIO> {
                 fprintf(stderr, "error: net_send_data %d\n", res);
         }
     }
+
+  private:
+    bool connected = false;
 };
 /**@}*/
 

@@ -10,26 +10,39 @@
 namespace Iface {
 
 // not thread safe
+template <class Channel>
 class Keys {
   public:
-    template <class Channel>
-    static Keys& instance(Channel** ios, int party) {
-        static Keys k(ios, party);
+    static Keys& instance(int party, const std::string& ip, int port, int threads, int io_offset) {
+        static Keys k(party, ip, port, threads, io_offset);
+        k.connect(party, ip, port, threads, io_offset);
         return k;
     }
 
     const gemini::HomFCSS& get_fc() const { return _fc; }
     const gemini::HomBNSS& get_bn() const { return _bn; }
     const gemini::HomConv2DSS& get_conv() const { return _hom_conv; }
+    Channel** get_ios() { return ios; }
+    sci::OTPack<Channel>* get_otpack(int idx) { return ot_packs[idx]; }
+
+    void connect(int party, const std::string& ip, int port, int threads, int io_offset);
+    void disconnect();
 
   private:
     gemini::HomFCSS _fc;
     gemini::HomConv2DSS _hom_conv;
     gemini::HomBNSS _bn;
+    Channel** ios;
+    int threads;
+    std::vector<sci::OTPack<Channel>*> ot_packs;
 
-    template <class Channel>
-    Keys(Channel** ios, int party) {
-        auto start = measure::now();
+    Keys(int party, const std::string& ip, int port, int threads, int io_offset)
+        : threads(threads) {
+        auto start       = measure::now();
+        const char* addr = ip.c_str();
+        if (party == emp::ALICE)
+            addr = nullptr;
+        ios = Utils::init_ios<Channel>(addr, port, threads, io_offset);
 
         seal::SEALContext ctx = Utils::init_he_context();
 
@@ -47,15 +60,32 @@ class Keys {
 
         auto time = Utils::to_sec(Utils::time_diff(start));
         Utils::log(Utils::Level::INFO, "P", party - 1, ": Key exchange took [s]: ", time);
+
+        ot_packs.resize(threads);
+        auto init_ot = [&](int wid, size_t start, size_t end) -> Code {
+            for (size_t i = start; i < end; ++i) {
+                int cur_party = wid & 1 ? (3 - party) : party;
+                ot_packs[i]   = new sci::OTPack<Channel>(ios + wid, 1, cur_party, true, false);
+            }
+            return Code::OK;
+        };
+
+        gemini::ThreadPool tpool(threads);
+        gemini::LaunchWorks(tpool, threads, init_ot);
     };
 
-    ~Keys() noexcept {}
+    ~Keys() noexcept {
+        for (int i = 0; i < threads; ++i) {
+            delete ot_packs[i];
+            delete ios[i];
+        }
+        delete[] ios;
+    }
 
-    template <class Channel, class SerKey>
+    template <class SerKey>
     void exchange_keys(Channel** ios, const SerKey& pkey, seal::PublicKey& o_pkey,
                        const seal::SEALContext& ctx, int party);
 
-    template <class Channel>
     void setupBn(Channel** ios, const seal::SEALContext& ctx, const int& party);
 
   public:
@@ -65,9 +95,10 @@ class Keys {
     Keys& operator=(Keys&& copy) = delete;
 };
 
-template <class Channel, class SerKey>
-void Keys::exchange_keys(Channel** ios, const SerKey& pkey, seal::PublicKey& o_pkey,
-                         const seal::SEALContext& ctx, int party) {
+template <class Channel>
+template <class SerKey>
+void Keys<Channel>::exchange_keys(Channel** ios, const SerKey& pkey, seal::PublicKey& o_pkey,
+                                  const seal::SEALContext& ctx, int party) {
     switch (party) {
     case emp::ALICE:
         IO::send_pkey(*(ios[0]), pkey);
@@ -81,7 +112,7 @@ void Keys::exchange_keys(Channel** ios, const SerKey& pkey, seal::PublicKey& o_p
 }
 
 template <class Channel>
-void Keys::setupBn(Channel** ios, const seal::SEALContext& ctx, const int& party) {
+void Keys<Channel>::setupBn(Channel** ios, const seal::SEALContext& ctx, const int& party) {
     using namespace seal;
     KeyGenerator keygen(ctx);
 
@@ -135,6 +166,26 @@ void Keys::setupBn(Channel** ios, const seal::SEALContext& ctx, const int& party
     auto code = _bn.setUp(PLAIN_MOD, contexts, opt_sks, bn_pks_);
     if (code != Code::OK)
         Utils::log(Utils::Level::ERROR, "P", party - 1, ": ", CodeMessage(code));
+}
+
+template <class Channel>
+void Keys<Channel>::connect(int party, const std::string& ip, int port, int threads,
+                            int io_offset) {
+    const char* addr = ip.c_str();
+    if (party == emp::ALICE)
+        addr = nullptr;
+
+    for (int i = 0; i < threads; ++i) {
+        ios[i]->init_connection(addr, port + i * io_offset);
+    }
+}
+
+template <class Channel>
+void Keys<Channel>::disconnect() {
+    for (int i = 0; i < threads; ++i) {
+        ios[i]->disconnect();
+        ios[i]->counter = 0;
+    }
 }
 } // namespace Iface
 

@@ -53,14 +53,11 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
                                 std::string ip, int port, int party, int threads,
                                 TripleGenMethod method, unsigned io_offset) {
     Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (BOOL): ", num_triples);
-    const char* addr = ip.c_str();
-    if (party == emp::ALICE)
-        addr = nullptr;
-
     // std::atomic<int> setup = 0;
     auto start = measure::now();
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
+    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+    auto** ios = keys.get_ios();
 
     auto func = [&](int wid, int start, int end) -> Code {
         if (start >= end)
@@ -69,8 +66,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         int cur_party = wid & 1 ? OTHER_PARTY(party) : party;
         // auto start_setup = measure::now();
 
-        sci::OTPack<IO::NetIO> ot_pack(ios + wid, 1, cur_party, true, false);
-        TripleGenerator<IO::NetIO> triple_gen(cur_party, ios[wid], &ot_pack, false);
+        TripleGenerator<IO::NetIO> triple_gen(cur_party, ios[wid], keys.get_otpack(wid), false);
 
         // setup += Utils::time_diff(start_setup);
 
@@ -105,10 +101,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     //            Utils::to_sec(setup.load())
     //                / (num_triples > static_cast<size_t>(threads) ? threads : num_triples));
 
-    for (int i = 0; i < threads; ++i) {
-        delete ios[i];
-    }
-    delete[] ios;
+    keys.disconnect();
 }
 
 void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],
@@ -117,15 +110,11 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     assert(bitlength == 32 && "[arith. triples] Unsupported bitlength");
     Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (ARITH): ", num_triples,
                " " + Utils::proto_str(proto));
-    const char* addr = ip.c_str();
-    if (party == emp::ALICE)
-        addr = nullptr;
-
     auto start = measure::now();
 
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
-
-    auto& bn = Keys::instance(ios, party).get_bn();
+    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+    auto& bn   = keys.get_bn();
+    auto** ios = keys.get_ios();
 
     auto pool = seal::MemoryPoolHandle::New();
     auto pg   = seal::MMProfGuard(std::make_unique<seal::MMProfFixed>(std::move(pool)));
@@ -188,13 +177,13 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party - 1, ": Arith triple data[", unit, "]: ", data);
 
-    for (int i = 0; i < threads; ++i) delete ios[i];
-    delete[] ios;
+    keys.disconnect();
 }
 
-void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
-                              int batch, uint64_t com_dim, uint64_t dim2, int party, int threads,
-                              Utils::PROTO proto, int factor) {
+void generateFCTriplesCheetah(std::string ip, int port, int io_offset, const uint32_t* a,
+                              const uint32_t* b, uint32_t* c, int batch, uint64_t com_dim,
+                              uint64_t dim2, int party, int threads, Utils::PROTO proto,
+                              int factor) {
     auto meta = Utils::init_meta_fc(com_dim, dim2);
     Utils::log(Utils::Level::INFO, "P", party - 1, " FC: ", meta.input_shape, " x ",
                meta.weight_shape, " ", Utils::proto_str(proto));
@@ -202,7 +191,9 @@ void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
     auto start = measure::now();
 
     // meta.is_shared_input = proto == Utils::PROTO::AB;
-    auto& fc = Keys::instance(ios, party).get_fc();
+    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+    auto& fc   = keys.get_fc();
+    auto** ios = keys.get_ios();
 
     uint64_t* ai = new uint64_t[meta.input_shape.num_elements() * batch];
     for (uint i = 0; i < meta.input_shape.num_elements() * batch; ++i)
@@ -249,14 +240,18 @@ void generateFCTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
 
     delete[] ai;
     delete[] bi;
+
+    keys.disconnect();
 }
 
-void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const uint32_t* b,
-                                       uint32_t* c, Utils::ConvParm parm, int party, int threads,
-                                       Utils::PROTO proto, int factor, bool is_shared_input) {
+void generateConvTriplesCheetahWrapper(std::string ip, int port, int io_offset, const uint32_t* a,
+                                       const uint32_t* b, uint32_t* c, Utils::ConvParm parm,
+                                       int party, int threads, Utils::PROTO proto, int factor,
+                                       bool is_shared_input) {
 #if USE_CONV_CUDA
     if (proto == Utils::PROTO::AB2) {
-        TROY::conv2d(ios, OTHER_PARTY(party), a, b, c, parm.batchsize, parm.ic, parm.ih, parm.iw,
+        TROY::conv2d(Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset),
+                     OTHER_PARTY(party), a, b, c, parm.batchsize, parm.ic, parm.ih, parm.iw,
                      parm.fh, parm.fw, parm.n_filters, parm.stride, parm.padding, false, factor);
         return;
     }
@@ -271,8 +266,8 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
-        generateConvTriplesCheetah(ios, a, b, c, meta, parm.batchsize, party, threads, proto,
-                                   factor);
+        generateConvTriplesCheetah(ip, port, io_offset, a, b, c, meta, parm.batchsize, party,
+                                   threads, proto, factor);
     } else {
         Utils::log(Utils::Level::INFO, "Adding padding manually");
 
@@ -287,12 +282,12 @@ void generateConvTriplesCheetahWrapper(IO::NetIO** ios, const uint32_t* a, const
 
         meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                      parm.n_filters, parm.stride, parm.padding);
-        generateConvTriplesCheetah(ios, ai.data(), b, c, meta, parm.batchsize, party, threads,
-                                   proto, factor);
+        generateConvTriplesCheetah(ip, port, io_offset, ai.data(), b, c, meta, parm.batchsize,
+                                   party, threads, proto, factor);
     }
 }
 
-void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
+void generateConvTriplesCheetah(std::string ip, int port, int io_offset, size_t total_batches,
                                 std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
                                 uint32_t* c, Utils::PROTO proto, int party, int threads, int factor,
                                 bool is_shared_input) {
@@ -303,7 +298,9 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
     vector<vector<seal::Ciphertext>> enc_a2(total_batches);
     vector<vector<seal::Serializable<seal::Ciphertext>>> enc_a1(total_batches);
 
-    auto& hom_conv = Keys::instance(ios, party).get_conv();
+    auto& keys     = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+    auto& hom_conv = keys.get_conv();
+    auto** ios     = keys.get_ios();
 
     auto pool = seal::MemoryPoolHandle::New();
     auto pg   = seal::MMProfGuard(std::make_unique<seal::MMProfFixed>(std::move(pool)));
@@ -481,14 +478,18 @@ void generateConvTriplesCheetah(IO::NetIO** ios, size_t total_batches,
     double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV triple data[", unit, "]: ", data);
+    keys.disconnect();
 }
 
-void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
+void generateConvTriplesCheetah(std::string ip, int port, int io_offset, const uint32_t* a,
+                                const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, int party,
                                 int threads, Utils::PROTO proto, int factor) {
     auto start = measure::now();
 
-    auto& conv = Keys::instance(ios, party).get_conv();
+    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+    auto& conv = keys.get_conv();
+    auto** ios = keys.get_ios();
 
     double time_ntt = 0;
 
@@ -558,11 +559,12 @@ void generateConvTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32
 
     delete[] ai;
     delete[] bi;
+    keys.disconnect();
 }
 
-void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t* b, uint32_t* c,
-                              int batch, size_t num_ele, size_t h, size_t w, int party, int threads,
-                              Utils::PROTO proto, int factor) {
+void generateBNTriplesCheetah(std::string ip, int port, int io_offset, const uint32_t* a,
+                              const uint32_t* b, uint32_t* c, int batch, size_t num_ele, size_t h,
+                              size_t w, int party, int threads, Utils::PROTO proto, int factor) {
     auto meta = Utils::init_meta_bn(num_ele, h, w);
     Utils::log(Utils::Level::INFO, "P", party - 1, " BN: ", meta.ishape, " x ", meta.vec_shape,
                ", ", Utils::proto_str(proto));
@@ -570,7 +572,9 @@ void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
     auto start = measure::now();
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
-    auto& bn             = Keys::instance(ios, party).get_bn();
+    auto& keys           = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+    auto& bn             = keys.get_bn();
+    auto** ios           = keys.get_ios();
 
     size_t ac_batch_size = batch / factor;
     for (int cur_batch = 0; cur_batch < batch; ++cur_batch) {
@@ -612,6 +616,8 @@ void generateBNTriplesCheetah(IO::NetIO** ios, const uint32_t* a, const uint32_t
     double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party - 1, ": BN triple data[", unit, "]: ", data);
+
+    keys.disconnect();
 }
 
 void tmp(int party, int threads) {
@@ -681,12 +687,10 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
                   int threads) {
     int bitlen = 32;
 
-    const char* addr = ip.c_str();
-    if (party == emp::ALICE)
-        addr = nullptr;
-
-    IO::NetIO** ios = Utils::init_ios<IO::NetIO>(addr, port, threads, io_offset);
+    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+    auto** ios = keys.get_ios();
     ios[0]->sync();
+
     auto start = measure::now();
 
     uint8_t* sel = new uint8_t[num_input];
@@ -698,8 +702,7 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
         x[i]   = i;
     }
 
-    sci::OTPack<IO::NetIO> ot_pack(ios, threads, party, false, false);
-    Aux::multiplexer(&ot_pack, party, sel, x, y, num_input, bitlen, bitlen);
+    Aux::multiplexer(keys.get_otpack(0), party, sel, x, y, num_input, bitlen, bitlen);
 
     Utils::log(Utils::Level::INFO, "P", party - 1,
                ": multiplex time[s]: ", Utils::to_sec(Utils::time_diff(start)));
@@ -740,11 +743,11 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
     }
 #endif
 
-    for (int i = 0; i < threads; ++i) delete ios[i];
-    delete[] ios;
     delete[] sel;
     delete[] x;
     delete[] y;
+
+    keys.disconnect();
 }
 
 } // namespace Iface

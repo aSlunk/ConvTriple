@@ -278,7 +278,7 @@ Channel** Utils::init_ios(const char* addr, const int& port, const size_t& threa
                           const int& offset) {
     Channel** res = new Channel*[threads];
     for (size_t wid = 0; wid < threads; ++wid) {
-        res[wid] = new Channel(addr, port + wid * offset, true);
+        res[wid] = new Channel(addr, port + wid * offset, false);
     }
     return res;
 }
