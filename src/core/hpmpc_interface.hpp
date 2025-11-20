@@ -66,6 +66,8 @@ void generateBNTriplesCheetah(std::string ip, int port, int io_offset, const uin
 void do_multiplex(int num_input, int party, const std::string& ip, int port, int io_offset = 1,
                   int threads = 1);
 
+void generateOT();
+
 void tmp(int party, int threads);
 
 template <class Channel, class Serial>

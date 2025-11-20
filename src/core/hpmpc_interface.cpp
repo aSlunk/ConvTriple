@@ -764,4 +764,46 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
     keys.disconnect();
 }
 
+void generateOT(int party, std::string ip, int port, int threads, int io_offset) {
+    unsigned n = 0;
+    uint8_t* a = new uint8_t[n];
+    uint8_t* b = new uint8_t[n];
+
+    for (unsigned i = 0; i < n; ++i) {
+        a[i] = i & 1;
+        b[i] = 0;
+    }
+
+    auto* ot = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset).get_otpack(0);
+
+    switch (party) {
+        case emp::ALICE: {
+            uint8_t** ot_message = new uint8_t*[n];
+
+            for (unsigned i = 0; i < n; ++n) {
+                ot_message[i] = new uint8_t[2];
+                ot_message[n][0] = a[i];
+                ot_message[n][1] = a[i];
+            }
+            ot->silent_ot->send_impl(ot_message, n, 1);
+
+            if (party == emp::ALICE) {
+                for (unsigned i = 0; i < n; ++i)
+                    delete ot_message[i];
+            }
+            delete[] ot_message;
+            break;
+        }
+        case emp::BOB: {
+            ot->silent_ot->recv_impl(a, b, n, 1);
+            for (unsigned i = 0; i < n; ++n)
+                std::cout << a[i] << "\n";
+            break;
+        }
+    }
+
+    delete[] a;
+    delete[] b;
+}
+
 } // namespace Iface
