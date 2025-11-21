@@ -68,6 +68,8 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
 
 void generateOT(int party, std::string ip, int port, int threads, int io_offset);
 
+void generateCOT(int party, std::string ip, int port, int threads, int io_offset);
+
 void tmp(int party, int threads);
 
 template <class Channel, class Serial>

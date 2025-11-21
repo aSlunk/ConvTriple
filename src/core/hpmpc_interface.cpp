@@ -828,4 +828,62 @@ void generateOT(int party, std::string ip, int port, int threads, int io_offset)
     keys.disconnect();
 }
 
+void generateCOT(int party, std::string ip, int port, int threads, int io_offset) {
+    unsigned num_triples = 10;
+    uint64_t* a = new uint64_t[num_triples];
+    uint64_t* b = new uint64_t[num_triples];
+
+    for (unsigned i = 0; i < num_triples; ++i) {
+        b[i] = 10;
+    }
+
+    auto start = measure::now();
+    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+    auto** ios = keys.get_ios();
+
+    auto func = [&](int wid, size_t start, size_t end) -> Code {
+        if (start >= end) return Code::OK;
+
+        size_t n = end - start;
+        auto* ot = keys.get_otpack(wid);
+
+        switch (party) {
+            case emp::ALICE: {
+                ot->silent_ot->send_cot(a + start, b + start, n, 32);
+                ot->silent_ot->flush();
+                for (size_t i = 0; i < n; ++i)
+                    std::cout << a[i] << "\n";
+                break;
+            }
+            case emp::BOB: {
+                bool* sel = new bool[n];
+                for (size_t i = 0; i < n; ++i)
+                    sel[i] = i & 1;
+
+                ot->silent_ot->recv_cot(a + start, sel, n, 32);
+                for (size_t i = 0; i < n; ++i)
+                    std::cout << a[i] << "\n";
+                delete[] sel;
+                break;
+            }
+        }
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(threads);
+    gemini::LaunchWorks(tpool, num_triples, func);
+
+    delete[] a;
+    delete[] b;
+
+    Utils::log(Utils::Level::INFO, "P", party - 1,
+               ": OT time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    std::string unit;
+    double data = 0;
+    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": OT data[", unit, "]: ", data);
+
+    keys.disconnect();
+}
+
 } // namespace Iface

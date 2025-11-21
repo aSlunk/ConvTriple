@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
 
     int num_triples = 10;
 
-    Iface::generateOT(PARTY, std::string(""), port, threads, 1);
+    Iface::generateCOT(PARTY, std::string(""), port, threads, 1);
 
     Iface::do_multiplex(9'000'000, PARTY, std::string(""), port, 1, threads);
 
