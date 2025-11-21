@@ -143,18 +143,19 @@ void unpack_ot_messages(basetype* data, const uint8_t* r, basetype* recvd, block
     }
 }
 
-inline void pack_cot_messages(uint64_t* y, uint64_t* corr_data, int ysize, int bsize, int bitsize) {
+template <class T>
+inline void pack_cot_messages(T* y, T* corr_data, int ysize, int bsize, int bitsize) {
     assert(y != nullptr && corr_data != nullptr);
     uint64_t start_pos   = 0;
     uint64_t end_pos     = 0;
     uint64_t start_block = 0;
     uint64_t end_block   = 0;
-    uint64_t temp_bl     = 0;
-    uint64_t mask        = (1ULL << bitsize) - 1;
-    if (bitsize == 64)
-        mask = -1;
+    T temp_bl     = 0;
+    T mask        = (1ULL << bitsize) - 1;
+    if (bitsize == sizeof(T) * 8)
+        mask = -1ULL;
 
-    uint64_t carriersize = 64;
+    uint64_t carriersize = sizeof(T) * 8;
     for (int i = 0; i < ysize; i++) {
         y[i] = 0;
     }
@@ -164,7 +165,7 @@ inline void pack_cot_messages(uint64_t* y, uint64_t* corr_data, int ysize, int b
         end_pos -= 1; // inclusive
         start_block = start_pos / carriersize;
         end_block   = end_pos / carriersize;
-        if (carriersize == 64) {
+        if (carriersize == sizeof(T) * 8) {
             if (start_block == end_block) {
                 y[start_block] ^= (corr_data[i] & mask) << (start_pos % carriersize);
             } else {
@@ -176,7 +177,8 @@ inline void pack_cot_messages(uint64_t* y, uint64_t* corr_data, int ysize, int b
     }
 }
 
-inline void unpack_cot_messages(uint64_t* corr_data, uint64_t* recvd, int bsize, int bitsize) {
+template <class T>
+inline void unpack_cot_messages(T* corr_data, T* recvd, int bsize, int bitsize) {
     assert(corr_data != nullptr && recvd != nullptr);
     uint64_t start_pos   = 0;
     uint64_t end_pos     = 0;

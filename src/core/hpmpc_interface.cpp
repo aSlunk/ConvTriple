@@ -766,7 +766,7 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
 
 void generateOT(int party, std::string ip, int port, int threads, int io_offset) {
     unsigned num_triples = 9'000'000;
-    uint8_t* a = new uint8_t[num_triples];
+    uint64_t* a = new uint64_t[num_triples];
     uint8_t* b = new uint8_t[num_triples];
 
     for (unsigned i = 0; i < num_triples; ++i) {
@@ -786,15 +786,15 @@ void generateOT(int party, std::string ip, int port, int threads, int io_offset)
 
         switch (party) {
             case emp::ALICE: {
-                uint8_t** ot_message = new uint8_t*[n];
+                uint64_t** ot_message = new uint64_t*[n];
 
                 for (unsigned i = 0; i < n; ++i) {
-                    ot_message[i] = new uint8_t[2];
+                    ot_message[i] = new uint64_t[2];
                     ot_message[i][0] = a[i];
                     ot_message[i][1] = b[i];
                 }
 
-                ot->silent_ot->send(ot_message, n, 1);
+                ot->silent_ot->send(ot_message, n, 32);
                 ot->silent_ot->flush();
 
                 if (party == emp::ALICE) {
@@ -805,7 +805,7 @@ void generateOT(int party, std::string ip, int port, int threads, int io_offset)
                 break;
             }
             case emp::BOB: {
-                ot->silent_ot->recv(a, b, n, 1);
+                ot->silent_ot->recv(a, b, n, 32);
                 break;
             }
         }

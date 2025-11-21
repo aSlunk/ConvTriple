@@ -75,12 +75,14 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
         recv_ot_cm_cc(data, b, length, N, l);
     }
 
-    void send_cot(uint64_t* data0, const uint64_t* corr, int length, int l) {
+    template <class T>
+    void send_cot(T* data0, const T* corr, int length, int l) {
         send_ot_cam_cc(data0, corr, length, l);
         flush();
     }
 
-    void recv_cot(uint64_t* data, const bool* b, int length, int l) {
+    template <class T>
+    void recv_cot(T* data, const bool* b, int length, int l) {
         recv_ot_cam_cc(data, b, length, l);
     }
 
@@ -88,7 +90,8 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
     // Sender chooses one message 'corr'. A correlation is defined by the addition
     // function: f(x) = x + corr Sender receives a random message 'x' as output
     // ('data0').
-    void send_ot_cam_cc(uint64_t* data0, const uint64_t* corr, int64_t length, int l) {
+    template <class T>
+    void send_ot_cam_cc(T* data0, const T* corr, int64_t length, int l) {
         uint64_t modulo_mask = (1ULL << l) - 1;
         if (l == 64)
             modulo_mask = -1;
@@ -102,10 +105,10 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
         ferret->io->flush();
 
         block pad[2 * ot_bsize];
-        uint32_t y_size = (uint32_t)ceil((ot_bsize * l) / (float(64)));
+        uint32_t y_size = (uint32_t)ceil((ot_bsize * l) / (float)(sizeof(T) * 8));
         uint32_t corrected_y_size, corrected_bsize;
-        uint64_t y[y_size];
-        uint64_t corr_data[ot_bsize];
+        T y[y_size];
+        T corr_data[ot_bsize];
 
         for (int64_t i = 0; i < length; i += ot_bsize) {
             for (int64_t j = i; j < std::min(i + ot_bsize, length); ++j) {
@@ -121,11 +124,11 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
                                    & modulo_mask;
             }
             corrected_y_size = (uint32_t)ceil((std::min(ot_bsize, length - i) * l)
-                                              / ((float)sizeof(uint64_t) * 8));
+                                              / ((float)sizeof(T) * 8));
             corrected_bsize  = std::min(ot_bsize, length - i);
 
             sci::pack_cot_messages(y, corr_data, corrected_y_size, corrected_bsize, l);
-            ferret->io->send_data(y, sizeof(uint64_t) * (corrected_y_size));
+            ferret->io->send_data(y, sizeof(T) * (corrected_y_size));
         }
 
         delete[] rcm_data;
@@ -134,7 +137,8 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
     // chosen additive message, chosen choice
     // Receiver chooses a choice bit 'b', and
     // receives 'x' if b = 0, and 'x + corr' if b = 1
-    void recv_ot_cam_cc(uint64_t* data, const bool* b, int64_t length, int l) {
+    template <class T>
+    void recv_ot_cam_cc(T* data, const bool* b, int64_t length, int l) {
         uint64_t modulo_mask = (1ULL << l) - 1;
         if (l == 64)
             modulo_mask = -1;
@@ -148,20 +152,20 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
 
         block pad[ot_bsize];
 
-        uint32_t recvd_size = (uint32_t)ceil((ot_bsize * l) / (float(64)));
+        uint32_t recvd_size = (uint32_t)ceil((ot_bsize * l) / (float(sizeof(T) * 8)));
         uint32_t corrected_recvd_size, corrected_bsize;
-        uint64_t corr_data[ot_bsize];
-        uint64_t recvd[recvd_size];
+        T corr_data[ot_bsize];
+        T recvd[recvd_size];
 
         for (int64_t i = 0; i < length; i += ot_bsize) {
             corrected_recvd_size
-                = (uint32_t)ceil((std::min(ot_bsize, length - i) * l) / (float(64)));
+                = (uint32_t)ceil((std::min(ot_bsize, length - i) * l) / (float(sizeof(T) * 8)));
             corrected_bsize = std::min(ot_bsize, length - i);
 
             memcpy(pad, rcm_data + i, std::min(ot_bsize, length - i) * sizeof(block));
             ferret->mitccrh.template hash<ot_bsize, 1>(pad);
 
-            ferret->io->recv_data(recvd, sizeof(uint64_t) * corrected_recvd_size);
+            ferret->io->recv_data(recvd, sizeof(T) * corrected_recvd_size);
 
             sci::unpack_cot_messages(corr_data, recvd, corrected_bsize, l);
 
