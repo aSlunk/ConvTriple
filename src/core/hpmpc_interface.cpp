@@ -836,7 +836,6 @@ void generateOT(int party, const std::string& ip, int port, int threads, int io_
 
 void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const unsigned& num_triples,
                  const std::string& ip, int port, int threads, int io_offset) {
-
     auto start = measure::now();
     auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
     auto** ios = keys.get_ios();
@@ -853,7 +852,6 @@ void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const unsigned
             ot->silent_ot->send_cot(c + start, a + start, n, 32);
             for (size_t i = 0; i < n; ++i) {
                 c[i + start] = -c[i + start] & moduloMask;
-                //std::cout << party << ": " << c[i + start] << "\n";
             }
             break;
         }
@@ -862,9 +860,6 @@ void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const unsigned
             for (size_t i = 0; i < n; ++i) sel[i] = get_nth(b, start + i);
 
             ot->silent_ot->recv_cot(c + start, sel, n, 32);
-            // for (size_t i = 0; i < n; ++i) {
-            //     std::cout << party << ": " << c[i + start] << "\n";
-            // }
             delete[] sel;
             break;
         }
@@ -881,6 +876,31 @@ void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const unsigned
     double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
     Utils::log(Utils::Level::INFO, "P", party - 1, ": OT data[", unit, "]: ", data);
+
+#ifdef VERIFY
+    if (party == emp::BOB) {
+        ios[0]->send_data(b, sizeof(*b) * num_triples / 8);
+        ios[0]->send_data(c, sizeof(*c) * num_triples);
+    } else {
+        std::vector<uint8_t> b_bob(num_triples / 8);
+        std::vector<uint32_t> c_bob(num_triples);
+
+        ios[0]->recv_data(b_bob.data(), b_bob.size());
+        ios[0]->recv_data(c_bob.data(), c_bob.size() * sizeof(*c));
+
+        bool passed = true;
+        for (size_t i = 0; i < num_triples; ++i) {
+            if (((c[i] + c_bob[i]) & moduloMask) != a[i] * get_nth(b_bob.data(), i)) {
+                passed = false;
+                break;
+            }
+        }
+        if (passed)
+            Utils::log(Utils::Level::PASSED, "COT: PASSED");
+        else
+            Utils::log(Utils::Level::FAILED, "COT: FAILED");
+    }
+#endif
 
     keys.disconnect();
 }
