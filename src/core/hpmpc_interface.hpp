@@ -30,54 +30,59 @@ void exchange_keys(Channel** ios, const SerKey& pkey, seal::PublicKey& o_pkey,
 }
 
 void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[], int bitlength,
-                                uint64_t num_triples, std::string ip, int port, int party,
+                                uint64_t num_triples, const std::string& ip, int port, int party,
                                 int threads = 1, TripleGenMethod method = _16KKOT_to_4OT,
                                 unsigned io_offset = 1);
 
 void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],
-                                 int bitlength, uint64_t num_triples, std::string ip, int port,
+                                 int bitlength, uint64_t num_triples, const std::string& ip, int port,
                                  int party, int threads = 1, Utils::PROTO proto = Utils::PROTO::AB,
                                  unsigned io_offset = 1);
 
-void generateFCTriplesCheetah(std::string ip, int port, int io_offset, const uint32_t* a,
+void generateFCTriplesCheetah(const std::string& ip, int port, int io_offset, const uint32_t* a,
                               const uint32_t* b, uint32_t* c, int batch, uint64_t com_dim,
                               uint64_t dim2, int party, int threads, Utils::PROTO proto,
                               int factor = 1);
 
-void generateConvTriplesCheetahWrapper(std::string ip, int port, int io_offset, const uint32_t* a,
+void generateConvTriplesCheetahWrapper(const std::string& ip, int port, int io_offset, const uint32_t* a,
                                        const uint32_t* b, uint32_t* c, Utils::ConvParm parm,
                                        int party, int threads, Utils::PROTO proto, int factor = 1,
                                        bool is_shared_input = false);
 
-void generateConvTriplesCheetah(std::string ip, int port, int io_offset, size_t total_batches,
+void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, size_t total_batches,
                                 std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
                                 uint32_t* c, Utils::PROTO proto, int party, int threads, int factor,
                                 bool is_shared_input = false);
 
-void generateConvTriplesCheetah(std::string ip, int port, int io_offset, const uint32_t* a,
+void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, const uint32_t* a,
                                 const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, int party,
                                 int threads, Utils::PROTO proto, int factor);
 
-void generateBNTriplesCheetah(std::string ip, int port, int io_offset, const uint32_t* a,
+void generateBNTriplesCheetah(const std::string& ip, int port, int io_offset, const uint32_t* a,
                               const uint32_t* b, uint32_t* c, int batch, size_t num_ele, size_t h,
                               size_t w, int party, int threads, Utils::PROTO proto, int factor = 1);
 
 void do_multiplex(int num_input, uint32_t* x32, uint8_t* sel_packed, uint32_t* y32, int party,
                   const std::string& ip, int port, int io_offset, int threads);
 
-void generateOT(int party, std::string ip, int port, int threads, int io_offset);
+void generateOT(int party, const std::string& ip, int port, int threads, int io_offset);
 
-void generateCOT(int party, std::string ip, int port, int threads, int io_offset);
+void generateCOT(int party, const std::string& ip, int port, int threads, int io_offset);
 
 void tmp(int party, int threads);
 
-template <class T>
-inline uint8_t get_nth(const T* a, size_t idx) {
-    size_t bits  = sizeof(T) * 8;
+template <class T, bool LSB = true>
+inline uint8_t get_nth(const T* a, const size_t& idx) {
+    constexpr size_t bits  = sizeof(T) * 8;
     size_t block = idx / bits;
     size_t bit   = idx % bits;
-    return (a[block] >> bit) & 1;
+
+    if constexpr (LSB) {
+        return (a[block] >> bit) & 1;
+    } else {
+        return (a[block] >> (bits - (bit + 1))) & 1;
+    }
 }
 
 template <class Channel, class Serial>

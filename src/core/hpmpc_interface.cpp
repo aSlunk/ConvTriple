@@ -50,7 +50,7 @@ class PROF : public seal::MMProf {
 
 void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
                                 int bitlength [[maybe_unused]], uint64_t num_triples,
-                                std::string ip, int port, int party, int threads,
+                                const std::string& ip, int port, int party, int threads,
                                 TripleGenMethod method, unsigned io_offset) {
     Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (BOOL): ", num_triples);
     // std::atomic<int> setup = 0;
@@ -105,7 +105,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
 }
 
 void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],
-                                 int bitlength, uint64_t num_triples, std::string ip, int port,
+                                 int bitlength, uint64_t num_triples, const std::string& ip, int port,
                                  int party, int threads, Utils::PROTO proto, unsigned io_offset) {
     assert(bitlength == 32 && "[arith. triples] Unsupported bitlength");
     Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (ARITH): ", num_triples,
@@ -180,7 +180,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     keys.disconnect();
 }
 
-void generateFCTriplesCheetah(std::string ip, int port, int io_offset, const uint32_t* a,
+void generateFCTriplesCheetah(const std::string& ip, int port, int io_offset, const uint32_t* a,
                               const uint32_t* b, uint32_t* c, int batch, uint64_t com_dim,
                               uint64_t dim2, int party, int threads, Utils::PROTO proto,
                               int factor) {
@@ -244,7 +244,7 @@ void generateFCTriplesCheetah(std::string ip, int port, int io_offset, const uin
     keys.disconnect();
 }
 
-void generateConvTriplesCheetahWrapper(std::string ip, int port, int io_offset, const uint32_t* a,
+void generateConvTriplesCheetahWrapper(const std::string& ip, int port, int io_offset, const uint32_t* a,
                                        const uint32_t* b, uint32_t* c, Utils::ConvParm parm,
                                        int party, int threads, Utils::PROTO proto, int factor,
                                        bool is_shared_input) {
@@ -287,7 +287,7 @@ void generateConvTriplesCheetahWrapper(std::string ip, int port, int io_offset, 
     }
 }
 
-void generateConvTriplesCheetah(std::string ip, int port, int io_offset, size_t total_batches,
+void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, size_t total_batches,
                                 std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
                                 uint32_t* c, Utils::PROTO proto, int party, int threads, int factor,
                                 bool is_shared_input) {
@@ -481,7 +481,7 @@ void generateConvTriplesCheetah(std::string ip, int port, int io_offset, size_t 
     keys.disconnect();
 }
 
-void generateConvTriplesCheetah(std::string ip, int port, int io_offset, const uint32_t* a,
+void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, const uint32_t* a,
                                 const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, int party,
                                 int threads, Utils::PROTO proto, int factor) {
@@ -562,7 +562,7 @@ void generateConvTriplesCheetah(std::string ip, int port, int io_offset, const u
     keys.disconnect();
 }
 
-void generateBNTriplesCheetah(std::string ip, int port, int io_offset, const uint32_t* a,
+void generateBNTriplesCheetah(const std::string& ip, int port, int io_offset, const uint32_t* a,
                               const uint32_t* b, uint32_t* c, int batch, size_t num_ele, size_t h,
                               size_t w, int party, int threads, Utils::PROTO proto, int factor) {
     auto meta = Utils::init_meta_bn(num_ele, h, w);
@@ -769,7 +769,7 @@ void do_multiplex(int num_input, uint32_t* x32, uint8_t* sel_packed, uint32_t* y
     keys.disconnect();
 }
 
-void generateOT(int party, std::string ip, int port, int threads, int io_offset) {
+void generateOT(int party, const std::string& ip, int port, int threads, int io_offset) {
     unsigned num_triples = 9'000'000;
     uint64_t* a          = new uint64_t[num_triples];
     uint8_t* b           = new uint8_t[num_triples];
@@ -833,7 +833,7 @@ void generateOT(int party, std::string ip, int port, int threads, int io_offset)
     keys.disconnect();
 }
 
-void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, std::string ip, int port,
+void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const std::string& ip, int port,
                  int threads, int io_offset) {
     unsigned num_triples = 10;
 
