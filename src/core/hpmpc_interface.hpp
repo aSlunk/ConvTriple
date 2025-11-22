@@ -35,24 +35,25 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[], int bitle
                                 unsigned io_offset = 1);
 
 void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],
-                                 int bitlength, uint64_t num_triples, const std::string& ip, int port,
-                                 int party, int threads = 1, Utils::PROTO proto = Utils::PROTO::AB,
-                                 unsigned io_offset = 1);
+                                 int bitlength, uint64_t num_triples, const std::string& ip,
+                                 int port, int party, int threads = 1,
+                                 Utils::PROTO proto = Utils::PROTO::AB, unsigned io_offset = 1);
 
 void generateFCTriplesCheetah(const std::string& ip, int port, int io_offset, const uint32_t* a,
                               const uint32_t* b, uint32_t* c, int batch, uint64_t com_dim,
                               uint64_t dim2, int party, int threads, Utils::PROTO proto,
                               int factor = 1);
 
-void generateConvTriplesCheetahWrapper(const std::string& ip, int port, int io_offset, const uint32_t* a,
-                                       const uint32_t* b, uint32_t* c, Utils::ConvParm parm,
-                                       int party, int threads, Utils::PROTO proto, int factor = 1,
+void generateConvTriplesCheetahWrapper(const std::string& ip, int port, int io_offset,
+                                       const uint32_t* a, const uint32_t* b, uint32_t* c,
+                                       Utils::ConvParm parm, int party, int threads,
+                                       Utils::PROTO proto, int factor = 1,
                                        bool is_shared_input = false);
 
-void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, size_t total_batches,
-                                std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
-                                uint32_t* c, Utils::PROTO proto, int party, int threads, int factor,
-                                bool is_shared_input = false);
+void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset,
+                                size_t total_batches, std::vector<Utils::ConvParm>& parms,
+                                uint32_t** a, uint32_t** b, uint32_t* c, Utils::PROTO proto,
+                                int party, int threads, int factor, bool is_shared_input = false);
 
 void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, const uint32_t* a,
                                 const uint32_t* b, uint32_t* c,
@@ -68,15 +69,16 @@ void do_multiplex(int num_input, uint32_t* x32, uint8_t* sel_packed, uint32_t* y
 
 void generateOT(int party, const std::string& ip, int port, int threads, int io_offset);
 
-void generateCOT(int party, const std::string& ip, int port, int threads, int io_offset);
+void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const unsigned& num_triples,
+                 const std::string& ip, int port, int threads, int io_offset);
 
 void tmp(int party, int threads);
 
 template <class T, bool LSB = true>
 inline uint8_t get_nth(const T* a, const size_t& idx) {
-    constexpr size_t bits  = sizeof(T) * 8;
-    size_t block = idx / bits;
-    size_t bit   = idx % bits;
+    constexpr size_t bits = sizeof(T) * 8;
+    size_t block          = idx / bits;
+    size_t bit            = idx % bits;
 
     if constexpr (LSB) {
         return (a[block] >> bit) & 1;

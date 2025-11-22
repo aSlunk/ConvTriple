@@ -105,8 +105,9 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
 }
 
 void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],
-                                 int bitlength, uint64_t num_triples, const std::string& ip, int port,
-                                 int party, int threads, Utils::PROTO proto, unsigned io_offset) {
+                                 int bitlength, uint64_t num_triples, const std::string& ip,
+                                 int port, int party, int threads, Utils::PROTO proto,
+                                 unsigned io_offset) {
     assert(bitlength == 32 && "[arith. triples] Unsupported bitlength");
     Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (ARITH): ", num_triples,
                " " + Utils::proto_str(proto));
@@ -244,10 +245,10 @@ void generateFCTriplesCheetah(const std::string& ip, int port, int io_offset, co
     keys.disconnect();
 }
 
-void generateConvTriplesCheetahWrapper(const std::string& ip, int port, int io_offset, const uint32_t* a,
-                                       const uint32_t* b, uint32_t* c, Utils::ConvParm parm,
-                                       int party, int threads, Utils::PROTO proto, int factor,
-                                       bool is_shared_input) {
+void generateConvTriplesCheetahWrapper(const std::string& ip, int port, int io_offset,
+                                       const uint32_t* a, const uint32_t* b, uint32_t* c,
+                                       Utils::ConvParm parm, int party, int threads,
+                                       Utils::PROTO proto, int factor, bool is_shared_input) {
 #if USE_CONV_CUDA
     if (proto == Utils::PROTO::AB2) {
         TROY::conv2d(Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset),
@@ -287,10 +288,10 @@ void generateConvTriplesCheetahWrapper(const std::string& ip, int port, int io_o
     }
 }
 
-void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, size_t total_batches,
-                                std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
-                                uint32_t* c, Utils::PROTO proto, int party, int threads, int factor,
-                                bool is_shared_input) {
+void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset,
+                                size_t total_batches, std::vector<Utils::ConvParm>& parms,
+                                uint32_t** a, uint32_t** b, uint32_t* c, Utils::PROTO proto,
+                                int party, int threads, int factor, bool is_shared_input) {
     auto start = measure::now();
 
     vector<vector<seal::Plaintext>> enc_a(total_batches);
@@ -833,13 +834,8 @@ void generateOT(int party, const std::string& ip, int port, int threads, int io_
     keys.disconnect();
 }
 
-void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const std::string& ip, int port,
-                 int threads, int io_offset) {
-    unsigned num_triples = 10;
-
-    for (unsigned i = 0; i < num_triples; ++i) {
-        a[i] = 10;
-    }
+void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const unsigned& num_triples,
+                 const std::string& ip, int port, int threads, int io_offset) {
 
     auto start = measure::now();
     auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
@@ -855,7 +851,10 @@ void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const std::str
         switch (party) {
         case emp::ALICE: {
             ot->silent_ot->send_cot(c + start, a + start, n, 32);
-            for (size_t i = 0; i < n; ++i) c[i + start] = -c[i + start];
+            for (size_t i = 0; i < n; ++i) {
+                c[i + start] = -c[i + start] & moduloMask;
+                //std::cout << party << ": " << c[i + start] << "\n";
+            }
             break;
         }
         case emp::BOB: {
@@ -863,7 +862,9 @@ void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const std::str
             for (size_t i = 0; i < n; ++i) sel[i] = get_nth(b, start + i);
 
             ot->silent_ot->recv_cot(c + start, sel, n, 32);
-            for (size_t i = 0; i < n; ++i) std::cout << a[i] << "\n";
+            // for (size_t i = 0; i < n; ++i) {
+            //     std::cout << party << ": " << c[i + start] << "\n";
+            // }
             delete[] sel;
             break;
         }
@@ -874,10 +875,7 @@ void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const std::str
     gemini::ThreadPool tpool(1);
     gemini::LaunchWorks(tpool, num_triples, func);
 
-    delete[] a;
-    delete[] b;
-
-    Utils::log(Utils::Level::INFO, "P", party - 1,
+    Utils::log(Utils::Level::INFO, "P", party - 0,
                ": OT time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;

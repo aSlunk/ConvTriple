@@ -24,15 +24,28 @@ int main(int argc, char** argv) {
     else
         threads = std::min(strtoul(argv[4], NULL, 10), (size_t)N_THREADS);
 
-    int num_triples = 10;
+    int num_triples = 1;
 
-    // Iface::generateCOT(PARTY, std::string(""), port, threads, 1);
+    {
+        uint32_t a[num_triples * 8];
+        uint8_t b[num_triples];
+        uint32_t c[num_triples * 8];
 
-    // Iface::do_multiplex(9'000'000, PARTY, std::string(""), port, 1, threads);
+        for (int i = 0; i < num_triples; ++i) {
+            b[i] = 0xff;
+            for (size_t j = 0; j < 8; ++j) {
+                a[i * 8 + j] = 10;
+            }
+        }
+
+        Iface::do_multiplex(num_triples * 8, a, b, c, PARTY, std::string(""), port, 1, threads);
+        Iface::generateCOT(PARTY, a, nullptr, c, num_triples * 8, std::string(""), port, threads,
+                           1);
+    }
 
     {
         int tmp = 37'996'272;
-        tmp     = 32 * 9'000'000 / 8;
+        tmp     = 9'000'000 / 8;
         // tmp = 37'500'000;
         uint8_t* a = new uint8_t[tmp];
         uint8_t* b = new uint8_t[tmp];
