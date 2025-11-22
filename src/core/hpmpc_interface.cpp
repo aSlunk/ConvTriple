@@ -713,6 +713,10 @@ void do_multiplex(int num_input, uint32_t* x32, uint8_t* sel_packed, uint32_t* y
         else
             Aux::multiplexer(keys.get_otpack(wid), party, sel + start, x + start, y + start,
                              end - start, bitlen, bitlen);
+
+        for (size_t i = start; i < end; ++i) {
+            y32[i] = y[i];
+        }
         return Code::OK;
     };
 
@@ -729,14 +733,14 @@ void do_multiplex(int num_input, uint32_t* x32, uint8_t* sel_packed, uint32_t* y
 #ifdef VERIFY
     if (party == emp::BOB) {
         ios[0]->send_data(sel, sizeof(*sel) * num_input);
-        ios[0]->send_data(x, sizeof(*x) * num_input);
-        ios[0]->send_data(y, sizeof(*y) * num_input);
+        ios[0]->send_data(x32, sizeof(*x32) * num_input);
+        ios[0]->send_data(y32, sizeof(*y32) * num_input);
         ios[0]->flush();
     } else {
         Utils::log(Utils::Level::DEBUG, "Verifying MULTIPLEX: ", num_input);
         std::vector<uint8_t> sel_b(num_input);
-        std::vector<uint64_t> x_b(num_input);
-        std::vector<uint64_t> y_b(num_input);
+        std::vector<uint32_t> x_b(num_input);
+        std::vector<uint32_t> y_b(num_input);
 
         ios[0]->recv_data(sel_b.data(), sizeof(decltype(sel_b)::value_type) * num_input);
         ios[0]->recv_data(x_b.data(), sizeof(decltype(x_b)::value_type) * num_input);
@@ -744,8 +748,8 @@ void do_multiplex(int num_input, uint32_t* x32, uint8_t* sel_packed, uint32_t* y
 
         bool passed = true;
         for (int i = 0; i < num_input; ++i) {
-            if (((y[i] + y_b[i]) & moduloMask)
-                != ((x[i] + x_b[i]) & moduloMask) * ((sel[i] + sel_b[i]) & 1)) {
+            if (((y32[i] + y_b[i]) & moduloMask)
+                != ((x32[i] + x_b[i]) & moduloMask) * ((sel[i] + sel_b[i]) & 1)) {
                 passed = false;
                 break;
             }
