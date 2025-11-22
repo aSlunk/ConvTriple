@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
 
     Iface::generateCOT(PARTY, std::string(addr), port, threads, 1);
 
-    Iface::do_multiplex(9'000'000, PARTY, std::string(addr), port, 1, threads);
+    // Iface::do_multiplex(9'000'000, PARTY, std::string(addr), port, 1, threads);
 
     {
         int tmp = 37'996'272;

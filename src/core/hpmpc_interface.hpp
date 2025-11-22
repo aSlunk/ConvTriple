@@ -63,14 +63,20 @@ void generateBNTriplesCheetah(std::string ip, int port, int io_offset, const uin
                               const uint32_t* b, uint32_t* c, int batch, size_t num_ele, size_t h,
                               size_t w, int party, int threads, Utils::PROTO proto, int factor = 1);
 
-void do_multiplex(int num_input, int party, const std::string& ip, int port, int io_offset = 1,
-                  int threads = 1);
+void do_multiplex(int num_input, uint32_t* x32, uint8_t* sel_packed, uint32_t* y32, int party,
+                  const std::string& ip, int port, int io_offset, int threads);
 
 void generateOT(int party, std::string ip, int port, int threads, int io_offset);
 
 void generateCOT(int party, std::string ip, int port, int threads, int io_offset);
 
 void tmp(int party, int threads);
+
+inline uint8_t get_nth(const uint8_t* a, size_t idx) {
+    size_t block = idx / 8;
+    size_t bit   = idx % 8;
+    return (a[block] >> bit) & 1;
+}
 
 template <class Channel, class Serial>
 void send_vec(Channel** ios, std::vector<std::vector<Serial>>& vec, int threads) {

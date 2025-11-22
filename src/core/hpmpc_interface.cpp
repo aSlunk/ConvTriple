@@ -683,13 +683,12 @@ void tmp(int party, int threads) {
     delete[] io;
 }
 
-void do_multiplex(int num_input, int party, const std::string& ip, int port, int io_offset,
-                  int threads) {
+void do_multiplex(int num_input, uint32_t* x32, uint8_t* sel_packed, uint32_t* y32, int party,
+                  const std::string& ip, int port, int io_offset, int threads) {
     int bitlen = 32;
 
     auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
     auto** ios = keys.get_ios();
-    ios[0]->sync();
 
     auto start = measure::now();
 
@@ -702,8 +701,10 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
             return Code::OK;
 
         for (size_t i = start; i < end; ++i) {
-            sel[i] = party == 1 ? i % 2 : (i % 2) ^ 1;
-            x[i]   = i;
+            sel[i] = get_nth(sel_packed, i);
+            if (party == emp::ALICE)
+                sel[i] = sel[i] ^ 1;
+            x[i] = x32[i];
         }
 
         if (wid & 1)
@@ -766,8 +767,8 @@ void do_multiplex(int num_input, int party, const std::string& ip, int port, int
 
 void generateOT(int party, std::string ip, int port, int threads, int io_offset) {
     unsigned num_triples = 9'000'000;
-    uint64_t* a = new uint64_t[num_triples];
-    uint8_t* b = new uint8_t[num_triples];
+    uint64_t* a          = new uint64_t[num_triples];
+    uint8_t* b           = new uint8_t[num_triples];
 
     for (unsigned i = 0; i < num_triples; ++i) {
         a[i] = 1;
@@ -779,35 +780,35 @@ void generateOT(int party, std::string ip, int port, int threads, int io_offset)
     auto** ios = keys.get_ios();
 
     auto func = [&](int wid, size_t start, size_t end) -> Code {
-        if (start >= end) return Code::OK;
+        if (start >= end)
+            return Code::OK;
 
         size_t n = end - start;
         auto* ot = keys.get_otpack(wid);
 
         switch (party) {
-            case emp::ALICE: {
-                uint64_t** ot_message = new uint64_t*[n];
+        case emp::ALICE: {
+            uint64_t** ot_message = new uint64_t*[n];
 
-                for (unsigned i = 0; i < n; ++i) {
-                    ot_message[i] = new uint64_t[2];
-                    ot_message[i][0] = a[i];
-                    ot_message[i][1] = b[i];
-                }
-
-                ot->silent_ot->send(ot_message, n, 32);
-                ot->silent_ot->flush();
-
-                if (party == emp::ALICE) {
-                    for (unsigned i = 0; i < n; ++i)
-                        delete ot_message[i];
-                }
-                delete[] ot_message;
-                break;
+            for (unsigned i = 0; i < n; ++i) {
+                ot_message[i]    = new uint64_t[2];
+                ot_message[i][0] = a[i];
+                ot_message[i][1] = b[i];
             }
-            case emp::BOB: {
-                ot->silent_ot->recv(a, b, n, 32);
-                break;
+
+            ot->silent_ot->send(ot_message, n, 32);
+            ot->silent_ot->flush();
+
+            if (party == emp::ALICE) {
+                for (unsigned i = 0; i < n; ++i) delete ot_message[i];
             }
+            delete[] ot_message;
+            break;
+        }
+        case emp::BOB: {
+            ot->silent_ot->recv(a, b, n, 32);
+            break;
+        }
         }
         return Code::OK;
     };
@@ -830,8 +831,8 @@ void generateOT(int party, std::string ip, int port, int threads, int io_offset)
 
 void generateCOT(int party, std::string ip, int port, int threads, int io_offset) {
     unsigned num_triples = 10;
-    uint32_t* a = new uint32_t[num_triples];
-    uint32_t* b = new uint32_t[num_triples];
+    uint32_t* a          = new uint32_t[num_triples];
+    uint32_t* b          = new uint32_t[num_triples];
 
     for (unsigned i = 0; i < num_triples; ++i) {
         b[i] = 10;
@@ -842,35 +843,32 @@ void generateCOT(int party, std::string ip, int port, int threads, int io_offset
     auto** ios = keys.get_ios();
 
     auto func = [&](int wid, size_t start, size_t end) -> Code {
-        if (start >= end) return Code::OK;
+        if (start >= end)
+            return Code::OK;
 
         size_t n = end - start;
         auto* ot = keys.get_otpack(wid);
 
         switch (party) {
-            case emp::ALICE: {
-                ot->silent_ot->send_cot(a + start, b + start, n, 32);
-                ot->silent_ot->flush();
-                for (size_t i = 0; i < n; ++i)
-                    std::cout << a[i] << "\n";
-                break;
-            }
-            case emp::BOB: {
-                bool* sel = new bool[n];
-                for (size_t i = 0; i < n; ++i)
-                    sel[i] = i & 1;
+        case emp::ALICE: {
+            ot->silent_ot->send_cot(a + start, b + start, n, 32);
+            for (size_t i = 0; i < n; ++i) std::cout << a[i] << "\n";
+            break;
+        }
+        case emp::BOB: {
+            bool* sel = new bool[n];
+            for (size_t i = 0; i < n; ++i) sel[i] = i & 1;
 
-                ot->silent_ot->recv_cot(a + start, sel, n, 32);
-                for (size_t i = 0; i < n; ++i)
-                    std::cout << a[i] << "\n";
-                delete[] sel;
-                break;
-            }
+            ot->silent_ot->recv_cot(a + start, sel, n, 32);
+            for (size_t i = 0; i < n; ++i) std::cout << a[i] << "\n";
+            delete[] sel;
+            break;
+        }
         }
         return Code::OK;
     };
 
-    gemini::ThreadPool tpool(threads);
+    gemini::ThreadPool tpool(1);
     gemini::LaunchWorks(tpool, num_triples, func);
 
     delete[] a;

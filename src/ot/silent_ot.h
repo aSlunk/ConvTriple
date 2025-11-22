@@ -123,9 +123,9 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
                 corr_data[j - i] = (corr[j] + data0[j] + _mm_extract_epi64(pad[2 * (j - i) + 1], 0))
                                    & modulo_mask;
             }
-            corrected_y_size = (uint32_t)ceil((std::min(ot_bsize, length - i) * l)
-                                              / ((float)sizeof(T) * 8));
-            corrected_bsize  = std::min(ot_bsize, length - i);
+            corrected_y_size
+                = (uint32_t)ceil((std::min(ot_bsize, length - i) * l) / ((float)sizeof(T) * 8));
+            corrected_bsize = std::min(ot_bsize, length - i);
 
             sci::pack_cot_messages(y, corr_data, corrected_y_size, corrected_bsize, l);
             ferret->io->send_data(y, sizeof(T) * (corrected_y_size));
