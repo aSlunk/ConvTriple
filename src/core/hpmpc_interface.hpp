@@ -72,9 +72,11 @@ void generateCOT(int party, std::string ip, int port, int threads, int io_offset
 
 void tmp(int party, int threads);
 
-inline uint8_t get_nth(const uint8_t* a, size_t idx) {
-    size_t block = idx / 8;
-    size_t bit   = idx % 8;
+template <class T>
+inline uint8_t get_nth(const T* a, size_t idx) {
+    size_t bits  = sizeof(T) * 8;
+    size_t block = idx / bits;
+    size_t bit   = idx % bits;
     return (a[block] >> bit) & 1;
 }
 

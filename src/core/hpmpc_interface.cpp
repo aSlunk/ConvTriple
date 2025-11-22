@@ -833,13 +833,12 @@ void generateOT(int party, std::string ip, int port, int threads, int io_offset)
     keys.disconnect();
 }
 
-void generateCOT(int party, std::string ip, int port, int threads, int io_offset) {
+void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, std::string ip, int port,
+                 int threads, int io_offset) {
     unsigned num_triples = 10;
-    uint32_t* a          = new uint32_t[num_triples];
-    uint32_t* b          = new uint32_t[num_triples];
 
     for (unsigned i = 0; i < num_triples; ++i) {
-        b[i] = 10;
+        a[i] = 10;
     }
 
     auto start = measure::now();
@@ -855,15 +854,15 @@ void generateCOT(int party, std::string ip, int port, int threads, int io_offset
 
         switch (party) {
         case emp::ALICE: {
-            ot->silent_ot->send_cot(a + start, b + start, n, 32);
-            for (size_t i = 0; i < n; ++i) std::cout << a[i] << "\n";
+            ot->silent_ot->send_cot(c + start, a + start, n, 32);
+            for (size_t i = 0; i < n; ++i) c[i + start] = -c[i + start];
             break;
         }
         case emp::BOB: {
             bool* sel = new bool[n];
-            for (size_t i = 0; i < n; ++i) sel[i] = i & 1;
+            for (size_t i = 0; i < n; ++i) sel[i] = get_nth(b, start + i);
 
-            ot->silent_ot->recv_cot(a + start, sel, n, 32);
+            ot->silent_ot->recv_cot(c + start, sel, n, 32);
             for (size_t i = 0; i < n; ++i) std::cout << a[i] << "\n";
             delete[] sel;
             break;
