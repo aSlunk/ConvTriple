@@ -830,8 +830,8 @@ void generateOT(int party, std::string ip, int port, int threads, int io_offset)
 
 void generateCOT(int party, std::string ip, int port, int threads, int io_offset) {
     unsigned num_triples = 10;
-    uint64_t* a = new uint64_t[num_triples];
-    uint64_t* b = new uint64_t[num_triples];
+    uint32_t* a = new uint32_t[num_triples];
+    uint32_t* b = new uint32_t[num_triples];
 
     for (unsigned i = 0; i < num_triples; ++i) {
         b[i] = 10;

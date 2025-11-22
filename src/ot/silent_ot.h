@@ -92,9 +92,9 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
     // ('data0').
     template <class T>
     void send_ot_cam_cc(T* data0, const T* corr, int64_t length, int l) {
-        uint64_t modulo_mask = (1ULL << l) - 1;
-        if (l == 64)
-            modulo_mask = -1;
+        T modulo_mask = (1ULL << l) - 1;
+        if (l == sizeof(T) * 8)
+            modulo_mask = (T)(-1ULL);
         block* rcm_data = new block[length];
         send_ot_rcm_cc(rcm_data, length);
 
@@ -139,9 +139,9 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
     // receives 'x' if b = 0, and 'x + corr' if b = 1
     template <class T>
     void recv_ot_cam_cc(T* data, const bool* b, int64_t length, int l) {
-        uint64_t modulo_mask = (1ULL << l) - 1;
-        if (l == 64)
-            modulo_mask = -1;
+        T modulo_mask = (1ULL << l) - 1;
+        if (l == sizeof(T) * 8)
+            modulo_mask = (T)(-1ULL);
 
         block* rcm_data = new block[length];
         recv_ot_rcm_cc(rcm_data, b, length);
@@ -152,14 +152,14 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
 
         block pad[ot_bsize];
 
-        uint32_t recvd_size = (uint32_t)ceil((ot_bsize * l) / (float(sizeof(T) * 8)));
+        uint32_t recvd_size = (uint32_t)ceil((ot_bsize * l) / (float)(sizeof(T) * 8));
         uint32_t corrected_recvd_size, corrected_bsize;
         T corr_data[ot_bsize];
         T recvd[recvd_size];
 
         for (int64_t i = 0; i < length; i += ot_bsize) {
             corrected_recvd_size
-                = (uint32_t)ceil((std::min(ot_bsize, length - i) * l) / (float(sizeof(T) * 8)));
+                = (uint32_t)ceil((std::min(ot_bsize, length - i) * l) / (float)(sizeof(T) * 8));
             corrected_bsize = std::min(ot_bsize, length - i);
 
             memcpy(pad, rcm_data + i, std::min(ot_bsize, length - i) * sizeof(block));

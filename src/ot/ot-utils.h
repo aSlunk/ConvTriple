@@ -153,7 +153,7 @@ inline void pack_cot_messages(T* y, T* corr_data, int ysize, int bsize, int bits
     T temp_bl     = 0;
     T mask        = (1ULL << bitsize) - 1;
     if (bitsize == sizeof(T) * 8)
-        mask = -1ULL;
+        mask = (T)(-1ULL);
 
     uint64_t carriersize = sizeof(T) * 8;
     for (int i = 0; i < ysize; i++) {
@@ -184,17 +184,17 @@ inline void unpack_cot_messages(T* corr_data, T* recvd, int bsize, int bitsize) 
     uint64_t end_pos     = 0;
     uint64_t start_block = 0;
     uint64_t end_block   = 0;
-    uint64_t mask        = (1ULL << bitsize) - 1;
-    if (bitsize == 64)
-        mask = -1;
-    uint64_t carriersize = 64;
+    T mask        = (1ULL << bitsize) - 1;
+    if (bitsize == sizeof(T) * 8)
+        mask = (T)(-1ULL);
+    uint64_t carriersize = sizeof(T) * 8;
 
     for (int i = 0; i < bsize; i++) {
         start_pos   = i * bitsize;
         end_pos     = start_pos + bitsize - 1; // inclusive
         start_block = start_pos / carriersize;
         end_block   = end_pos / carriersize;
-        if (carriersize == 64) {
+        if (carriersize == sizeof(T) * 8) {
             if (start_block == end_block) {
                 corr_data[i] = (recvd[start_block] >> (start_pos % carriersize)) & mask;
             } else {
