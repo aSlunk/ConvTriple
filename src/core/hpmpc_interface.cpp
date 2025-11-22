@@ -251,7 +251,7 @@ void generateConvTriplesCheetahWrapper(const std::string& ip, int port, int io_o
                                        Utils::PROTO proto, int factor, bool is_shared_input) {
 #if USE_CONV_CUDA
     if (proto == Utils::PROTO::AB2) {
-        TROY::conv2d(Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset),
+        TROY::conv2d(Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset).get_ios(),
                      OTHER_PARTY(party), a, b, c, parm.batchsize, parm.ic, parm.ih, parm.iw,
                      parm.fh, parm.fw, parm.n_filters, parm.stride, parm.padding, false, factor);
         return;
