@@ -35,11 +35,11 @@ cmake --build build -j
 ```
 
 CMake Options:
-- `TRIPLE_VERIFY` (BOOL): if enabled - Verifies correctness of the triples.
-- `TRIPLE_COLOR` (BOOL): if enabled - Uses ANSI color codes for colored logs.
-- `TRIPLE_ZERO` (BOOL): if enabled - Allows tensors to be zero (can be insecure).
-- `TRIPLE_GPU` (BOOL): if enabled - Uses Troy-Nova for Convolutions.
-- `TRIPLE_SEED` (NUM): set the seed (-1: no seed).
+- `TRIPLE_VERIFY` (BOOL): If enabled - Verify correctness of the triples.
+- `TRIPLE_COLOR` (BOOL): If enabled - Use ANSI color codes for colored logs.
+- `TRIPLE_ZERO` (BOOL): If enabled - Allow tensors to be zero (can be insecure).
+- `TRIPLE_GPU` (BOOL): If enabled - Use Troy-Nova for Convolutions.
+- `TRIPLE_SEED` (NUM): Set the seed (-1: no seed).
 - `TRIPLE_LOG_LEVEL` (NUM):
     - `0`: Log time and data required.
     - `1`: Log debug info and errors.

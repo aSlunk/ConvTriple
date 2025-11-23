@@ -428,9 +428,7 @@ Result Client::perform_proto(Channel** ios, const gemini::HomBNSS& bn,
                              const gemini::HomBNSS::Meta& meta, const Tensor<uint64_t>& A,
                              const Tensor<uint64_t>& B, Tensor<uint64_t>& C, const size_t& threads,
                              Utils::PROTO proto) {
-#ifndef NDEBUG
     Utils::log(Utils::Level::DEBUG, "Using alternative BN");
-#endif
     Tensor<uint64_t> vec, scales;
     pack(A, B, vec, scales);
 
