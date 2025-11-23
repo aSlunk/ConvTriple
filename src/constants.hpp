@@ -38,7 +38,9 @@ constexpr uint64_t MOD         = PLAIN_MOD;
 constexpr uint64_t moduloMask  = MOD - 1;
 constexpr uint64_t moduloMidPt = MOD / 2;
 
-constexpr int PRG_SEED = 42;
+#ifndef PRG_SEED
+#define PRG_SEED 42
+#endif
 
 namespace Utils {
 

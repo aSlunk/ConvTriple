@@ -105,6 +105,8 @@ class Triple {
 #define CSIZE 8192     // Default chunk size
 template <typename IO>
 class TripleGenerator {
+    __m256i seed;
+
   public:
     IO* io                        = nullptr;
     const sci::OTPack<IO>* otpack = nullptr;
@@ -117,7 +119,7 @@ class TripleGenerator {
         this->otpack = otpack;
         this->prg    = new sci::PRG128;
 #if PRG_SEED != -1
-        __m256i seed = _mm256_set1_epi32(PRG_SEED);
+        seed = _mm256_set1_epi32(PRG_SEED);
         prg->reseed(&seed);
 #endif
 
