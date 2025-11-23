@@ -128,12 +128,6 @@ int main(int argc, char** argv) {
         Iface::generateFCTriplesCheetah(std::string(""), port, 1, nullptr, b, c, batchSize, n, out,
                                         PARTY, threads, Utils::PROTO::AB2);
 
-        // for (size_t i = 0; i < batchSize; ++i) {
-        //     for (int j = 0; j < out; ++j) {
-        //         std::cout << j << " " << c[i * out + j] << "\n";
-        //     }
-        // }
-
         delete[] a;
         delete[] b;
         delete[] c;

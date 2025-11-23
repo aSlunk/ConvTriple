@@ -153,8 +153,9 @@ bool IO::read_from_file(const char* path, T* a, T* b, T* c, const size_t& n, boo
         Utils::log(Utils::Level::ERROR, "Couln't read file size");
     }
 
-    std::cout << "SIZE: " << size << "\n";
-    std::cout << "n: " << n << "\n";
+    Utils::log(Utils::Level::DEBUG, "SIZE: ", size);
+    Utils::log(Utils::Level::DEBUG, "n: ", n);
+
     if (n * sizeof(T) * 3 > size) {
         file.close();
         Utils::log(Utils::Level::ERROR, "file too small");

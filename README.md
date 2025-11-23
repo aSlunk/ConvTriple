@@ -39,6 +39,10 @@ CMake Options:
 - `TRIPLE_COLOR`: if enabled - Uses ANSI color codes for colored logs
 - `TRIPLE_ZERO`: if enabled - Allows tensors to be zero (can be insecure)
 - `TRIPLE_GPU`: if enabled - Uses Troy-Nova for Convolutions
+- `TRIPLE_LOG_LEVEL`:
+    - `0`: Log time and data required.
+    - `1`: Log debug info and errors.
+    - `2`: Log errors.
 
 Formatting:
 ```sh

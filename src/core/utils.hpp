@@ -62,6 +62,14 @@ enum class Level {
 
 template <class... Args>
 void log(const Level& l, const Args&... args) {
+#if LOGLEVEL == 1
+    if (l == Level::INFO)
+        return;
+#elif LOGLEVEL == 2
+    if (l != Level::ERROR && l != Level::FAILED)
+        return;
+#endif
+
     auto* stream = &std::cerr;
     switch (l) {
     case Level::DEBUG:

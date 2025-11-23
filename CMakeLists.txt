@@ -10,6 +10,10 @@ option(TRIPLE_COLOR "Enable colored output" ON)
 option(TRIPLE_ZERO "Enable computation with ZERO" OFF)
 option(TRIPLE_GPU "Enable GPU support" OFF)
 
+set(TRIPLE_LOG_LEVEL 0 CACHE STRING "Set log level (0: All, 1: Debug and Error, 2: Error)")
+
+add_compile_definitions(PRIVATE LOGLEVEL=${TRIPLE_LOG_LEVEL})
+
 add_compile_options(-fPIC)
 # add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)
 
