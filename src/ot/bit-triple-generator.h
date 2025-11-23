@@ -116,6 +116,10 @@ class TripleGenerator {
         this->io     = io;
         this->otpack = otpack;
         this->prg    = new sci::PRG128;
+#if PRG_SEED != -1
+        __m256i seed = _mm256_set1_epi32(PRG_SEED);
+        prg->reseed(&seed);
+#endif
 
         if (enable_buffer) {
             this->party      = Party;

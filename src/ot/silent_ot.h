@@ -23,6 +23,7 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
     cheetah::MITCCRH<8> mitccrh;
     int threads;
     IO** ios;
+    emp::block seed;
 
   public:
     FerretCOT<IO>* ferret;
@@ -31,6 +32,10 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
              std::string pre_file = "", bool warm_up = true)
         : threads(threads), ios(ios) {
         ferret = new FerretCOT<IO>(party, threads, ios, malicious, run_setup, ferret_b13, pre_file);
+        if (PRG_SEED != -1) {
+            seed = _mm_set1_epi32(PRG_SEED);
+            ferret->prg.reseed(&seed);
+        }
         if (warm_up) {
             block tmp;
             ferret->rcot(&tmp, 1);
