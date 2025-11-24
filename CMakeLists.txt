@@ -13,9 +13,6 @@ option(TRIPLE_GPU "Enable GPU support" OFF)
 set(TRIPLE_LOG_LEVEL 0 CACHE STRING "Set log level (0: All, 1: Debug and Error, 2: Error)")
 set(TRIPLE_SEED 42 CACHE STRING "Sets the seed (-1: no seed)")
 
-add_compile_definitions(PRIVATE LOGLEVEL=${TRIPLE_LOG_LEVEL})
-add_compile_definitions(PRIVATE PRG_SEED=${TRIPLE_SEED})
-
 add_compile_options(-fPIC)
 # add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)
 

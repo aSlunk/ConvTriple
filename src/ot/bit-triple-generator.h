@@ -119,7 +119,7 @@ class TripleGenerator {
         this->otpack = otpack;
         this->prg    = new sci::PRG128;
 #if PRG_SEED != -1
-        seed = _mm256_set1_epi32(PRG_SEED);
+        seed = _mm256_set1_epi32(PRG_SEED + io->port);
         prg->reseed(&seed);
 #endif
 

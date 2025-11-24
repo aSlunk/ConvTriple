@@ -79,6 +79,8 @@ if(TRIPLE_COLOR)
     target_compile_definitions(${HE_LIB} PRIVATE COLOR)
 endif()
 
+target_compile_definitions(${HE_LIB} PRIVATE LOGLEVEL=${TRIPLE_LOG_LEVEL} PRG_SEED=${TRIPLE_SEED})
+
 ################################################################################
 ## Server / Client executables
 ################################################################################

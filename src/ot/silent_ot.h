@@ -32,10 +32,11 @@ class SilentOT : public sci::OT<SilentOT<IO>> {
              std::string pre_file = "", bool warm_up = true)
         : threads(threads), ios(ios) {
         ferret = new FerretCOT<IO>(party, threads, ios, malicious, run_setup, ferret_b13, pre_file);
-        if (PRG_SEED != -1) {
-            seed = _mm_set1_epi32(PRG_SEED);
-            ferret->prg.reseed(&seed);
-        }
+
+#if PRG_SEED != -1
+        seed = _mm_set1_epi32(PRG_SEED + ios[0]->port);
+        ferret->prg.reseed(&seed);
+#endif
         if (warm_up) {
             block tmp;
             ferret->rcot(&tmp, 1);
