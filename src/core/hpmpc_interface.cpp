@@ -66,6 +66,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         int cur_party = wid & 1 ? OTHER_PARTY(party) : party;
         // auto start_setup = measure::now();
 
+        // sci::OTPack<IO::NetIO> pack(ios + wid, 1, cur_party, true, false);
         TripleGenerator<IO::NetIO> triple_gen(cur_party, ios[wid], keys.get_otpack(wid), false);
 
         // setup += Utils::time_diff(start_setup);
@@ -552,7 +553,7 @@ void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, 
 
     Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV NTT preprocessing time[s]: ", time_ntt);
     Utils::log(Utils::Level::INFO, "P", party - 1,
-               ": CONV triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+               ": CONV triple time + NTT[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
@@ -836,6 +837,7 @@ void generateOT(int party, const std::string& ip, int port, int threads, int io_
 
 void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const unsigned& num_triples,
                  const std::string& ip, int port, int threads, int io_offset) {
+    Utils::log(Utils::Level::DEBUG, "COT: ", num_triples);
     auto start = measure::now();
     auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
     auto** ios = keys.get_ios();
@@ -856,10 +858,10 @@ void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const unsigned
             break;
         }
         case emp::BOB: {
-            bool* sel = new bool[n];
+            uint8_t* sel = new uint8_t[n];
             for (size_t i = 0; i < n; ++i) sel[i] = get_nth(b, start + i);
 
-            ot->silent_ot->recv_cot(c + start, sel, n, 32);
+            ot->silent_ot->recv_cot(c + start, (bool*)sel, n, 32);
             delete[] sel;
             break;
         }
@@ -870,12 +872,12 @@ void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const unsigned
     gemini::ThreadPool tpool(1);
     gemini::LaunchWorks(tpool, num_triples, func);
 
-    Utils::log(Utils::Level::INFO, "P", party - 0,
-               ": OT time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    Utils::log(Utils::Level::INFO, "P", party - 1,
+               ": COT time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
     for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
-    Utils::log(Utils::Level::INFO, "P", party - 1, ": OT data[", unit, "]: ", data);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": COT data[", unit, "]: ", data);
 
 #ifdef VERIFY
     if (party == emp::BOB) {
