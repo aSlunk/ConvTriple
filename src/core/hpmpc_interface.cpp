@@ -544,7 +544,8 @@ void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, 
                 if (cur_batch % ac_batch_size == 0) {
                     enc_B.clear();
                     if ((c = conv.encodeFilters(B, meta, enc_B, threads)) != Code::OK) {
-                        Utils::log(Utils::Level::ERROR, "Filters encoding failed: ", CodeMessage(c));
+                        Utils::log(Utils::Level::ERROR,
+                                   "Filters encoding failed: ", CodeMessage(c));
                     }
                     if ((c = conv.filtersToNtt(enc_B, threads)) != Code::OK) {
                         Utils::log(Utils::Level::ERROR, "Filters to NTT failed: ", CodeMessage(c));
