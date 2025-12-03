@@ -88,7 +88,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
         return Code::OK;
     };
 
-    gemini::ThreadPool tpool(1);
+    gemini::ThreadPool tpool(threads);
     gemini::LaunchWorks(tpool, num_triples, func);
 
     Utils::log(Utils::Level::INFO, "P", party - 1,
