@@ -73,7 +73,7 @@ class Keys {
         _connected = true;
 
         auto time = Utils::to_sec(Utils::time_diff(start));
-        Utils::log(Utils::Level::INFO, "P", party - 1, ": Key exchange took[s]: ", time);
+        Utils::log(Utils::Level::INFO, "P", party - 1, ": Key exchange time[s]: ", time);
         std::string unit;
         double data = 0;
         for (size_t i = 0; i < threads; ++i) {
