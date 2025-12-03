@@ -538,7 +538,23 @@ void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, 
             break;
         }
         case emp::BOB: {
-            result = Server::perform_proto(meta, ios, conv, A, B, C, threads, proto);
+            if (proto == Utils::PROTO::AB) {
+                Code c;
+                auto start_ntt = measure::now();
+                if (cur_batch % ac_batch_size == 0) {
+                    enc_B.clear();
+                    if ((c = conv.encodeFilters(B, meta, enc_B, threads)) != Code::OK) {
+                        Utils::log(Utils::Level::ERROR, "Filters encoding failed: ", CodeMessage(c));
+                    }
+                    if ((c = conv.filtersToNtt(enc_B, threads)) != Code::OK) {
+                        Utils::log(Utils::Level::ERROR, "Filters to NTT failed: ", CodeMessage(c));
+                    }
+                }
+                time_ntt += Utils::to_sec(Utils::time_diff(start_ntt));
+                result = Server::perform_proto(meta, ios, conv, A, enc_B, B, C, threads, proto);
+            } else {
+                result = Server::perform_proto(meta, ios, conv, A, B, C, threads, proto);
+            }
             break;
         }
         }

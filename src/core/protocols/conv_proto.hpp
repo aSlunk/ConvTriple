@@ -37,8 +37,22 @@ Result Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel** server,
                  const size_t& threads = 1);
 
 template <class Channel>
+Result Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel** server,
+                 const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1,
+                 const std::vector<std::vector<seal::Plaintext>>& enc_B1,
+                 Tensor<uint64_t>& C1,
+                 const size_t& threads = 1);
+
+template <class Channel>
 Result perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** server,
                      const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1,
+                     const std::vector<Tensor<uint64_t>>& B1, Tensor<uint64_t>& C1,
+                     const size_t& threads = 1, Utils::PROTO proto = Utils::PROTO::AB);
+
+template <class Channel>
+Result perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** server,
+                     const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1,
+                     const std::vector<std::vector<seal::Plaintext>>& enc_B1,
                      const std::vector<Tensor<uint64_t>>& B1, Tensor<uint64_t>& C1,
                      const size_t& threads = 1, Utils::PROTO proto = Utils::PROTO::AB);
 
@@ -69,36 +83,54 @@ template <class Channel>
 Result send(Channel** client, const gemini::HomConv2DSS& conv, const vector<seal::Ciphertext>& M2,
             const size_t& threads, bool flush = true);
 
+/**
+ * AB Protocol
+ */
 template <class Channel>
 Result Protocol1(Channel** client, const gemini::HomConv2DSS& conv,
                  const gemini::HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                  const std::vector<Tensor<uint64_t>>& B2, Tensor<uint64_t>& C2,
                  const size_t& threads = 1);
 
+/**
+ * AB Protocol but weights are encoded with NTT
+ */
 template <class Channel>
 Result Protocol1(Channel** client, const gemini::HomConv2DSS& conv,
                  const gemini::HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                  const std::vector<std::vector<seal::Plaintext>>& enc_B2, Tensor<uint64_t>& C2,
                  const size_t& threads = 1);
 
+/**
+ * AB2 Protocol
+ */
 template <class Channel>
 Result Protocol2(Channel** client, const gemini::HomConv2DSS& conv,
                  const gemini::HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                  const std::vector<Tensor<uint64_t>>& B2, Tensor<uint64_t>& C2,
                  const size_t& threads = 1);
 
+/**
+ * AB2 Protocol but weights are encoded with NTT
+ */
 template <class Channel>
 Result Protocol2(Channel** client, const gemini::HomConv2DSS& conv,
                  const gemini::HomConv2DSS::Meta& meta, const Tensor<uint64_t>& A2,
                  const std::vector<std::vector<seal::Plaintext>>& enc_B2, Tensor<uint64_t>& C2,
                  const size_t& threads = 1);
 
+/**
+ * Performs Conv for a given Protocol and verifies the results
+ */
 template <class Channel>
 Result perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** client,
                      const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1,
                      const std::vector<Tensor<uint64_t>>& B1, Tensor<uint64_t>& C1,
                      const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
 
+/**
+ * Performs Conv for a given Protocol and verifies the results but weights are already encoded with NTT
+ */
 template <class Channel>
 Result perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** client,
                      const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1,
@@ -106,6 +138,10 @@ Result perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** client,
                      const std::vector<std::vector<seal::Plaintext>>& enc_B1, Tensor<uint64_t>& C1,
                      const size_t& threads, Utils::PROTO proto = Utils::PROTO::AB);
 
+/**
+ * Performs Conv for a given Protocol and verifies the results
+ * NOTE: No input (uses predefined values), for testing only
+ */
 template <class Channel>
 Result perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** client,
                      const gemini::HomConv2DSS& conv, const size_t& threads,
@@ -498,6 +534,78 @@ Result Server::Protocol2(const gemini::HomConv2DSS::Meta& meta, Channel** server
 template <class Channel>
 Result Server::Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel** server,
                          const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1,
+                         const std::vector<std::vector<seal::Plaintext>>& enc_B1, Tensor<uint64_t>& C1,
+                         const size_t& threads) {
+    Result measures;
+    measures.send_recv = 0;
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Enc(A1), enc(B1), send(A1), recv(A2)
+    ////////////////////////////////////////////////////////////////////////////
+    auto start = measure::now();
+    std::vector<seal::Serializable<seal::Ciphertext>> enc_A1;
+    std::vector<seal::Plaintext> encoded_A1;
+    measures.ret = conv.encryptImage(A1, meta, enc_A1, encoded_A1, threads);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    measures.encryption = Utils::time_diff(start);
+
+    start = measure::now();
+
+    std::vector<seal::Ciphertext> enc_A2;
+    IO::send_recv(conv.getContext(), server, enc_A1, enc_A2, threads);
+    enc_A1.clear();
+
+    measures.send_recv = Utils::time_diff(start);
+    ////////////////////////////////////////////////////////////////////////////
+    // M1 = (A1 + A2') ⊙ B1 - R1
+    ////////////////////////////////////////////////////////////////////////////
+    start = measure::now();
+
+    std::vector<seal::Ciphertext> M1;
+    Tensor<uint64_t> R1;
+    measures.ret = conv.conv2DSS(enc_A2, encoded_A1, enc_B1, meta, M1, R1, threads, true, false, true);
+    enc_A2.clear();
+    encoded_A1.clear();
+    if (measures.ret != Code::OK)
+        return measures;
+
+    measures.cipher_op = Utils::time_diff(start);
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Send(M1), Recv(M2), Dec(M2)
+    ////////////////////////////////////////////////////////////////////////////
+    start = measure::now();
+
+    std::vector<seal::Ciphertext> enc_M2;
+    IO::send_recv(conv.getContext(), server, M1, enc_M2, threads);
+
+    measures.send_recv += Utils::time_diff(start);
+    ////////////////////////////////////////////////////////////////////////////
+    // Dec(M2) + R1
+    ////////////////////////////////////////////////////////////////////////////
+    start = measure::now();
+
+    measures.ret = conv.decryptToTensor(enc_M2, meta, C1, threads);
+    if (measures.ret != Code::OK)
+        return measures;
+
+    measures.decryption = Utils::time_diff(start);
+    start               = measure::now();
+
+    Utils::op_inplace<uint64_t>(C1, R1, [](uint64_t a, uint64_t b) { return Utils::add(a, b); });
+
+    measures.plain_op = Utils::time_diff(start);
+
+    for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
+    measures.ret = Code::OK;
+    return measures;
+}
+
+template <class Channel>
+Result Server::Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel** server,
+                         const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1,
                          const std::vector<Tensor<uint64_t>>& B1, Tensor<uint64_t>& C1,
                          const size_t& threads) {
     Result measures;
@@ -572,6 +680,29 @@ Result Server::Protocol1(const gemini::HomConv2DSS::Meta& meta, Channel** server
 
     for (size_t i = 0; i < threads; ++i) measures.bytes += server[i]->counter;
     measures.ret = Code::OK;
+    return measures;
+}
+
+template <class Channel>
+Result Server::perform_proto(const gemini::HomConv2DSS::Meta& meta, Channel** server,
+                             const gemini::HomConv2DSS& conv, const Tensor<uint64_t>& A1,
+                             const std::vector<std::vector<seal::Plaintext>>& enc_B1,
+                             const std::vector<Tensor<uint64_t>>& B1, Tensor<uint64_t>& C1,
+                             const size_t& threads, Utils::PROTO proto) {
+    Result measures;
+
+    switch (proto) {
+    case Utils::PROTO::AB:
+        measures = Server::Protocol1(meta, server, conv, A1, enc_B1, C1, threads);
+        break;
+    case Utils::PROTO::AB2:
+        measures = Server::Protocol2(meta, server, conv, A1, C1, threads);
+        break;
+    }
+
+#ifdef VERIFY
+    Verify_Conv(*(server[0]), meta, conv, A1, B1, C1, proto);
+#endif
     return measures;
 }
 
