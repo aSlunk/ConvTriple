@@ -121,9 +121,9 @@ int main(int argc, char** argv) {
 
         uint32_t* a = new uint32_t[meta.ishape.num_elements() * batchSize];
         for (size_t i = 0; i < meta.ishape.num_elements() * batchSize; ++i) a[i] = i;
-        uint32_t* b = new uint32_t[meta.n_filters * meta.fshape.num_elements() * batchSize];
+        uint32_t* b = new uint32_t[meta.n_filters * meta.fshape.num_elements()];
         for (size_t i = 0; i < meta.n_filters; ++i)
-            for (size_t j = 0; j < meta.fshape.num_elements() * batchSize; ++j)
+            for (int j = 0; j < meta.fshape.num_elements(); ++j)
                 b[i * meta.fshape.num_elements() + j] = 3;
 
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];

@@ -151,8 +151,8 @@ int main(int argc, char** argv) {
                                             conv.n_filters, conv.stride, conv.padding);
         uint32_t* a = new uint32_t[meta.ishape.num_elements() * batchSize];
         memset(a, 0, meta.ishape.num_elements() * sizeof(uint32_t) * batchSize);
-        uint32_t* b = new uint32_t[meta.n_filters * meta.fshape.num_elements() * batchSize];
-        memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t) * batchSize);
+        uint32_t* b = new uint32_t[meta.n_filters * meta.fshape.num_elements()];
+        memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t));
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
         Iface::generateConvTriplesCheetahWrapper(std::string(""), port, 1, nullptr, b, c, conv,

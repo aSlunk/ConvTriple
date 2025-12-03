@@ -59,9 +59,6 @@ class Keys {
         _bn.setUp(PLAIN_MOD, ctx, skey, o_pkey);
         setupBn(_ios, ctx, party);
 
-        auto time = Utils::to_sec(Utils::time_diff(start));
-        Utils::log(Utils::Level::INFO, "P", party - 1, ": Key exchange took [s]: ", time);
-
         _ot_packs.resize(threads);
         auto init_ot = [&](int wid, size_t start, size_t end) -> Code {
             for (size_t i = start; i < end; ++i) {
@@ -74,6 +71,16 @@ class Keys {
         gemini::ThreadPool tpool(threads);
         gemini::LaunchWorks(tpool, threads, init_ot);
         _connected = true;
+
+        auto time = Utils::to_sec(Utils::time_diff(start));
+        Utils::log(Utils::Level::INFO, "P", party - 1, ": Key exchange took[s]: ", time);
+        std::string unit;
+        double data = 0;
+        for (size_t i = 0; i < threads; ++i) {
+            data += Utils::to_MB(_ios[i]->counter, unit);
+            _ios[i]->counter = 0;
+        }
+        Utils::log(Utils::Level::INFO, "P", party - 1, ": Key exchange data[", unit, "]: ", data);
     }
 
     ~Keys() noexcept {
