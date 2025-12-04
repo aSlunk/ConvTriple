@@ -111,6 +111,8 @@ int main(int argc, char** argv) {
         }
     }
 
+    auto& keys = Iface::Keys<IO::NetIO>::instance(PARTY, std::string(), port, threads, 1);
+
     {
         int n       = 3;
         int out     = 2;
@@ -125,7 +127,7 @@ int main(int argc, char** argv) {
             }
         }
 
-        Iface::generateFCTriplesCheetah(std::string(""), port, 1, nullptr, b, c, batchSize, n, out,
+        Iface::generateFCTriplesCheetah(keys, nullptr, b, c, batchSize, n, out,
                                         PARTY, threads, Utils::PROTO::AB2);
 
         delete[] a;
@@ -155,7 +157,7 @@ int main(int argc, char** argv) {
         memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t));
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(std::string(""), port, 1, nullptr, b, c, conv,
+        Iface::generateConvTriplesCheetahWrapper(keys, nullptr, b, c, conv,
                                                  PARTY, threads, Utils::PROTO::AB2);
 
         delete[] a;
@@ -171,24 +173,8 @@ int main(int argc, char** argv) {
         std::vector<uint32_t> B(rows * batchSize, 0);
         std::vector<uint32_t> C(rows * h * w * batchSize);
 
-        Iface::generateBNTriplesCheetah(std::string(""), port, 1, A.data(), B.data(), C.data(),
+        Iface::generateBNTriplesCheetah(keys, A.data(), B.data(), C.data(),
                                         batchSize, rows, h, w, PARTY, threads, Utils::PROTO::AB2);
     }
-
-    // HE_OT::HE<IO::NetIO> all(PARTY, nullptr, port, threads, samples, true);
-    // all.run_ot(20'000'000);
-    // {
-    //     auto layers = Utils::init_layers_fc();
-    //     all.test_he(layers, all.get_fc(), batchSize);
-    // }
-
-    // {
-    //     auto layers = ResNet50::init_layers_conv_cheetah();
-    //     all.test_he(layers, all.get_conv(), batchSize);
-    // }
-
-    // {
-    //     auto layers = ResNet50::init_layers_bn_cheetah();
-    //     all.test_he(layers, all.get_bn(), batchSize);
-    // }
+    keys.disconnect();
 }
