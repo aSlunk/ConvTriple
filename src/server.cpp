@@ -136,14 +136,14 @@ int main(int argc, char** argv) {
     {
         Utils::ConvParm conv{
             .batchsize = static_cast<int>(batchSize),
-            .ic        = 64,
-            .iw        = 56,
-            .ih        = 56,
-            .fc        = 64,
-            .fw        = 1,
-            .fh        = 1,
-            .n_filters = 256,
-            .stride    = 1,
+            .ic        = 3,
+            .iw        = 230,
+            .ih        = 230,
+            .fc        = 3,
+            .fw        = 7,
+            .fh        = 7,
+            .n_filters = 64,
+            .stride    = 2,
             .padding   = 0,
         };
 

@@ -487,8 +487,6 @@ void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, 
                                 const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, int party,
                                 int threads, Utils::PROTO proto, int factor) {
-    auto start = measure::now();
-
     auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
     auto& conv = keys.get_conv();
     auto** ios = keys.get_ios();
@@ -506,6 +504,8 @@ void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, 
             bi[i] = b[i];
 
     int ac_batch_size = batch / factor;
+
+    auto start = measure::now();
     for (int cur_batch = 0; cur_batch < batch; ++cur_batch) {
         Tensor<uint64_t> A
             = Tensor<uint64_t>::Wrap(ai + meta.ishape.num_elements() * cur_batch, meta.ishape);
