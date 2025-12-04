@@ -41,30 +41,27 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
                                  int port, int party, int threads = 1,
                                  Utils::PROTO proto = Utils::PROTO::AB, unsigned io_offset = 1);
 
-void generateFCTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a,
-                              const uint32_t* b, uint32_t* c, int batch, uint64_t com_dim,
-                              uint64_t dim2, int party, int threads, Utils::PROTO proto,
-                              int factor = 1);
+void generateFCTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
+                              uint32_t* c, int batch, uint64_t com_dim, uint64_t dim2, int party,
+                              int threads, Utils::PROTO proto, int factor = 1);
 
-void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys,
-                                       const uint32_t* a, const uint32_t* b, uint32_t* c,
-                                       Utils::ConvParm parm, int party, int threads,
+void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
+                                       uint32_t* c, Utils::ConvParm parm, int party, int threads,
                                        Utils::PROTO proto, int factor = 1,
                                        bool is_shared_input = false);
 
-void generateConvTriplesCheetah(Keys<IO::NetIO>& keys,
-                                size_t total_batches, std::vector<Utils::ConvParm>& parms,
-                                uint32_t** a, uint32_t** b, uint32_t* c, Utils::PROTO proto,
-                                int party, int threads, int factor, bool is_shared_input = false);
+void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
+                                std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
+                                uint32_t* c, Utils::PROTO proto, int party, int threads, int factor,
+                                bool is_shared_input = false);
 
-void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a,
-                                const uint32_t* b, uint32_t* c,
-                                const gemini::HomConv2DSS::Meta& meta, int batch, int party,
-                                int threads, Utils::PROTO proto, int factor);
+void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
+                                uint32_t* c, const gemini::HomConv2DSS::Meta& meta, int batch,
+                                int party, int threads, Utils::PROTO proto, int factor);
 
-void generateBNTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a,
-                              const uint32_t* b, uint32_t* c, int batch, size_t num_ele, size_t h,
-                              size_t w, int party, int threads, Utils::PROTO proto, int factor = 1);
+void generateBNTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
+                              uint32_t* c, int batch, size_t num_ele, size_t h, size_t w, int party,
+                              int threads, Utils::PROTO proto, int factor = 1);
 
 void do_multiplex(int num_input, uint32_t* x32, uint8_t* sel_packed, uint32_t* y32, int party,
                   const std::string& ip, int port, int io_offset, int threads);

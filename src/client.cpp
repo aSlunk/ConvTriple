@@ -96,8 +96,8 @@ int main(int argc, char** argv) {
 
         uint32_t* c = new uint32_t[out * batchSize];
 
-        Iface::generateFCTriplesCheetah(keys, a, nullptr, c, batchSize, n,
-                                        out, PARTY, threads, Utils::PROTO::AB2);
+        Iface::generateFCTriplesCheetah(keys, a, nullptr, c, batchSize, n, out, PARTY, threads,
+                                        Utils::PROTO::AB2);
 
         delete[] a;
         delete[] b;
@@ -130,8 +130,8 @@ int main(int argc, char** argv) {
 
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(keys, a, nullptr, c, conv,
-                                                 PARTY, threads, Utils::PROTO::AB2);
+        Iface::generateConvTriplesCheetahWrapper(keys, a, nullptr, c, conv, PARTY, threads,
+                                                 Utils::PROTO::AB2);
 
         delete[] a;
         delete[] b;
@@ -146,8 +146,8 @@ int main(int argc, char** argv) {
         std::vector<uint32_t> B(rows * batchSize, 1);
         std::vector<uint32_t> C(rows * h * w * batchSize);
 
-    Iface::generateBNTriplesCheetah(keys, A.data(), B.data(), C.data(),
-                                        batchSize, rows, h, w, PARTY, threads, Utils::PROTO::AB2);
+        Iface::generateBNTriplesCheetah(keys, A.data(), B.data(), C.data(), batchSize, rows, h, w,
+                                        PARTY, threads, Utils::PROTO::AB2);
     }
 
     keys.disconnect();

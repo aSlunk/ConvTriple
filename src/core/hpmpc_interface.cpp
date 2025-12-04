@@ -180,10 +180,9 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     keys.disconnect();
 }
 
-void generateFCTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a,
-                              const uint32_t* b, uint32_t* c, int batch, uint64_t com_dim,
-                              uint64_t dim2, int party, int threads, Utils::PROTO proto,
-                              int factor) {
+void generateFCTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
+                              uint32_t* c, int batch, uint64_t com_dim, uint64_t dim2, int party,
+                              int threads, Utils::PROTO proto, int factor) {
     auto meta = Utils::init_meta_fc(com_dim, dim2);
     Utils::log(Utils::Level::INFO, "P", party - 1, " FC: ", meta.input_shape, " x ",
                meta.weight_shape, " ", Utils::proto_str(proto));
@@ -241,15 +240,14 @@ void generateFCTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a,
     delete[] bi;
 }
 
-void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys,
-                                       const uint32_t* a, const uint32_t* b, uint32_t* c,
-                                       Utils::ConvParm parm, int party, int threads,
+void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
+                                       uint32_t* c, Utils::ConvParm parm, int party, int threads,
                                        Utils::PROTO proto, int factor, bool is_shared_input) {
 #if USE_CONV_CUDA
     if (proto == Utils::PROTO::AB2) {
-        TROY::conv2d(Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset).get_ios(),
-                     OTHER_PARTY(party), a, b, c, parm.batchsize, parm.ic, parm.ih, parm.iw,
-                     parm.fh, parm.fw, parm.n_filters, parm.stride, parm.padding, false, factor);
+        TROY::conv2d(keys.get_ios(), OTHER_PARTY(party), a, b, c, parm.batchsize, parm.ic, parm.ih,
+                     parm.iw, parm.fh, parm.fw, parm.n_filters, parm.stride, parm.padding, false,
+                     factor);
         return;
     }
 #endif
@@ -263,8 +261,8 @@ void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys,
 
     meta.is_shared_input = proto == Utils::PROTO::AB;
     if (Utils::getOutDim(parm) == gemini::GetConv2DOutShape(meta)) {
-        generateConvTriplesCheetah(keys, a, b, c, meta, parm.batchsize, party,
-                                   threads, proto, factor);
+        generateConvTriplesCheetah(keys, a, b, c, meta, parm.batchsize, party, threads, proto,
+                                   factor);
     } else {
         Utils::log(Utils::Level::INFO, "Adding padding manually");
 
@@ -279,15 +277,15 @@ void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys,
 
         meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                      parm.n_filters, parm.stride, parm.padding);
-        generateConvTriplesCheetah(keys, ai.data(), b, c, meta, parm.batchsize,
-                                   party, threads, proto, factor);
+        generateConvTriplesCheetah(keys, ai.data(), b, c, meta, parm.batchsize, party, threads,
+                                   proto, factor);
     }
 }
 
-void generateConvTriplesCheetah(Keys<IO::NetIO>& keys,
-                                size_t total_batches, std::vector<Utils::ConvParm>& parms,
-                                uint32_t** a, uint32_t** b, uint32_t* c, Utils::PROTO proto,
-                                int party, int threads, int factor, bool is_shared_input) {
+void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
+                                std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
+                                uint32_t* c, Utils::PROTO proto, int party, int threads, int factor,
+                                bool is_shared_input) {
     auto start = measure::now();
 
     vector<vector<seal::Plaintext>> enc_a(total_batches);
@@ -476,10 +474,9 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys,
     Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV triple data[", unit, "]: ", data);
 }
 
-void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a,
-                                const uint32_t* b, uint32_t* c,
-                                const gemini::HomConv2DSS::Meta& meta, int batch, int party,
-                                int threads, Utils::PROTO proto, int factor) {
+void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
+                                uint32_t* c, const gemini::HomConv2DSS::Meta& meta, int batch,
+                                int party, int threads, Utils::PROTO proto, int factor) {
     auto start = measure::now();
     auto& conv = keys.get_conv();
     auto** ios = keys.get_ios();
@@ -572,9 +569,9 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a,
     delete[] bi;
 }
 
-void generateBNTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a,
-                              const uint32_t* b, uint32_t* c, int batch, size_t num_ele, size_t h,
-                              size_t w, int party, int threads, Utils::PROTO proto, int factor) {
+void generateBNTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
+                              uint32_t* c, int batch, size_t num_ele, size_t h, size_t w, int party,
+                              int threads, Utils::PROTO proto, int factor) {
     auto meta = Utils::init_meta_bn(num_ele, h, w);
     Utils::log(Utils::Level::INFO, "P", party - 1, " BN: ", meta.ishape, " x ", meta.vec_shape,
                ", ", Utils::proto_str(proto));
