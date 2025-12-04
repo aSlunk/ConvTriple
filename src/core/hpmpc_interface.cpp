@@ -487,10 +487,10 @@ void generateConvTriplesCheetah(const std::string& ip, int port, int io_offset, 
                                 const uint32_t* b, uint32_t* c,
                                 const gemini::HomConv2DSS::Meta& meta, int batch, int party,
                                 int threads, Utils::PROTO proto, int factor) {
-    auto start = measure::now();
     auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
     auto& conv = keys.get_conv();
     auto** ios = keys.get_ios();
+    auto start = measure::now();
 
     double time_ntt = 0;
 
