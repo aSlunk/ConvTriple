@@ -541,10 +541,8 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const 
                     }
                 }
                 time_ntt += Utils::to_sec(Utils::time_diff(start_ntt));
-                result = Server::perform_proto(meta, ios, conv, A, enc_B, B, C, threads, proto);
-            } else {
-                result = Server::perform_proto(meta, ios, conv, A, B, C, threads, proto);
             }
+            result = Server::perform_proto(meta, ios, conv, A, enc_B, B, C, threads, proto);
             break;
         }
         }
