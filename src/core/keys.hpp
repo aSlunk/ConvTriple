@@ -16,19 +16,30 @@ class Keys {
     static Keys& instance(int party, const std::string& ip, unsigned port, unsigned threads,
                           unsigned io_offset) {
         static Keys k(party, ip, port, threads, io_offset);
-        k.connect(party, ip, port, threads, io_offset);
+        k._party = party;
+        k._ip = ip;
+        k._port = port;
+        k._io_offset = io_offset;
+        // k.connect(party, ip, port, threads, io_offset);
         return k;
     }
 
     const gemini::HomFCSS& get_fc() const { return _fc; }
     const gemini::HomBNSS& get_bn() const { return _bn; }
     const gemini::HomConv2DSS& get_conv() const { return _hom_conv; }
-    Channel** get_ios() { return _ios; }
+    Channel** get_ios(unsigned threads) {
+        connect(_party, _ip, _port, threads, _io_offset);
+        return _ios;
+    }
     const sci::OTPack<Channel>* get_otpack(int idx) const { return _ot_packs[idx]; }
 
     void disconnect();
 
   private:
+    int _party = 0;
+    std::string _ip;
+    unsigned _port = 0;
+    unsigned _io_offset = 0;
     gemini::HomFCSS _fc;
     gemini::HomConv2DSS _hom_conv;
     gemini::HomBNSS _bn;
