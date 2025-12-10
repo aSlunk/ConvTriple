@@ -233,7 +233,10 @@ void generateFCTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const ui
                ": FC triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
-    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    for (int i = 0; i < threads; ++i) {
+        data += Utils::to_MB(ios[i]->counter, unit);
+        ios[i]->counter = 0;
+    }
     Utils::log(Utils::Level::INFO, "P", party - 1, ": FC triple data[", unit, "]: ", data);
 
     delete[] ai;
@@ -470,7 +473,10 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     Utils::log(Utils::Level::INFO, "P", party - 1, ": Conv triple time [s]: ", time);
     std::string unit;
     double data = 0;
-    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    for (int i = 0; i < threads; ++i) {
+        data += Utils::to_MB(ios[i]->counter, unit);
+        ios[i]->counter = 0;
+    }
     Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV triple data[", unit, "]: ", data);
 }
 
@@ -560,7 +566,10 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const 
                ": CONV triple time + NTT[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
-    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    for (int i = 0; i < threads; ++i) {
+        data += Utils::to_MB(ios[i]->counter, unit);
+        ios[i]->counter = 0;
+    }
     Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV triple data[", unit, "]: ", data);
 
     delete[] ai;
@@ -618,7 +627,10 @@ void generateBNTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const ui
                ": BN triple time[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
     double data = 0;
-    for (int i = 0; i < threads; ++i) data += Utils::to_MB(ios[i]->counter, unit);
+    for (int i = 0; i < threads; ++i) {
+        data += Utils::to_MB(ios[i]->counter, unit);
+        ios[i]->counter = 0;
+    }
     Utils::log(Utils::Level::INFO, "P", party - 1, ": BN triple data[", unit, "]: ", data);
 }
 
