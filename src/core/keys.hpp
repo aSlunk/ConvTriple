@@ -16,9 +16,9 @@ class Keys {
     static Keys& instance(int party, const std::string& ip, unsigned port, unsigned threads,
                           unsigned io_offset) {
         static Keys k(party, ip, port, threads, io_offset);
-        k._party = party;
-        k._ip = ip;
-        k._port = port;
+        k._party     = party;
+        k._ip        = ip;
+        k._port      = port;
         k._io_offset = io_offset;
         // k.connect(party, ip, port, threads, io_offset);
         return k;
@@ -38,7 +38,7 @@ class Keys {
   private:
     int _party = 0;
     std::string _ip;
-    unsigned _port = 0;
+    unsigned _port      = 0;
     unsigned _io_offset = 0;
     gemini::HomFCSS _fc;
     gemini::HomConv2DSS _hom_conv;

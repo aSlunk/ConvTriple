@@ -4,16 +4,18 @@ to implement two protocols for MPC and a few linear operations.
 # Build the Project
 
 **Build the dependencies**:
+
 - Install OpenSSL and Eigen3
 ```sh
 # for debian based distributions
 apt install libssl-dev libeigen3-dev
 ```
-- To install EMP-Tool/EMP-OT/SEAL use
+
+- To install EMP-Tool/EMP-OT/SEAL use:
 ```sh
 ./deps.sh
 ```
-$\Rightarrow$ this will create `./deps/` and install the projects into it.
+$\Rightarrow$ this will create `./deps/` and place the projects inside it.
 
 - For GPU support instead use the following to install [Troy-Nova](https://github.com/lightbulb128/troy-nova) (this requires CUDA)
     - (optional): Set [CUDA architecture](https://developer.nvidia.com/cuda-gpus) with `GPU_ARCHITECTURE`; default: `"75"`
