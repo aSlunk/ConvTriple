@@ -17,11 +17,9 @@ fi
 mkdir $TMP
 cd $TMP
 
-# git clone https://gitlab.com/libeigen/eigen.git $TMP/eigen
-# cd $TMP/eigen
-# cmake . -B build -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_BUILD_TYPE=Release
-# cmake --install build
-
+###############################################################################
+# emp-tool
+###############################################################################
 git clone "https://github.com/emp-toolkit/emp-tool.git" emp-tool
 cd emp-tool
 git checkout 8052d95
@@ -69,11 +67,9 @@ if [[ "$1" = "-gpu" ]]; then
 
     cmake -B build . -DCMAKE_INSTALL_PREFIX=$BUILD_DIR \
         -DCMAKE_CUDA_ARCHITECTURES="75;80;89" -DCMAKE_BUILD_TYPE=$BUILD_MODE \
-        -DCMAKE_PREFIX_PATH=$BUILD_DIR -DTROY_PYBIND=OFF -DTROY_TEST=ON \
-        -DTROY_BENCH=ON -DTROY_EXAMPLES=ON
+        -DCMAKE_PREFIX_PATH=$BUILD_DIR -DTROY_PYBIND=OFF -DTROY_TEST=OFF \
+        -DTROY_BENCH=OFF -DTROY_EXAMPLES=OFF
     cmake --build build -t install -j
-    # export CMAKE_GENERATOR="Unix Makefiles"
-    # bash scripts/build.sh -install -prefix=$BUILD_DIR
 fi
 
 
