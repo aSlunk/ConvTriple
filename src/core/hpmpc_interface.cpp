@@ -100,7 +100,7 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     //            Utils::to_sec(setup.load())
     //                / (num_triples > static_cast<size_t>(threads) ? threads : num_triples));
 
-    keys.disconnect();
+    // keys.disconnect();
 }
 
 void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],

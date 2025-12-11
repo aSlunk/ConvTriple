@@ -59,6 +59,9 @@ int main(int argc, char** argv) {
         delete[] c;
     }
 
+    auto& keys = Iface::Keys<IO::NetIO>::instance(PARTY, std::string(), port, threads, 1);
+    keys.disconnect();
+
     {
         // num_triples = 9'006'592;
         num_triples = 22;
@@ -110,8 +113,6 @@ int main(int argc, char** argv) {
             }
         }
     }
-
-    auto& keys = Iface::Keys<IO::NetIO>::instance(PARTY, std::string(), port, threads, 1);
 
     {
         int n       = 3;
