@@ -9,6 +9,11 @@ BUILD_DIR="$DEPS"
 DEPS_DIR="$TMP"
 
 mkdir deps
+
+if [[ -d "$TMP" ]]; then
+    rm -rf "$TMP"
+fi
+
 mkdir $TMP
 cd $TMP
 
@@ -72,4 +77,4 @@ if [[ "$1" = "-gpu" ]]; then
 fi
 
 
-# rm -rf "$TMP"
+rm -rf "$TMP"
