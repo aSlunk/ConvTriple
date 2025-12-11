@@ -1,9 +1,23 @@
-Uses [OpenCheetah](https://github.com/Alibaba-Gemini-Lab/OpenCheetah/tree/main)
-to implement two protocols for MPC and a few linear operations.
+Uses [OpenCheetah](https://github.com/Alibaba-Gemini-Lab/OpenCheetah/tree/main),
+[SecONNds](https://github.com/SecONNds/SecONNds_1_25/tree/main),
+[Troy-Nova](https://github.com/lightbulb128/troy-nova/tree/master) and
+[EMP-OT](https://github.com/emp-toolkit/emp-ot)
+to implement two protocols for 2PC and a few linear operations.
 
-# Build the Project
 
-**Build the dependencies**:
+# Overview
+
+1. [Building](#building)
+    1. [Dependencies](#build-the-dependencies)
+    2. [This project](#build-the-project)
+2. [Running](#run-the-project)
+3. [Protocols](#protocols)
+    1. [AB](#protocol-1)
+    2. [AB2](#protocol-2)
+
+# Building
+
+## Build the dependencies
 
 - Install OpenSSL and Eigen3
 ```sh
@@ -28,7 +42,7 @@ GPU_ARCHITECTURE="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | s
 ```
 
 
-**Build the project**:
+## Build the project
 ```sh
 ./build.sh
 
@@ -42,10 +56,10 @@ cmake --build build -j
 ```
 
 CMake Options:
-- `TRIPLE_VERIFY` (BOOL): If enabled - Verify correctness of the triples.
+- `TRIPLE_VERIFY` (BOOL): If enabled - Verify correctness of the triples. (For testing only)
 - `TRIPLE_COLOR` (BOOL): If enabled - Use ANSI color codes for colored logs.
 - `TRIPLE_ZERO` (BOOL): If enabled - Allow tensors to be zero (can be insecure).
-- `TRIPLE_GPU` (BOOL): If enabled - Use Troy-Nova for Convolutions.
+- `TRIPLE_GPU` (BOOL): If enabled - Use [Troy-Nova](https://github.com/lightbulb128/troy-nova) for Convolutions.
 - `TRIPLE_SEED` (NUM): Set the seed (-1: no seed).
 - `TRIPLE_LOG_LEVEL` (NUM):
     - `0`: Log time and data required.
