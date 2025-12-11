@@ -1,5 +1,7 @@
 #!/bin/bash
 
+GPU_ARCH=${GPU_ARCHITECTURE:-"75"}
+
 WORK_DIR="$PWD"
 DEPS="$WORK_DIR/deps"
 
@@ -66,7 +68,7 @@ if [[ "$1" = "-gpu" ]]; then
     sed -i "5i #include <cstdint>" ./src/utils/compression.h
 
     cmake -B build . -DCMAKE_INSTALL_PREFIX=$BUILD_DIR \
-        -DCMAKE_CUDA_ARCHITECTURES="75;80;89" -DCMAKE_BUILD_TYPE=$BUILD_MODE \
+        -DCMAKE_CUDA_ARCHITECTURES="$GPU_ARCH" -DCMAKE_BUILD_TYPE=$BUILD_MODE \
         -DCMAKE_PREFIX_PATH=$BUILD_DIR -DTROY_PYBIND=OFF -DTROY_TEST=OFF \
         -DTROY_BENCH=OFF -DTROY_EXAMPLES=OFF
     cmake --build build -t install -j

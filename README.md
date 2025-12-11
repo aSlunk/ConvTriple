@@ -16,8 +16,13 @@ apt install libssl-dev libeigen3-dev
 $\Rightarrow$ this will create `./deps/` and install the projects into it.
 
 - For GPU support instead use the following to install [Troy-Nova](https://github.com/lightbulb128/troy-nova) (this requires CUDA)
+    - (optional): Set [CUDA architecture](https://developer.nvidia.com/cuda-gpus) with `GPU_ARCHITECTURE`; default: `"75"`
 ```sh
-./deps.sh -gpu
+GPU_ARCHITECTURE="<architecture>" ./deps.sh -gpu
+
+# or try
+
+GPU_ARCHITECTURE="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | sed 's/\.//g')" ./deps.sh -gpu
 ```
 
 
