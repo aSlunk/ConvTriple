@@ -18,7 +18,11 @@ troy::HeContextPointer setup() {
     parms.set_coeff_modulus(CoeffModulus::create(poly_mod, {43, 33, 33}));
     parms.set_plain_modulus(plain_mod);
     parms.set_poly_modulus_degree(poly_mod);
-    return HeContext::create(parms, true, SecurityLevel::Classical128, 0x42);
+#if PRG_SEED != -1
+    return HeContext::create(parms, true, SecurityLevel::Classical128, PRG_SEED);
+#else
+    return HeContext::create(parms, true, SecurityLevel::Classical128);
+#endif
 }
 
 void conv2d(IO::NetIO** ios, int party, const INT_TYPE* a, const INT_TYPE* b, INT_TYPE* c,
@@ -59,9 +63,9 @@ void conv2d(IO::NetIO** ios, int party, const INT_TYPE* a, const INT_TYPE* b, IN
 
     double time = std::chrono::duration<double, std::milli>(measure::now() - start).count();
 
-    std::cout << "P" << party - 1 << " conv time[s]: " << time / 1000.0 << "\n";
-    std::cout << "P" << party - 1 << " conv data[MiB]: " << (1.0 * ios[0]->counter) / (1 << 20)
-              << "\n";
+    std::cerr << "P" << party - 1 << ": CONV triple time + NTT[s]: " << time / 1000.0 << "\n";
+    std::cerr << "P" << party - 1
+              << ": CONV triple data[MiB]: " << (1.0 * ios[0]->counter) / (1 << 20) << "\n";
 }
 
 void conv2d_dummy(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
@@ -87,7 +91,7 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
         he->to_device_inplace();
         encoder.to_device_inplace();
     } else {
-        std::cout << RED << "Couldn't find a GPU" << NC << "\n";
+        std::cerr << RED << "Couldn't find a GPU" << NC << "\n";
     }
 
     size_t oh = ih - kh + 1;
@@ -160,8 +164,12 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
         linear::Plain2d x_encoded;
         if (x)
             x_encoded = helper.encode_inputs_ring2k(encoder, x, std::nullopt, true);
+        auto ntt = measure::now();
         linear::Plain2d w_encoded
             = helper.encode_weights_ring2k(encoder, w, std::nullopt, false, evaluator, true);
+        double ntt_time = std::chrono::duration<double, std::milli>(measure::now() - ntt).count();
+        std::cerr << "P" << party - 1 << ": CONV NTT preprocessing time[s]: " << ntt_time / 1000.0
+                  << "\n";
         linear::Plain2d R_encoded = helper.encode_outputs_ring2k(encoder, R.data(), std::nullopt);
 
         auto stream      = recv(ios);
@@ -171,9 +179,9 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
             x_encrypted.add_plain_inplace(evaluator, x_encoded);
 
         linear::Cipher2d y_encrypted = helper.conv2d(evaluator, x_encrypted, w_encoded, true);
+        y_encrypted.sub_plain_inplace(evaluator, R_encoded);
         if (mod_switch)
             y_encrypted.mod_switch_to_next_inplace(evaluator);
-        y_encrypted.sub_plain_inplace(evaluator, R_encoded);
 
         std::stringstream y_serialized;
         helper.serialize_outputs(evaluator, y_encrypted, y_serialized);
@@ -204,7 +212,7 @@ void conv2d_ab(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w,
         he->to_device_inplace();
         encoder.to_device_inplace();
     } else {
-        std::cout << RED << "Couldn't find a GPU" << NC << "\n";
+        std::cerr << RED << "Couldn't find a GPU" << NC << "\n";
     }
 
     size_t oh = ih - kh + 1;
@@ -289,9 +297,9 @@ void conv2d_ab(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w,
         auto a1_encrypted = linear::Cipher2d::load_new(a1_serialized, he);
 
         linear::Cipher2d m2_encrypted = helper.conv2d(evaluator, a1_encrypted, w_encoded);
+        m2_encrypted.sub_plain_inplace(evaluator, R2_encoded);
         if (mod_switch)
             m2_encrypted.mod_switch_to_next_inplace(evaluator);
-        m2_encrypted.sub_plain_inplace(evaluator, R2_encoded);
 
         std::stringstream m2_serialized;
         helper.serialize_outputs(evaluator, m2_encrypted, m2_serialized);
@@ -380,6 +388,7 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT
     using namespace troy;
     auto he = setup();
     linear::PolynomialEncoderRing2k<INT_TYPE> encoder(he, BIT_LEN);
+    auto parmsid = encoder.context()->first_context_data_pointer()->parms_id();
     if (utils::device_count() > 0) {
         he->to_device_inplace();
         encoder.to_device_inplace();
@@ -451,16 +460,16 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT
     } else {
         vector<INT_TYPE> R = random_polynomial(bs * oc * oh * ow);
 
-        linear::Plain2d x_encoded = helper.encode_inputs_ring2k(encoder, x, std::nullopt, false);
-        linear::Plain2d R_encoded = helper.encode_outputs_ring2k(encoder, R.data(), std::nullopt);
+        linear::Plain2d x_encoded = helper.encode_inputs_ring2k(encoder, x, parmsid, false);
+        linear::Plain2d R_encoded = helper.encode_outputs_ring2k(encoder, R.data(), parmsid);
 
         auto stream      = recv(ios);
         auto w_encrypted = linear::Cipher2d::load_new(stream, he);
 
         linear::Cipher2d y_encrypted = helper.conv2d_reverse(evaluator, x_encoded, w_encrypted);
+        y_encrypted.sub_plain_inplace(evaluator, R_encoded);
         if (mod_switch)
             y_encrypted.mod_switch_to_next_inplace(evaluator);
-        y_encrypted.sub_plain_inplace(evaluator, R_encoded);
 
         std::stringstream y_serialized;
         helper.serialize_outputs(evaluator, y_encrypted, y_serialized);

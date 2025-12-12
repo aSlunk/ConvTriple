@@ -250,7 +250,7 @@ void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const uint32_t* a,
     if (proto == Utils::PROTO::AB2) {
         TROY::conv2d(keys.get_ios(threads), OTHER_PARTY(party), a, b, c, parm.batchsize, parm.ic,
                      parm.ih, parm.iw, parm.fh, parm.fw, parm.n_filters, parm.stride, parm.padding,
-                     false, factor);
+                     true, factor);
         return;
     }
 #endif
@@ -470,7 +470,7 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     }
 
     auto time = Utils::to_sec(Utils::time_diff(start));
-    Utils::log(Utils::Level::INFO, "P", party - 1, ": Conv triple time [s]: ", time);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV triple time + NTT[s]: ", time);
     std::string unit;
     double data = 0;
     for (int i = 0; i < threads; ++i) {
