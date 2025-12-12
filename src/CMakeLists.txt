@@ -42,6 +42,11 @@ if(TRIPLE_GPU)
 
     target_link_libraries(${HE_LIB} PUBLIC Troy::troy CUDA::cudart CUDA::cufft)
     target_compile_definitions(${HE_LIB} PRIVATE USE_CONV_CUDA=1)
+    if(TRIPLE_GPU_REVERSE)
+        target_compile_definitions(${HE_LIB} PRIVATE USE_CONV_CUDA=1 REVERSE_GPU=1)
+    else()
+        target_compile_definitions(${HE_LIB} PRIVATE USE_CONV_CUDA=1 REVERSE_GPU=0)
+    endif()
 else()
     add_library(${HE_LIB} STATIC
         core/hpmpc_interface.cpp

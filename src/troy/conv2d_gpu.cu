@@ -48,8 +48,13 @@ void conv2d(IO::NetIO** ios, int party, const INT_TYPE* a, const INT_TYPE* b, IN
     size_t c_size = ac_batch * oc * oh * ow;
 
     for (int i = 0; i < factor; ++i) {
+#if REVERSE_GPU == 0
         conv2d_ab2(ios, party, ai + i_size * i, b + w_size * i, c + c_size * i, ac_batch, ic, ih,
                    iw, kh, kw, oc, stride, mod_switch);
+#else
+        conv2d_ab2_reverse(ios, party, ai + i_size * i, b + w_size * i, c + c_size * i, ac_batch,
+                           ic, ih, iw, kh, kw, oc, stride, mod_switch);
+#endif
     }
 
     double time = std::chrono::duration<double, std::milli>(measure::now() - start).count();
@@ -386,7 +391,7 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT
     size_t ow = iw - kw + 1;
 
     linear::Conv2dHelper helper(bs, ic, oc, ih, iw, kh, kw, POLY_MOD,
-                                linear::MatmulObjective::EncryptLeft);
+                                linear::MatmulObjective::EncryptRight);
 
     KeyGenerator keygen(he);
     Encryptor encryptor(he);
@@ -409,7 +414,7 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT
             = apply_stride(c, y_decrypted, stride, bs, ic, ih, iw, kh, kw, oc);
 
 #ifdef VERIFY
-        std::cout << PURPLE << "Verifying CONV" << NC << "\n";
+        std::cout << PURPLE << "Verifying CONV REVERSED" << NC << "\n";
         size_t nh = (ih - kh) / stride + 1;
         size_t nw = (iw - kw) / stride + 1;
         std::cout << PURPLE << "[" << ic << ", " << ih << ", " << iw << "] x [" << ic << ", " << kh

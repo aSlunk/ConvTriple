@@ -9,6 +9,7 @@ option(TRIPLE_VERIFY "Enable verification" ON)
 option(TRIPLE_COLOR "Enable colored output" ON)
 option(TRIPLE_ZERO "Enable computation with ZERO" OFF)
 option(TRIPLE_GPU "Enable GPU support" OFF)
+option(TRIPLE_GPU_REVERSE "GPU uses reverse AB2" OFF)
 
 set(TRIPLE_LOG_LEVEL 0 CACHE STRING "Set log level (0: All, 1: Debug and Error, 2: Error)")
 set(TRIPLE_SEED 42 CACHE STRING "Sets the seed (-1: no seed)")
