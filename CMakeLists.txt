@@ -24,7 +24,7 @@ find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(emp-tool REQUIRED)
 find_package(emp-ot REQUIRED)
 find_package(OpenSSL REQUIRED)
-find_package(SEAL 4.0.0 REQUIRED)
+find_package(SEAL 4.1.2 REQUIRED)
 
 if(TRIPLE_GPU)
     if(NOT CMAKE_CUDA_COMPILER)

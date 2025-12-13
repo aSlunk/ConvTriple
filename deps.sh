@@ -46,7 +46,7 @@ cd ..
 ###############################################################################
 git clone https://github.com/microsoft/SEAL.git $DEPS_DIR/SEAL
 cd $DEPS_DIR/SEAL
-git switch --detach v4.0.0
+git switch --detach v4.1.2
 patch --quiet --no-backup-if-mismatch -N -p1 -i $WORK_DIR/patch/SEAL.patch -d $DEPS_DIR/SEAL/
 cmake . -B build -DCMAKE_INSTALL_PREFIX=$BUILD_DIR \
     -DCMAKE_PREFIX_PATH=$BUILD_DIR -DSEAL_USE_MSGSL=OFF -DSEAL_USE_ZLIB=OFF \
