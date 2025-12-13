@@ -100,7 +100,7 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
     size_t ow = iw - kw + 1;
 
     linear::Conv2dHelper helper_enc(bs, ic, oc, ih, iw, kh, kw, POLY_MOD,
-                                linear::MatmulObjective::EncryptLeft);
+                                    linear::MatmulObjective::EncryptLeft);
 
     KeyGenerator keygen(he);
     Encryptor encryptor(he);
@@ -117,7 +117,7 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
             = helper_enc.encode_weights_ring2k(encoder, w, std::nullopt, false, evaluator, true);
         double ntt_time = std::chrono::duration<double, std::milli>(measure::now() - ntt).count();
         std::cerr << "P" << party - 1 << ": CONV NTT preprocessing time[s]: " << ntt_time / 1000.0
-                << "\n";
+                  << "\n";
     }
 
     [[maybe_unused]] size_t size = 0;
@@ -139,14 +139,16 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
             auto y_encrypted  = helper.deserialize_outputs(evaluator, y_serialized);
             vector<INT_TYPE> y_decrypted
                 = helper.decrypt_outputs_ring2k(encoder, decryptor, y_encrypted);
-            size = bs * apply_stride(c, y_decrypted.data(), stride, batch_size, ic, ih, iw, kh, kw, oc, cur);
+            size = bs
+                   * apply_stride(c, y_decrypted.data(), stride, batch_size, ic, ih, iw, kh, kw, oc,
+                                  cur);
         } else {
             linear::Plain2d x_encoded;
             if (x)
                 x_encoded = helper.encode_inputs_ring2k(encoder, x + x_offset, std::nullopt, true);
 
-
-            linear::Plain2d R_encoded = helper.encode_outputs_ring2k(encoder, R.data() + r_offset, std::nullopt);
+            linear::Plain2d R_encoded
+                = helper.encode_outputs_ring2k(encoder, R.data() + r_offset, std::nullopt);
 
             auto stream      = recv(ios);
             auto x_encrypted = linear::Cipher2d::load_new(stream, he);
@@ -162,7 +164,9 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
             std::stringstream y_serialized;
             helper.serialize_outputs(evaluator, y_encrypted, y_serialized);
             send(ios, y_serialized);
-            size = bs * apply_stride(c, R.data() + r_offset, stride, batch_size, ic, ih, iw, kh, kw, oc, cur);
+            size = bs
+                   * apply_stride(c, R.data() + r_offset, stride, batch_size, ic, ih, iw, kh, kw,
+                                  oc, cur);
         }
         cur += batch_size;
     }
@@ -173,7 +177,7 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
         size_t nh = dim(ih, kh, stride, 0);
         size_t nw = dim(iw, kw, stride, 0);
         std::cout << PURPLE << "[" << ic << ", " << ih << ", " << iw << "] x [" << ic << ", " << kh
-                << ", " << kw << "] = [" << oc << ", " << nh << ", " << nw << "]" << NC << "\n";
+                  << ", " << kw << "] = [" << oc << ", " << nh << ", " << nw << "]" << NC << "\n";
 
         std::vector<INT_TYPE> x2(bs * ic * ih * iw);
         std::vector<INT_TYPE> w2(oc * ic * kh * kw);
@@ -358,9 +362,9 @@ vector<INT_TYPE> ideal_conv(const INT_TYPE* x, const INT_TYPE* w, size_t t, size
     return y_truth;
 }
 
-size_t apply_stride(INT_TYPE* dest, const INT_TYPE* x, const size_t& stride,
-                    const size_t& bs, const size_t& ic, const size_t& ih, const size_t& iw,
-                    const size_t& kh, const size_t& kw, const size_t& oc, const size_t batch_offset) {
+size_t apply_stride(INT_TYPE* dest, const INT_TYPE* x, const size_t& stride, const size_t& bs,
+                    const size_t& ic, const size_t& ih, const size_t& iw, const size_t& kh,
+                    const size_t& kw, const size_t& oc, const size_t batch_offset) {
     size_t oh  = (ih - kh) + 1;
     size_t ow  = (iw - kw) + 1;
     size_t nh  = (ih - kh) / stride + 1;
@@ -404,7 +408,7 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT
     size_t ow = iw - kw + 1;
 
     linear::Conv2dHelper helper_enc(bs, ic, oc, ih, iw, kh, kw, POLY_MOD,
-                                linear::MatmulObjective::EncryptRight);
+                                    linear::MatmulObjective::EncryptRight);
 
     KeyGenerator keygen(he);
     Encryptor encryptor(he);
@@ -414,13 +418,12 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT
 
     linear::Cipher2d w_encrypted;
     if (party == 2) {
-        w_encrypted
-            = helper_enc.encrypt_weights_ring2k(encryptor, encoder, w, std::nullopt);
+        w_encrypted = helper_enc.encrypt_weights_ring2k(encryptor, encoder, w, std::nullopt);
         std::stringstream w_serialized;
         w_encrypted.save(w_serialized, he);
         send(ios, w_serialized);
     } else {
-        auto stream      = recv(ios);
+        auto stream = recv(ios);
         w_encrypted = linear::Cipher2d::load_new(stream, he);
     }
 
@@ -436,12 +439,15 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT
             auto y_encrypted  = helper.deserialize_outputs(evaluator, y_serialized);
             vector<INT_TYPE> y_decrypted
                 = helper.decrypt_outputs_ring2k(encoder, decryptor, y_encrypted);
-            size = bs * apply_stride(c, y_decrypted.data(), stride, batch_size, ic, ih, iw, kh, kw, oc, cur);
+            size = bs
+                   * apply_stride(c, y_decrypted.data(), stride, batch_size, ic, ih, iw, kh, kw, oc,
+                                  cur);
 
         } else {
             vector<INT_TYPE> R = random_polynomial(batch_size * oc * oh * ow);
 
-            linear::Plain2d x_encoded = helper.encode_inputs_ring2k(encoder, x + x_offset, parmsid, false);
+            linear::Plain2d x_encoded
+                = helper.encode_inputs_ring2k(encoder, x + x_offset, parmsid, false);
             linear::Plain2d R_encoded = helper.encode_outputs_ring2k(encoder, R.data(), parmsid);
 
             linear::Cipher2d y_encrypted = helper.conv2d_reverse(evaluator, x_encoded, w_encrypted);

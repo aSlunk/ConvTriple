@@ -6,9 +6,9 @@
 #include <core/hpmpc_interface.hpp>
 #include <core/networks/resnet50.hpp>
 
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 #define PARTY 2
 
@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     {
         struct addrinfo hints, *res;
         memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_INET;
+        hints.ai_family   = AF_INET;
         hints.ai_socktype = SOCK_STREAM;
 
         int status = getaddrinfo(argv[2], argv[1], &hints, &res);
@@ -46,7 +46,8 @@ int main(int argc, char** argv) {
         }
 
         char ip_str[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &((struct sockaddr_in*)(res->ai_addr))->sin_addr, ip_str, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, &((struct sockaddr_in*)(res->ai_addr))->sin_addr, ip_str,
+                  INET_ADDRSTRLEN);
         freeaddrinfo(res);
         ip = ip_str;
     }
@@ -66,8 +67,7 @@ int main(int argc, char** argv) {
         }
 
         Iface::do_multiplex(num_triples * 8, a, b, c, PARTY, ip, port, 1, threads);
-        Iface::generateCOT(PARTY, nullptr, b, c, num_triples * 8, ip, port, threads,
-                           1);
+        Iface::generateCOT(PARTY, nullptr, b, c, num_triples * 8, ip, port, threads, 1);
     }
 
     {
@@ -98,9 +98,8 @@ int main(int argc, char** argv) {
             std::vector<uint32_t> b(num_triples, 1);
             std::vector<uint32_t> c(num_triples, 1);
 
-            Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples,
-                                               ip, port, PARTY, threads,
-                                               Utils::PROTO::AB);
+            Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples, ip,
+                                               port, PARTY, threads, Utils::PROTO::AB);
         }
     }
 
