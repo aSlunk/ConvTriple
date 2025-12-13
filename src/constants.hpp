@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <thread>
+#include <vector>
 
 #ifndef USE_CONV_CUDA
 #define USE_CONV_CUDA 0
