@@ -6,6 +6,10 @@
 #include <core/hpmpc_interface.hpp>
 #include <core/networks/resnet50.hpp>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 #define PARTY 2
 
 void print_m128i(__m128i var) {
@@ -20,7 +24,6 @@ int main(int argc, char** argv) {
     }
 
     size_t port                     = strtoul(argv[1], NULL, 10);
-    char* addr                      = argv[2];
     [[maybe_unused]] size_t samples = strtoul(argv[3], NULL, 10);
     size_t batchSize                = strtoul(argv[4], NULL, 10);
     size_t threads;
@@ -28,6 +31,25 @@ int main(int argc, char** argv) {
         threads = N_THREADS;
     else
         threads = std::min(strtoul(argv[5], NULL, 10), (size_t)N_THREADS);
+
+    std::string ip;
+    {
+        struct addrinfo hints, *res;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+
+        int status = getaddrinfo(argv[2], argv[1], &hints, &res);
+        if (status != 0) {
+            std::cerr << "getaddrinfo error: " << gai_strerror(status) << endl;
+            return -1;
+        }
+
+        char ip_str[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &((struct sockaddr_in*)(res->ai_addr))->sin_addr, ip_str, INET_ADDRSTRLEN);
+        freeaddrinfo(res);
+        ip = ip_str;
+    }
 
     int num_triples = 1;
 
@@ -43,8 +65,8 @@ int main(int argc, char** argv) {
             }
         }
 
-        Iface::do_multiplex(num_triples * 8, a, b, c, PARTY, std::string(addr), port, 1, threads);
-        Iface::generateCOT(PARTY, nullptr, b, c, num_triples * 8, std::string(addr), port, threads,
+        Iface::do_multiplex(num_triples * 8, a, b, c, PARTY, ip, port, 1, threads);
+        Iface::generateCOT(PARTY, nullptr, b, c, num_triples * 8, ip, port, threads,
                            1);
     }
 
@@ -57,7 +79,7 @@ int main(int argc, char** argv) {
         uint8_t* c = new uint8_t[tmp];
 
         Iface::generateBoolTriplesCheetah((uint8_t*)a, (uint8_t*)b, (uint8_t*)c, 1,
-                                          tmp * sizeof(*a), std::string(addr), port, PARTY, threads,
+                                          tmp * sizeof(*a), ip, port, PARTY, threads,
                                           _16KKOT_to_4OT);
 
         delete[] a;
@@ -65,7 +87,7 @@ int main(int argc, char** argv) {
         delete[] c;
     }
 
-    auto& keys = Iface::Keys<IO::NetIO>::instance(PARTY, std::string(addr), port, threads, 1);
+    auto& keys = Iface::Keys<IO::NetIO>::instance(PARTY, ip, port, threads, 0);
     keys.disconnect();
 
     for (int i = 0; i < 1; ++i) {
@@ -77,7 +99,7 @@ int main(int argc, char** argv) {
             std::vector<uint32_t> c(num_triples, 1);
 
             Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples,
-                                               std::string(addr), port, PARTY, threads,
+                                               ip, port, PARTY, threads,
                                                Utils::PROTO::AB);
         }
     }
