@@ -24,7 +24,7 @@ cd $TMP
 ###############################################################################
 git clone "https://github.com/emp-toolkit/emp-tool.git" emp-tool
 cd emp-tool
-git checkout 8052d95
+git checkout 802b5d4
 sed -i '4i #include <cstdint>' emp-tool/utils/block.h
 cmake . -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build . --target install -j
@@ -35,7 +35,7 @@ cd ..
 ###############################################################################
 git clone https://github.com/emp-toolkit/emp-ot.git emp-ot
 cd emp-ot
-git checkout 93b7aa9
+git checkout a603ca0
 cmake $TMP/emp-ot -DCMAKE_INSTALL_PREFIX=$DEPS -DCMAKE_PREFIX_PATH=$DEPS \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build . --target install -j
