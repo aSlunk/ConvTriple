@@ -35,7 +35,7 @@ class PROF : public seal::MMProf {
     }
 
     ~PROF() noexcept {
-        handle.release();
+        handle.reset();
         if (pool.unique()) {
             std::cout << "UNIQUE\n";
         } else {
