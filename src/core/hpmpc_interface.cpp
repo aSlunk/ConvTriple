@@ -137,7 +137,7 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
         if (start >= end)
             return Code::OK;
         for (int total = start; total < end;) {
-            size_t current = std::min(static_cast<int>(MAX_ARITH), end - total);
+            size_t current = std::min(static_cast<int>(MAX_ARITH / threads), end - total);
 
             gemini::HomBNSS::Meta m = meta;
             m.vec_shape             = gemini::TensorShape({static_cast<long>(current)});
