@@ -1,3 +1,4 @@
+#include "core/utils.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -158,8 +159,9 @@ int main(int argc, char** argv) {
         memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t));
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(keys, nullptr, b, c, conv, PARTY, threads,
-                                                 Utils::PROTO::AB2);
+        std::vector<Utils::ConvParm> vec = {conv};
+        std::vector<uint32_t*> bb = {b};
+        Iface::generateConvTriplesCheetah(keys, batchSize, vec, nullptr, bb.data(), c, Utils::PROTO::AB2, PARTY, threads, 1);
 
         delete[] a;
         delete[] b;

@@ -152,8 +152,11 @@ int main(int argc, char** argv) {
 
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
-        Iface::generateConvTriplesCheetahWrapper(keys, a, nullptr, c, conv, PARTY, threads,
-                                                 Utils::PROTO::AB2);
+        std::vector<Utils::ConvParm> vec = {conv};
+        std::vector<uint32_t*> aa = {a};
+        Iface::generateConvTriplesCheetah(keys, batchSize, vec, aa.data(), nullptr, c, Utils::PROTO::AB2, PARTY, threads, 1);
+        // Iface::generateConvTriplesCheetahWrapper(keys, a, nullptr, c, conv, PARTY, threads,
+        //                                          Utils::PROTO::AB2);
 
         delete[] a;
         delete[] b;
