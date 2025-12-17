@@ -502,6 +502,7 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const 
     int ac_batch_size = batch / factor;
 
     for (int cur_batch = 0; cur_batch < batch; ++cur_batch) {
+        auto start_ntt = measure::now();
         Tensor<uint64_t> A
             = Tensor<uint64_t>::Wrap(ai + meta.ishape.num_elements() * cur_batch, meta.ishape);
 
@@ -518,7 +519,6 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const 
         switch (party) {
         case emp::ALICE: {
             Code c;
-            auto start_ntt = measure::now();
             if (cur_batch % ac_batch_size == 0) {
                 enc_B.clear();
                 if ((c = conv.encodeFilters(B, meta, enc_B, threads)) != Code::OK) {
@@ -535,7 +535,6 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const 
         case emp::BOB: {
             if (proto == Utils::PROTO::AB) {
                 Code c;
-                auto start_ntt = measure::now();
                 if (cur_batch % ac_batch_size == 0) {
                     enc_B.clear();
                     if ((c = conv.encodeFilters(B, meta, enc_B, threads)) != Code::OK) {
