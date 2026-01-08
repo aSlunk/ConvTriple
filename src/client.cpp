@@ -129,13 +129,13 @@ int main(int argc, char** argv) {
     {
         Utils::ConvParm conv{
             .batchsize = static_cast<int>(batchSize),
-            .ic        = 3,
-            .iw        = 230,
-            .ih        = 230,
-            .fc        = 3,
+            .ic        = 1,
+            .iw        = 10,
+            .ih        = 10,
+            .fc        = 1,
             .fw        = 7,
             .fh        = 7,
-            .n_filters = 64,
+            .n_filters = 1,
             .stride    = 2,
             .padding   = 0,
         };
@@ -153,10 +153,15 @@ int main(int argc, char** argv) {
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
         std::vector<Utils::ConvParm> vec = {conv};
-        std::vector<uint32_t*> aa = {a};
-        Iface::generateConvTriplesCheetah(keys, batchSize, vec, aa.data(), nullptr, c, Utils::PROTO::AB2, PARTY, threads, 1);
-        // Iface::generateConvTriplesCheetahWrapper(keys, a, nullptr, c, conv, PARTY, threads,
-        //                                          Utils::PROTO::AB2);
+        std::vector<uint32_t*> aa        = {a};
+        // Iface::generateConvTriplesCheetah(keys, batchSize, vec, aa.data(), nullptr, c,
+        // Utils::PROTO::AB2, PARTY, threads, 1);
+        Iface::generateConvTriplesCheetahWrapper(keys, a, b, c, conv, PARTY, threads,
+                                                 Utils::PROTO::AB, 1, true);
+
+        for (size_t i = 0; i < Utils::getOutDim(conv).num_elements() * batchSize; ++i) {
+            std::cout << "P" << PARTY << ": res" << c[i] << "\n";
+        }
 
         delete[] a;
         delete[] b;

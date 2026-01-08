@@ -140,13 +140,13 @@ int main(int argc, char** argv) {
     {
         Utils::ConvParm conv{
             .batchsize = static_cast<int>(batchSize),
-            .ic        = 3,
-            .iw        = 230,
-            .ih        = 230,
-            .fc        = 3,
+            .ic        = 1,
+            .iw        = 10,
+            .ih        = 10,
+            .fc        = 1,
             .fw        = 7,
             .fh        = 7,
-            .n_filters = 64,
+            .n_filters = 1,
             .stride    = 2,
             .padding   = 0,
         };
@@ -155,13 +155,24 @@ int main(int argc, char** argv) {
                                             conv.n_filters, conv.stride, conv.padding);
         uint32_t* a = new uint32_t[meta.ishape.num_elements() * batchSize];
         memset(a, 0, meta.ishape.num_elements() * sizeof(uint32_t) * batchSize);
+        for (size_t i = 0; i < meta.ishape.num_elements() * batchSize; ++i) {
+            a[i] = 1;
+        }
         uint32_t* b = new uint32_t[meta.n_filters * meta.fshape.num_elements()];
         memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t));
+        for (size_t i = 0; i < meta.n_filters; ++i)
+            for (int j = 0; j < meta.fshape.num_elements(); ++j)
+                b[i * meta.fshape.num_elements() + j] = 3;
         uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
 
         std::vector<Utils::ConvParm> vec = {conv};
-        std::vector<uint32_t*> bb = {b};
-        Iface::generateConvTriplesCheetah(keys, batchSize, vec, nullptr, bb.data(), c, Utils::PROTO::AB2, PARTY, threads, 1);
+        std::vector<uint32_t*> bb        = {b};
+        Iface::generateConvTriplesCheetahWrapper(keys, a, b, c, conv, PARTY, threads,
+                                                 Utils::PROTO::AB, 1, true);
+
+        for (size_t i = 0; i < Utils::getOutDim(conv).num_elements() * batchSize; ++i) {
+            std::cout << "P" << PARTY << ": res" << c[i] << "\n";
+        }
 
         delete[] a;
         delete[] b;
