@@ -161,10 +161,10 @@ void Keys<Channel>::setupBn(Channel** ios, const seal::SEALContext& ctx, const i
     seal_parms.set_poly_modulus_degree(N);
     seal_parms.set_coeff_modulus(CoeffModulus::Create(N, cipher_moduli_bits));
 
-    #if PRG_SEED != -1
-        seal::prng_seed_type seed = {PRG_SEED};
-        seal_parms.set_random_generator(std::make_shared<seal::Blake2xbPRNGFactory>(seed));
-    #endif
+#if PRG_SEED != -1
+    seal::prng_seed_type seed = {PRG_SEED};
+    seal_parms.set_random_generator(std::make_shared<seal::Blake2xbPRNGFactory>(seed));
+#endif
 
     std::vector<std::shared_ptr<seal::SEALContext>> bn_contexts_(nCRT);
     for (size_t i = 0; i < nCRT; ++i) {

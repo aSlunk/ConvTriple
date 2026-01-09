@@ -52,9 +52,10 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
                                 TripleGenMethod method, unsigned io_offset) {
     Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (BOOL): ", num_triples);
     // std::atomic<int> setup = 0;
+    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+
     auto start = measure::now();
 
-    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
     auto** ios = keys.get_ios(threads);
 
     auto func = [&](int wid, int start, int end) -> Code {
@@ -110,9 +111,10 @@ void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_
     assert(bitlength == 32 && "[arith. triples] Unsupported bitlength");
     Utils::log(Utils::Level::INFO, "P", party - 1, ": num_triples (ARITH): ", num_triples,
                " " + Utils::proto_str(proto));
+    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+
     auto start = measure::now();
 
-    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
     auto& bn   = keys.get_bn();
     auto** ios = keys.get_ios(threads);
 
@@ -700,9 +702,10 @@ void do_multiplex(int num_input, uint32_t* x32, uint8_t* sel_packed, uint32_t* y
                   const std::string& ip, int port, int io_offset, int threads) {
     int bitlen = 32;
 
+    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+
     auto start = measure::now();
 
-    auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
     auto** ios = keys.get_ios(1);
 
     uint8_t* sel = new uint8_t[num_input];
@@ -792,8 +795,10 @@ void generateOT(int party, const std::string& ip, int port, int threads, int io_
         b[i] = party == emp::ALICE ? 0 : 0;
     }
 
-    auto start = measure::now();
     auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+
+    auto start = measure::now();
+
     auto** ios = keys.get_ios(threads);
 
     auto func = [&](int wid, size_t start, size_t end) -> Code {
@@ -849,8 +854,10 @@ void generateOT(int party, const std::string& ip, int port, int threads, int io_
 void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const unsigned& num_triples,
                  const std::string& ip, int port, int threads, int io_offset) {
     Utils::log(Utils::Level::DEBUG, "COT: ", num_triples);
-    auto start = measure::now();
     auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
+
+    auto start = measure::now();
+
     auto** ios = keys.get_ios(1);
 
     auto func = [&](int wid, size_t start, size_t end) -> Code {
