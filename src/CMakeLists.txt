@@ -22,6 +22,8 @@ if(TRIPLE_ZERO)
     target_compile_definitions(gemini PRIVATE ZERO)
 endif()
 
+target_compile_definitions(gemini PRIVATE PRG_SEED=${TRIPLE_SEED})
+
 target_include_directories(gemini PUBLIC
     ${EIGEN3_INCLUDE_DIR}
     ${EMP-OT_INCLUDE_DIRS}

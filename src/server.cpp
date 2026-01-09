@@ -80,6 +80,9 @@ int main(int argc, char** argv) {
                                                std::string(""), port, PARTY, threads,
                                                Utils::PROTO::AB);
 
+            for (size_t i = 0; i < 10; ++i)
+                std::cout << c[i] << "\n";
+
             if (!IO::save_to_file("arith.triple", a.data(), b.data(), c.data(), num_triples)) {
                 Utils::log(Utils::Level::FAILED, "Failed to save triples");
             } else {
