@@ -203,9 +203,15 @@ void Keys<Channel>::connect(int party, const std::string& ip, int port, int thre
     if (party == emp::ALICE)
         addr = nullptr;
 
-    for (int i = 0; i < threads; ++i) {
-        _ios[i]->init_connection(addr, port + i * io_offset);
-    }
+    auto build = [&] (int wid, size_t start, size_t end) -> Code {
+        for (size_t i = start; i < end; ++i) {
+            _ios[i]->init_connection(addr, port + i * io_offset);
+        }
+        return Code::OK;
+    };
+
+    gemini::ThreadPool tpool(threads);
+    gemini::LaunchWorks(tpool, threads, build);
     _connected = true;
 }
 
