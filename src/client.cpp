@@ -106,8 +106,8 @@ int main(int argc, char** argv) {
     }
 
     {
-        int n       = 3;
-        int out     = 2;
+        int n        = 3;
+        int out      = 2;
         UINT_TYPE* a = new UINT_TYPE[n * batchSize];
         UINT_TYPE* b = new UINT_TYPE[n * batchSize * out];
 
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
         UINT_TYPE* c = new UINT_TYPE[Utils::getOutDim(conv).num_elements() * batchSize];
 
         std::vector<Utils::ConvParm> vec = {conv};
-        std::vector<UINT_TYPE*> aa        = {a};
+        std::vector<UINT_TYPE*> aa       = {a};
         // Iface::generateConvTriplesCheetah(keys, batchSize, vec, aa.data(), nullptr, c,
         // Utils::PROTO::AB2, PARTY, threads, 1);
         Iface::generateConvTriplesCheetahWrapper(keys, a, b, c, conv, PARTY, threads,

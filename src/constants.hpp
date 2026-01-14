@@ -32,9 +32,9 @@ const int N_THREADS = std::max(1u, std::thread::hardware_concurrency());
 constexpr size_t filter_prec = 0ULL;
 
 #ifdef TRIPLE_BITLEN
-constexpr uint64_t BIT_LEN   = TRIPLE_BITLEN;
+constexpr uint64_t BIT_LEN = TRIPLE_BITLEN;
 #else
-constexpr uint64_t BIT_LEN   = 32;
+constexpr uint64_t BIT_LEN = 32;
 #endif
 constexpr uint64_t POLY_MOD  = 1ULL << 12;
 constexpr uint64_t PLAIN_MOD = 1ULL << BIT_LEN;

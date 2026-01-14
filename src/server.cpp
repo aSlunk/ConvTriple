@@ -119,8 +119,8 @@ int main(int argc, char** argv) {
     }
 
     {
-        int n       = 3;
-        int out     = 2;
+        int n        = 3;
+        int out      = 2;
         UINT_TYPE* a = new UINT_TYPE[n * batchSize];
         UINT_TYPE* b = new UINT_TYPE[n * batchSize * out];
         UINT_TYPE* c = new UINT_TYPE[out * batchSize];
@@ -154,8 +154,8 @@ int main(int argc, char** argv) {
             .padding   = 0,
         };
 
-        auto meta   = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
-                                            conv.n_filters, conv.stride, conv.padding);
+        auto meta    = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
+                                             conv.n_filters, conv.stride, conv.padding);
         UINT_TYPE* a = new UINT_TYPE[meta.ishape.num_elements() * batchSize];
         memset(a, 0, meta.ishape.num_elements() * sizeof(UINT_TYPE) * batchSize);
         for (size_t i = 0; i < meta.ishape.num_elements() * batchSize; ++i) {
@@ -169,7 +169,7 @@ int main(int argc, char** argv) {
         UINT_TYPE* c = new UINT_TYPE[Utils::getOutDim(conv).num_elements() * batchSize];
 
         std::vector<Utils::ConvParm> vec = {conv};
-        std::vector<UINT_TYPE*> bb        = {b};
+        std::vector<UINT_TYPE*> bb       = {b};
         Iface::generateConvTriplesCheetahWrapper(keys, a, b, c, conv, PARTY, threads,
                                                  Utils::PROTO::AB, 1, true);
 

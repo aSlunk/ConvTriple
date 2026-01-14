@@ -245,9 +245,10 @@ void generateFCTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const U
     delete[] bi;
 }
 
-void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const UINT_TYPE* b,
-                                       UINT_TYPE* c, Utils::ConvParm parm, int party, int threads,
-                                       Utils::PROTO proto, int factor, bool is_shared_input) {
+void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const UINT_TYPE* a,
+                                       const UINT_TYPE* b, UINT_TYPE* c, Utils::ConvParm parm,
+                                       int party, int threads, Utils::PROTO proto, int factor,
+                                       bool is_shared_input) {
 #if USE_CONV_CUDA
     if (proto == Utils::PROTO::AB2) {
         TROY::conv2d(keys.get_ios(threads), OTHER_PARTY(party), a, b, c, parm.batchsize, parm.ic,
@@ -288,8 +289,8 @@ void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const UINT_TYPE* a
 
 void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
                                 std::vector<Utils::ConvParm>& parms, UINT_TYPE** a, UINT_TYPE** b,
-                                UINT_TYPE* c, Utils::PROTO proto, int party, int threads, int factor,
-                                bool is_shared_input) {
+                                UINT_TYPE* c, Utils::PROTO proto, int party, int threads,
+                                int factor, bool is_shared_input) {
     auto start = measure::now();
 
     vector<vector<seal::Plaintext>> enc_a(total_batches);
@@ -578,8 +579,8 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const
 }
 
 void generateBNTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const UINT_TYPE* b,
-                              UINT_TYPE* c, int batch, size_t num_ele, size_t h, size_t w, int party,
-                              int threads, Utils::PROTO proto, int factor) {
+                              UINT_TYPE* c, int batch, size_t num_ele, size_t h, size_t w,
+                              int party, int threads, Utils::PROTO proto, int factor) {
     auto meta = Utils::init_meta_bn(num_ele, h, w);
     Utils::log(Utils::Level::INFO, "P", party - 1, " BN: ", meta.ishape, " x ", meta.vec_shape,
                ", ", Utils::proto_str(proto));

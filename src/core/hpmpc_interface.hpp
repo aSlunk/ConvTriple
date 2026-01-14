@@ -9,8 +9,8 @@
 #include <type_traits>
 
 #include "core/keys.hpp"
-#include "utils.hpp"
 #include "ot/bit-triple-generator.h"
+#include "utils.hpp"
 
 namespace Iface {
 
@@ -45,23 +45,23 @@ void generateFCTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const U
                               UINT_TYPE* c, int batch, uint64_t com_dim, uint64_t dim2, int party,
                               int threads, Utils::PROTO proto, int factor = 1);
 
-void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const UINT_TYPE* b,
-                                       UINT_TYPE* c, Utils::ConvParm parm, int party, int threads,
-                                       Utils::PROTO proto, int factor = 1,
+void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const UINT_TYPE* a,
+                                       const UINT_TYPE* b, UINT_TYPE* c, Utils::ConvParm parm,
+                                       int party, int threads, Utils::PROTO proto, int factor = 1,
                                        bool is_shared_input = false);
 
 void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
                                 std::vector<Utils::ConvParm>& parms, UINT_TYPE** a, UINT_TYPE** b,
-                                UINT_TYPE* c, Utils::PROTO proto, int party, int threads, int factor,
-                                bool is_shared_input = false);
+                                UINT_TYPE* c, Utils::PROTO proto, int party, int threads,
+                                int factor, bool is_shared_input = false);
 
 void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const UINT_TYPE* b,
                                 UINT_TYPE* c, const gemini::HomConv2DSS::Meta& meta, int batch,
                                 int party, int threads, Utils::PROTO proto, int factor);
 
 void generateBNTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const UINT_TYPE* b,
-                              UINT_TYPE* c, int batch, size_t num_ele, size_t h, size_t w, int party,
-                              int threads, Utils::PROTO proto, int factor = 1);
+                              UINT_TYPE* c, int batch, size_t num_ele, size_t h, size_t w,
+                              int party, int threads, Utils::PROTO proto, int factor = 1);
 
 void do_multiplex(int num_input, UINT_TYPE* x32, uint8_t* sel_packed, UINT_TYPE* y32, int party,
                   const std::string& ip, int port, int io_offset, int threads);
