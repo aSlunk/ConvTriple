@@ -10,7 +10,10 @@
 
 #define PARTY 1
 
+using Iface::UINT_TYPE;
+
 int main(int argc, char** argv) {
+    Utils::log(Utils::Level::DEBUG, "BITLEN = ", sizeof(UINT_TYPE) * 8);
     if (argc != 5 && argc != 4) {
         std::cout << argv[0] << " <port> <samples> <batchSize> (<threads>)\n";
         return EXEC_FAILED;
@@ -28,9 +31,9 @@ int main(int argc, char** argv) {
     int num_triples = 1;
 
     {
-        uint32_t a[num_triples * 8];
+        UINT_TYPE a[num_triples * 8];
         uint8_t b[num_triples];
-        uint32_t c[num_triples * 8];
+        UINT_TYPE c[num_triples * 8];
 
         for (int i = 0; i < num_triples; ++i) {
             b[i] = 0xff;
@@ -66,15 +69,15 @@ int main(int argc, char** argv) {
     {
         // num_triples = 9'006'592;
         num_triples = 22;
-        std::vector<uint32_t> a_cp(num_triples * 1);
-        std::vector<uint32_t> b_cp(num_triples * 1);
-        std::vector<uint32_t> c_cp(num_triples * 1);
+        std::vector<UINT_TYPE> a_cp(num_triples * 1);
+        std::vector<UINT_TYPE> b_cp(num_triples * 1);
+        std::vector<UINT_TYPE> c_cp(num_triples * 1);
 
         for (int i = 0; i < 1; ++i) {
             // num_triples = 48'168'448;
-            std::vector<uint32_t> a(num_triples, 0);
-            std::vector<uint32_t> b(num_triples, 0);
-            std::vector<uint32_t> c(num_triples, 0);
+            std::vector<UINT_TYPE> a(num_triples, 0);
+            std::vector<UINT_TYPE> b(num_triples, 0);
+            std::vector<UINT_TYPE> c(num_triples, 0);
 
             Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples,
                                                std::string(""), port, PARTY, threads,
@@ -85,15 +88,15 @@ int main(int argc, char** argv) {
             } else {
                 Utils::log(Utils::Level::PASSED, "Saved triples");
             }
-            std::memcpy(a_cp.data() + num_triples * i, a.data(), num_triples * sizeof(uint32_t));
-            std::memcpy(b_cp.data() + num_triples * i, b.data(), num_triples * sizeof(uint32_t));
-            std::memcpy(c_cp.data() + num_triples * i, c.data(), num_triples * sizeof(uint32_t));
+            std::memcpy(a_cp.data() + num_triples * i, a.data(), num_triples * sizeof(UINT_TYPE));
+            std::memcpy(b_cp.data() + num_triples * i, b.data(), num_triples * sizeof(UINT_TYPE));
+            std::memcpy(c_cp.data() + num_triples * i, c.data(), num_triples * sizeof(UINT_TYPE));
         }
 
         for (size_t round = 0; round < 1; ++round) {
-            std::vector<uint32_t> a(num_triples);
-            std::vector<uint32_t> b(num_triples);
-            std::vector<uint32_t> c(num_triples);
+            std::vector<UINT_TYPE> a(num_triples);
+            std::vector<UINT_TYPE> b(num_triples);
+            std::vector<UINT_TYPE> c(num_triples);
             if (IO::read_from_file("arith.triple", a.data(), b.data(), c.data(), num_triples,
                                    true)) {
                 Utils::log(Utils::Level::PASSED, "Read triples");
@@ -118,9 +121,9 @@ int main(int argc, char** argv) {
     {
         int n       = 3;
         int out     = 2;
-        uint32_t* a = new uint32_t[n * batchSize];
-        uint32_t* b = new uint32_t[n * batchSize * out];
-        uint32_t* c = new uint32_t[out * batchSize];
+        UINT_TYPE* a = new UINT_TYPE[n * batchSize];
+        UINT_TYPE* b = new UINT_TYPE[n * batchSize * out];
+        UINT_TYPE* c = new UINT_TYPE[out * batchSize];
 
         for (size_t j = 0; j < batchSize; ++j) {
             for (int i = 0; i < n * out; ++i) {
@@ -153,20 +156,20 @@ int main(int argc, char** argv) {
 
         auto meta   = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
                                             conv.n_filters, conv.stride, conv.padding);
-        uint32_t* a = new uint32_t[meta.ishape.num_elements() * batchSize];
-        memset(a, 0, meta.ishape.num_elements() * sizeof(uint32_t) * batchSize);
+        UINT_TYPE* a = new UINT_TYPE[meta.ishape.num_elements() * batchSize];
+        memset(a, 0, meta.ishape.num_elements() * sizeof(UINT_TYPE) * batchSize);
         for (size_t i = 0; i < meta.ishape.num_elements() * batchSize; ++i) {
             a[i] = 1;
         }
-        uint32_t* b = new uint32_t[meta.n_filters * meta.fshape.num_elements()];
-        memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(uint32_t));
+        UINT_TYPE* b = new UINT_TYPE[meta.n_filters * meta.fshape.num_elements()];
+        memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(UINT_TYPE));
         for (size_t i = 0; i < meta.n_filters; ++i)
             for (int j = 0; j < meta.fshape.num_elements(); ++j)
                 b[i * meta.fshape.num_elements() + j] = 3;
-        uint32_t* c = new uint32_t[Utils::getOutDim(conv).num_elements() * batchSize];
+        UINT_TYPE* c = new UINT_TYPE[Utils::getOutDim(conv).num_elements() * batchSize];
 
         std::vector<Utils::ConvParm> vec = {conv};
-        std::vector<uint32_t*> bb        = {b};
+        std::vector<UINT_TYPE*> bb        = {b};
         Iface::generateConvTriplesCheetahWrapper(keys, a, b, c, conv, PARTY, threads,
                                                  Utils::PROTO::AB, 1, true);
 
@@ -183,9 +186,9 @@ int main(int argc, char** argv) {
         int h    = 2;
         int w    = 2;
 
-        std::vector<uint32_t> A(rows * h * w * batchSize, 3);
-        std::vector<uint32_t> B(rows * batchSize, 0);
-        std::vector<uint32_t> C(rows * h * w * batchSize);
+        std::vector<UINT_TYPE> A(rows * h * w * batchSize, 3);
+        std::vector<UINT_TYPE> B(rows * batchSize, 0);
+        std::vector<UINT_TYPE> C(rows * h * w * batchSize);
 
         Iface::generateBNTriplesCheetah(keys, A.data(), B.data(), C.data(), batchSize, rows, h, w,
                                         PARTY, threads, Utils::PROTO::AB2);

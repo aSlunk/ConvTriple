@@ -13,6 +13,7 @@ option(TRIPLE_GPU_REVERSE "GPU uses reverse AB2" OFF)
 
 set(TRIPLE_LOG_LEVEL 0 CACHE STRING "Set log level (0: All, 1: Debug and Error, 2: Error)")
 set(TRIPLE_SEED 42 CACHE STRING "Sets the seed (-1: no seed)")
+set(TRIPLE_BITLEN 32 CACHE STRING "Sets the BITLEN (default: 32)")
 
 add_compile_options(-fPIC)
 # add_compile_options(-D_GLIBCXX_USE_CXX11_ABI=0)

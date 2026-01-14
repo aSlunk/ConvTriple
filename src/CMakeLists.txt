@@ -87,6 +87,7 @@ if(TRIPLE_COLOR)
 endif()
 
 target_compile_definitions(${HE_LIB} PRIVATE LOGLEVEL=${TRIPLE_LOG_LEVEL} PRG_SEED=${TRIPLE_SEED})
+target_compile_definitions(${HE_LIB} PUBLIC TRIPLE_BITLEN=${TRIPLE_BITLEN})
 
 ################################################################################
 ## Server / Client executables

@@ -1,19 +1,20 @@
 #ifndef HPMPC_INTERFACE_HPP_
 #define HPMPC_INTERFACE_HPP_
 
-#include "utils.hpp"
-
-#include "ot/bit-triple-generator.h"
-
 #include <string>
 
 #include <io/net_io_channel.hpp>
 
 #include <gemini/cheetah/hom_bn_ss.h>
+#include <type_traits>
 
 #include "core/keys.hpp"
+#include "utils.hpp"
+#include "ot/bit-triple-generator.h"
 
 namespace Iface {
+
+using UINT_TYPE = std::conditional_t<BIT_LEN == 32, uint32_t, uint64_t>;
 
 template <class Channel, class SerKey>
 void exchange_keys(Channel** ios, const SerKey& pkey, seal::PublicKey& o_pkey,
@@ -35,39 +36,39 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[], int bitle
                                 int threads = 1, TripleGenMethod method = _16KKOT_to_4OT,
                                 unsigned io_offset = 1);
 
-void generateArithTriplesCheetah(const uint32_t a[], const uint32_t b[], uint32_t c[],
+void generateArithTriplesCheetah(const UINT_TYPE a[], const UINT_TYPE b[], UINT_TYPE c[],
                                  int bitlength, uint64_t num_triples, const std::string& ip,
                                  int port, int party, int threads = 1,
                                  Utils::PROTO proto = Utils::PROTO::AB, unsigned io_offset = 1);
 
-void generateFCTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
-                              uint32_t* c, int batch, uint64_t com_dim, uint64_t dim2, int party,
+void generateFCTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const UINT_TYPE* b,
+                              UINT_TYPE* c, int batch, uint64_t com_dim, uint64_t dim2, int party,
                               int threads, Utils::PROTO proto, int factor = 1);
 
-void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
-                                       uint32_t* c, Utils::ConvParm parm, int party, int threads,
+void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const UINT_TYPE* b,
+                                       UINT_TYPE* c, Utils::ConvParm parm, int party, int threads,
                                        Utils::PROTO proto, int factor = 1,
                                        bool is_shared_input = false);
 
 void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
-                                std::vector<Utils::ConvParm>& parms, uint32_t** a, uint32_t** b,
-                                uint32_t* c, Utils::PROTO proto, int party, int threads, int factor,
+                                std::vector<Utils::ConvParm>& parms, UINT_TYPE** a, UINT_TYPE** b,
+                                UINT_TYPE* c, Utils::PROTO proto, int party, int threads, int factor,
                                 bool is_shared_input = false);
 
-void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
-                                uint32_t* c, const gemini::HomConv2DSS::Meta& meta, int batch,
+void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const UINT_TYPE* b,
+                                UINT_TYPE* c, const gemini::HomConv2DSS::Meta& meta, int batch,
                                 int party, int threads, Utils::PROTO proto, int factor);
 
-void generateBNTriplesCheetah(Keys<IO::NetIO>& keys, const uint32_t* a, const uint32_t* b,
-                              uint32_t* c, int batch, size_t num_ele, size_t h, size_t w, int party,
+void generateBNTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const UINT_TYPE* b,
+                              UINT_TYPE* c, int batch, size_t num_ele, size_t h, size_t w, int party,
                               int threads, Utils::PROTO proto, int factor = 1);
 
-void do_multiplex(int num_input, uint32_t* x32, uint8_t* sel_packed, uint32_t* y32, int party,
+void do_multiplex(int num_input, UINT_TYPE* x32, uint8_t* sel_packed, UINT_TYPE* y32, int party,
                   const std::string& ip, int port, int io_offset, int threads);
 
 void generateOT(int party, const std::string& ip, int port, int threads, int io_offset);
 
-void generateCOT(int party, uint32_t* a, uint8_t* b, uint32_t* c, const unsigned& num_triples,
+void generateCOT(int party, UINT_TYPE* a, uint8_t* b, UINT_TYPE* c, const unsigned& num_triples,
                  const std::string& ip, int port, int threads, int io_offset);
 
 void tmp(int party, int threads);

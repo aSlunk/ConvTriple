@@ -62,6 +62,7 @@ CMake Options:
 - `TRIPLE_GPU` (BOOL): If enabled - Use [Troy-Nova](https://github.com/lightbulb128/troy-nova) for Convolutions.
 - `TRIPLE_GPU_REVERSE` (BOOL): If enabled - Encrypt filters instead of images (requires `TRIPLE_GPU=ON`).
 - `TRIPLE_SEED` (NUM): Set the seed (-1: no seed).
+- `TRIPLE_BITLEN` (NUM): Set the bitlength (default: 32).
 - `TRIPLE_LOG_LEVEL` (NUM):
     - `0`: Log time and data required.
     - `1`: Log debug info and errors.

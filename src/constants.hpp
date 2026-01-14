@@ -31,7 +31,11 @@ const int N_THREADS = std::max(1u, std::thread::hardware_concurrency());
 
 constexpr size_t filter_prec = 0ULL;
 
+#ifdef TRIPLE_BITLEN
+constexpr uint64_t BIT_LEN   = TRIPLE_BITLEN;
+#else
 constexpr uint64_t BIT_LEN   = 32;
+#endif
 constexpr uint64_t POLY_MOD  = 1ULL << 12;
 constexpr uint64_t PLAIN_MOD = 1ULL << BIT_LEN;
 
@@ -45,15 +49,15 @@ constexpr uint64_t moduloMidPt = MOD / 2;
 
 namespace Utils {
 
-template <class T>
-std::tuple<int, int> pad_zero(const T* src, std::vector<uint32_t>& dest, const int& channels,
+template <class T, class INT>
+std::tuple<int, int> pad_zero(const T* src, std::vector<INT>& dest, const int& channels,
                               const int& height, const int& width, const size_t& padding,
                               const int& batchsize);
 
 }
 
-template <class T>
-std::tuple<int, int> Utils::pad_zero(const T* src, std::vector<uint32_t>& dest, const int& channels,
+template <class T, class INT>
+std::tuple<int, int> Utils::pad_zero(const T* src, std::vector<INT>& dest, const int& channels,
                                      const int& height, const int& width, const size_t& padding,
                                      const int& batchsize) {
     size_t new_h   = height + padding * 2;
