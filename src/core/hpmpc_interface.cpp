@@ -381,6 +381,7 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
             case emp::ALICE: {
                 IO::recv_encrypted_vector(ios, hom_conv.getContext(), enc_a2[batch + offset],
                                           threads);
+                break;
             }
             }
         }
@@ -433,7 +434,6 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
             switch (party) {
             case emp::ALICE: { // send
                 IO::send_encrypted_vector(ios, M[cur_batch + offset], threads, false);
-                M[cur_batch + offset].clear();
                 break;
             }
             case emp::BOB: { // recv
