@@ -355,10 +355,10 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
         offset += parm.batchsize;
     }
 
-    if (party == emp::ALICE) {
-        Utils::log(Utils::Level::INFO, "P", party - 1,
-                   ": CONV NTT preprocessing time[s]:", Utils::to_sec(Utils::time_diff(start)));
-    }
+    Utils::log(Utils::Level::INFO, "P", party - 1,
+                ": CONV NTT preprocessing time[s]:", Utils::to_sec(Utils::time_diff(start)));
+
+    auto tmp = measure::now();
 
     // switch (party) {
     // case emp::ALICE: {
@@ -390,6 +390,11 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     if (party == emp::BOB)
         for (int i = 0; i < threads; ++i) ios[i]->flush();
 
+    Utils::log(Utils::Level::DEBUG, "P", party - 1,
+                ": send/recv[s]:", Utils::to_sec(Utils::time_diff(tmp)));
+
+    tmp = measure::now();
+
     vector<vector<seal::Ciphertext>> M(total_batches);
     vector<Tensor<uint64_t>> C(total_batches);
     offset = 0;
@@ -416,6 +421,12 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     enc_a.clear();
     enc_b.clear();
     enc_a2.clear();
+
+    Utils::log(Utils::Level::DEBUG, "P", party - 1,
+                ": computation[s]:", Utils::to_sec(Utils::time_diff(tmp)));
+
+    tmp = measure::now();
+
 
     // switch (party) {
     // case emp::ALICE: {
@@ -448,6 +459,11 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     if (party == emp::ALICE)
         for (int i = 0; i < threads; ++i) ios[i]->flush();
 
+    Utils::log(Utils::Level::DEBUG, "P", party - 1,
+                ": recv/send[s]:", Utils::to_sec(Utils::time_diff(tmp)));
+
+    tmp = measure::now();
+
     offset          = 0;
     size_t c_offset = 0;
     for (size_t n = 0; n < parms.size(); ++n) {
@@ -471,6 +487,9 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
         }
         offset += parm.batchsize;
     }
+
+    Utils::log(Utils::Level::DEBUG, "P", party - 1,
+                ": decryption[s]:", Utils::to_sec(Utils::time_diff(tmp)));
 
     auto time = Utils::to_sec(Utils::time_diff(start));
     Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV triple time + NTT[s]: ", time);
