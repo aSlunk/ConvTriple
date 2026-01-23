@@ -360,35 +360,35 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
 
     auto tmp = measure::now();
 
-    // switch (party) {
-    // case emp::ALICE: {
-    //     recv_vec(ios, hom_conv.getContext(), enc_a2, threads);
-    //     break;
-    // }
-    // case emp::BOB: {
-    //     send_vec(ios, enc_a1, threads);
-    //     break;
-    // }
-    // }
-    offset = 0;
-    for (size_t n = 0; n < parms.size(); ++n) {
-        for (int batch = 0; batch < parms[n].batchsize; ++batch) {
-            switch (party) {
-            case emp::BOB: {
-                IO::send_encrypted_vector(ios, enc_a1[batch + offset], threads, false);
-                break;
-            }
-            case emp::ALICE: {
-                IO::recv_encrypted_vector(ios, hom_conv.getContext(), enc_a2[batch + offset],
-                                          threads);
-                break;
-            }
-            }
-        }
-        offset += parms[n].batchsize;
+    switch (party) {
+    case emp::ALICE: {
+        recv_vec(ios, hom_conv.getContext(), enc_a2, threads);
+        break;
     }
-    if (party == emp::BOB)
-        for (int i = 0; i < threads; ++i) ios[i]->flush();
+    case emp::BOB: {
+        send_vec(ios, enc_a1, threads);
+        break;
+    }
+    }
+    // offset = 0;
+    // for (size_t n = 0; n < parms.size(); ++n) {
+    //     for (int batch = 0; batch < parms[n].batchsize; ++batch) {
+    //         switch (party) {
+    //         case emp::BOB: {
+    //             IO::send_encrypted_vector(ios, enc_a1[batch + offset], threads, false);
+    //             break;
+    //         }
+    //         case emp::ALICE: {
+    //             IO::recv_encrypted_vector(ios, hom_conv.getContext(), enc_a2[batch + offset],
+    //                                       threads);
+    //             break;
+    //         }
+    //         }
+    //     }
+    //     offset += parms[n].batchsize;
+    // }
+    // if (party == emp::BOB)
+    //     for (int i = 0; i < threads; ++i) ios[i]->flush();
 
     Utils::log(Utils::Level::DEBUG, "P", party - 1,
                 ": send/recv[s]:", Utils::to_sec(Utils::time_diff(tmp)));
@@ -428,36 +428,36 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     tmp = measure::now();
 
 
-    // switch (party) {
-    // case emp::ALICE: {
-    //     send_vec(ios, M, threads);
-    //     break;
-    // }
-    // case emp::BOB: {
-    //     recv_vec(ios, hom_conv.getContext(), M, threads);
-    //     break;
-    // }
-    // }
-
-    offset = 0;
-    for (size_t n = 0; n < parms.size(); ++n) {
-        for (int cur_batch = 0; cur_batch < parms[n].batchsize; ++cur_batch) {
-            switch (party) {
-            case emp::ALICE: { // send
-                IO::send_encrypted_vector(ios, M[cur_batch + offset], threads, false);
-                break;
-            }
-            case emp::BOB: { // recv
-                IO::recv_encrypted_vector(ios, hom_conv.getContext(), M[cur_batch + offset],
-                                          threads);
-                break;
-            }
-            }
-        }
-        offset += parms[n].batchsize;
+    switch (party) {
+    case emp::ALICE: {
+        send_vec(ios, M, threads);
+        break;
     }
-    if (party == emp::ALICE)
-        for (int i = 0; i < threads; ++i) ios[i]->flush();
+    case emp::BOB: {
+        recv_vec(ios, hom_conv.getContext(), M, threads);
+        break;
+    }
+    }
+
+    // offset = 0;
+    // for (size_t n = 0; n < parms.size(); ++n) {
+    //     for (int cur_batch = 0; cur_batch < parms[n].batchsize; ++cur_batch) {
+    //         switch (party) {
+    //         case emp::ALICE: { // send
+    //             IO::send_encrypted_vector(ios, M[cur_batch + offset], threads, false);
+    //             break;
+    //         }
+    //         case emp::BOB: { // recv
+    //             IO::recv_encrypted_vector(ios, hom_conv.getContext(), M[cur_batch + offset],
+    //                                       threads);
+    //             break;
+    //         }
+    //         }
+    //     }
+    //     offset += parms[n].batchsize;
+    // }
+    // if (party == emp::ALICE)
+    //     for (int i = 0; i < threads; ++i) ios[i]->flush();
 
     Utils::log(Utils::Level::DEBUG, "P", party - 1,
                 ": recv/send[s]:", Utils::to_sec(Utils::time_diff(tmp)));
