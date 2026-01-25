@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
         std::vector<Utils::ConvParm> vec = {conv};
         std::vector<UINT_TYPE*> bb       = {b};
         Iface::generateConvTriplesCheetahWrapper(keys, a, b, c, conv, PARTY, threads,
-                                                 Utils::PROTO::AB, 1, true);
+                                                 Utils::PROTO::AB2, 1, true);
 
         for (size_t i = 0; i < Utils::getOutDim(conv).num_elements() * batchSize; ++i) {
             std::cout << "P" << PARTY << ": res" << c[i] << "\n";

@@ -252,7 +252,7 @@ Result Client::Protocol2(Channel** client, const gemini::HomConv2DSS& conv,
         return tmp;
     }
 
-    measures.send_recv += tmp.send_recv;
+    measures.serial += tmp.send_recv;
     measures.bytes = tmp.bytes;
 
     return measures;
@@ -468,7 +468,7 @@ Result Server::Protocol2(const gemini::HomConv2DSS::Meta& meta, Channel** server
         return tmp;
     }
 
-    measures.send_recv += tmp.send_recv;
+    measures.serial += tmp.send_recv;
     measures.decryption = tmp.decryption;
     measures.bytes      = tmp.bytes;
     return measures;

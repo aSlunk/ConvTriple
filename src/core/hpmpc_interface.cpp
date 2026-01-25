@@ -510,6 +510,10 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const
     auto** ios = keys.get_ios(threads);
 
     double time_ntt = 0;
+    double send_recv = 0;
+    double compute = 0;
+    double recv_send = 0;
+    double decode = 0;
 
     std::vector<std::vector<seal::Plaintext>> enc_B;
 
@@ -552,6 +556,7 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const
             }
             time_ntt += Utils::to_sec(Utils::time_diff(start_ntt));
             result = Client::perform_proto(meta, ios, conv, A, B, enc_B, C, threads, proto);
+            time_ntt += Utils::to_sec(result.encryption);
             break;
         }
         case emp::BOB: {
@@ -570,9 +575,16 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const
                 time_ntt += Utils::to_sec(Utils::time_diff(start_ntt));
             }
             result = Server::perform_proto(meta, ios, conv, A, enc_B, B, C, threads, proto);
+            time_ntt += Utils::to_sec(result.encryption);
             break;
         }
         }
+
+        send_recv += Utils::to_sec(result.send_recv);
+        compute += Utils::to_sec(result.cipher_op);
+        recv_send += Utils::to_sec(result.serial);
+        decode += Utils::to_sec(result.decryption);
+        decode += Utils::to_sec(result.plain_op);
 
         if (result.ret != Code::OK) {
             Utils::log(Utils::Level::ERROR, "CONV failed: ", CodeMessage(result.ret));
@@ -583,6 +595,11 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const
     }
 
     Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV NTT preprocessing time[s]: ", time_ntt);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": send/recv[s]: ", send_recv);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": compute[s]: ", compute);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": recv/send[s]: ", recv_send);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": decode[s]: ", decode);
+
     Utils::log(Utils::Level::INFO, "P", party - 1,
                ": CONV triple time + NTT[s]: ", Utils::to_sec(Utils::time_diff(start)));
     std::string unit;
