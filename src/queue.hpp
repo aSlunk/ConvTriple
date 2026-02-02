@@ -3,7 +3,10 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <optional>
 #include <queue>
+#include <seal/ciphertext.h>
+#include <sstream>
 #include <thread>
 
 namespace Thread {
@@ -13,13 +16,16 @@ namespace Thread {
  */
 template <class Layer>
 class Queue {
-    public:
-    Queue() = default;
+  public:
+    explicit Queue() = default;
 
+    template <class T>
+    void push(std::vector<T> ciphers);
     void push(const Layer& l);
-    Layer pop();
 
-    private:
+    std::optional<Layer> pop();
+
+  private:
     std::queue<Layer> _queue;
     std::mutex _mutex;
     std::condition_variable _cv;
@@ -32,21 +38,27 @@ template <class Layer, class Recv>
 std::thread start_recv(Queue<Layer>& queue, Recv send);
 
 template <class Layer, class Send>
-std::thread start_send(Queue<Layer>& queue, Send send) {
+std::thread start_send(const size_t& rounds, Queue<Layer>& queue, Send send) {
     std::thread thread([&]() {
-        Layer l = queue.pop();
-        send(l);
+        for (size_t i = 0; i < rounds; ++i) {
+            if (auto l = queue.pop())
+                send(l.value());
+            else
+                break;
+        }
     });
 
     return thread;
 }
 
 template <class Layer, class Recv>
-std::thread start_recv(Queue<Layer>& queue, Recv recv) {
+std::thread start_recv(const size_t rounds, Queue<Layer>& queue, Recv recv) {
     std::thread thread([&]() {
-        Layer l;
-        recv(l);
-        queue.push(l);
+        for (size_t i = 0; i < rounds; ++i) {
+            Layer l;
+            recv(l);
+            queue.push(l);
+        }
     });
 
     return thread;
@@ -62,10 +74,27 @@ void Queue<Layer>::push(const Layer& l) {
 }
 
 template <class Layer>
-Layer Queue<Layer>::pop() {
+template <class T>
+void Queue<Layer>::push(std::vector<T> ciphers) {
+    std::stringstream l;
+    for (auto& cipher : ciphers) cipher.save(l);
+
+    {
+        std::unique_lock lock(_mutex);
+        _queue.push({std::move(l), ciphers.size()});
+    }
+    _cv.notify_one();
+}
+
+template <class Layer>
+std::optional<Layer> Queue<Layer>::pop() {
     std::unique_lock lock(_mutex);
     _cv.wait(lock, [&]() -> bool { return !_queue.empty(); });
-    Layer l = _queue.front();
+
+    if (_queue.empty())
+        return std::nullopt;
+
+    Layer l = std::move(_queue.front());
     _queue.pop();
     return l;
 }

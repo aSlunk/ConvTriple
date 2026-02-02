@@ -1,6 +1,10 @@
 #ifndef HPMPC_INTERFACE_HPP_
 #define HPMPC_INTERFACE_HPP_
 
+#include <seal/ciphertext.h>
+#include <seal/encryptor.h>
+#include <seal/keygenerator.h>
+#include <seal/serializable.h>
 #include <string>
 
 #include <io/net_io_channel.hpp>
@@ -54,6 +58,11 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
                                 std::vector<Utils::ConvParm>& parms, UINT_TYPE** a, UINT_TYPE** b,
                                 UINT_TYPE* c, Utils::PROTO proto, int party, int threads,
                                 int factor, bool is_shared_input = false);
+
+void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
+                                 std::vector<Utils::ConvParm>& parms, UINT_TYPE** a, UINT_TYPE** b,
+                                 UINT_TYPE* c, Utils::PROTO proto, int party, int threads,
+                                 int factor, bool is_shared_input = false);
 
 void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const UINT_TYPE* b,
                                 UINT_TYPE* c, const gemini::HomConv2DSS::Meta& meta, int batch,

@@ -1,6 +1,8 @@
 #include "hpmpc_interface.hpp"
 
 #include <algorithm>
+#include <seal/ciphertext.h>
+#include <seal/serializable.h>
 
 #include "protocols/bn_direct_proto.hpp"
 #include "protocols/conv_proto.hpp"
@@ -10,6 +12,9 @@
 
 #include "ot/bit-triple-generator.h"
 #include "ot/cheetah-ot_pack.h"
+
+#include "queue.hpp"
+#include "send.hpp"
 
 #if USE_CONV_CUDA
 #include "troy/conv2d_gpu.cuh"
@@ -292,6 +297,7 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
                                 UINT_TYPE* c, Utils::PROTO proto, int party, int threads,
                                 int factor, bool is_shared_input) {
     auto start = measure::now();
+    threads -= 2;
 
     vector<vector<seal::Plaintext>> enc_a(total_batches);
     vector<vector<vector<seal::Plaintext>>> enc_b(parms.size());
@@ -299,7 +305,7 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     vector<vector<seal::Serializable<seal::Ciphertext>>> enc_a1(total_batches);
 
     auto& hom_conv = keys.get_conv();
-    auto** ios     = keys.get_ios(threads);
+    auto** ios     = keys.get_ios(1);
 
     auto pool = seal::MemoryPoolHandle::New();
     auto pg   = seal::MMProfGuard(std::make_unique<seal::MMProfFixed>(std::move(pool)));
@@ -356,7 +362,7 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     }
 
     Utils::log(Utils::Level::INFO, "P", party - 1,
-                ": CONV NTT preprocessing time[s]:", Utils::to_sec(Utils::time_diff(start)));
+               ": CONV NTT preprocessing time[s]:", Utils::to_sec(Utils::time_diff(start)));
 
     auto tmp = measure::now();
 
@@ -391,7 +397,7 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     //     for (int i = 0; i < threads; ++i) ios[i]->flush();
 
     Utils::log(Utils::Level::DEBUG, "P", party - 1,
-                ": send/recv[s]:", Utils::to_sec(Utils::time_diff(tmp)));
+               ": send/recv[s]:", Utils::to_sec(Utils::time_diff(tmp)));
 
     tmp = measure::now();
 
@@ -423,10 +429,9 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     enc_a2.clear();
 
     Utils::log(Utils::Level::DEBUG, "P", party - 1,
-                ": computation[s]:", Utils::to_sec(Utils::time_diff(tmp)));
+               ": computation[s]:", Utils::to_sec(Utils::time_diff(tmp)));
 
     tmp = measure::now();
-
 
     // switch (party) {
     // case emp::ALICE: {
@@ -460,7 +465,7 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     //     for (int i = 0; i < threads; ++i) ios[i]->flush();
 
     Utils::log(Utils::Level::DEBUG, "P", party - 1,
-                ": recv/send[s]:", Utils::to_sec(Utils::time_diff(tmp)));
+               ": recv/send[s]:", Utils::to_sec(Utils::time_diff(tmp)));
 
     tmp = measure::now();
 
@@ -489,7 +494,7 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     }
 
     Utils::log(Utils::Level::DEBUG, "P", party - 1,
-                ": decryption[s]:", Utils::to_sec(Utils::time_diff(tmp)));
+               ": decryption[s]:", Utils::to_sec(Utils::time_diff(tmp)));
 
     auto time = Utils::to_sec(Utils::time_diff(start));
     Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV triple time + NTT[s]: ", time);
@@ -509,11 +514,11 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const
     auto& conv = keys.get_conv();
     auto** ios = keys.get_ios(threads);
 
-    double time_ntt = 0;
+    double time_ntt  = 0;
     double send_recv = 0;
-    double compute = 0;
+    double compute   = 0;
     double recv_send = 0;
-    double decode = 0;
+    double decode    = 0;
 
     std::vector<std::vector<seal::Plaintext>> enc_B;
 
@@ -960,6 +965,156 @@ void generateCOT(int party, UINT_TYPE* a, uint8_t* b, UINT_TYPE* c, const unsign
 #endif
 
     keys.disconnect();
+}
+
+void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
+                                 std::vector<Utils::ConvParm>& parms, UINT_TYPE** a, UINT_TYPE** b,
+                                 UINT_TYPE* c, Utils::PROTO proto, int party, int threads,
+                                 int factor, bool is_shared_input) {
+    auto start = measure::now();
+
+    auto& hom_conv = keys.get_conv();
+    auto** ios     = keys.get_ios(threads);
+
+    Thread::Queue<std::tuple<std::stringstream, size_t>> send_queue;
+    auto send_thread = Thread::start_send(
+        parms.size(), send_queue, [&](std::tuple<std::stringstream, size_t>& s) {
+            IO::send_encrypted_vector(*ios[0], std::get<0>(s), std::get<1>(s));
+        });
+
+    Thread::Queue<vector<seal::Ciphertext>> recv_queue;
+    auto recv_thread
+        = Thread::start_recv(parms.size(), recv_queue, [&](vector<seal::Ciphertext>& ct) {
+              IO::recv_encrypted_vector(*ios[0], hom_conv.getContext(), ct);
+          });
+
+    vector<vector<seal::Plaintext>> enc_a(total_batches);
+    vector<vector<vector<seal::Plaintext>>> enc_b(parms.size());
+    vector<vector<seal::Ciphertext>> enc_a2(total_batches);
+    vector<vector<seal::Serializable<seal::Ciphertext>>> enc_a1(total_batches);
+
+    auto pool = seal::MemoryPoolHandle::New();
+    auto pg   = seal::MMProfGuard(std::make_unique<seal::MMProfFixed>(std::move(pool)));
+
+    size_t offset = 0;
+
+    Result result;
+    for (size_t n = 0; n < parms.size(); ++n) {
+        auto& parm = parms[n];
+        auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                           parm.n_filters, parm.stride, parm.padding);
+
+        meta.is_shared_input = is_shared_input;
+        uint64_t* ai         = new uint64_t[meta.ishape.num_elements() * parm.batchsize];
+        if (party == emp::BOB || is_shared_input)
+            for (long i = 0; i < meta.ishape.num_elements() * parm.batchsize; ++i) ai[i] = a[n][i];
+
+        uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters * factor];
+        if (b)
+            for (size_t i = 0; i < meta.fshape.num_elements() * meta.n_filters * factor; ++i)
+                bi[i] = b[n][i];
+
+        int ac_batch_size = parm.batchsize / factor;
+        for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
+            Tensor<uint64_t> A
+                = Tensor<uint64_t>::Wrap(ai + meta.ishape.num_elements() * cur_batch, meta.ishape);
+
+            std::vector<Tensor<uint64_t>> B(meta.n_filters);
+            for (size_t i = 0; i < meta.n_filters; ++i)
+                B[i] = Tensor<uint64_t>::Wrap(
+                    bi + meta.fshape.num_elements() * meta.n_filters * (cur_batch / ac_batch_size)
+                        + meta.fshape.num_elements() * i,
+                    meta.fshape);
+
+            switch (party) {
+            case emp::ALICE: {
+                if (meta.is_shared_input)
+                    hom_conv.encodeImage(A, meta, enc_a[cur_batch + offset], threads);
+                if (cur_batch == 0) {
+                    hom_conv.encodeFilters(B, meta, enc_b[n], threads);
+                    hom_conv.filtersToNtt(enc_b[n], threads);
+                }
+                break;
+            }
+            case emp::BOB: {
+                hom_conv.encryptImage(A, meta, enc_a1[cur_batch + offset], threads);
+                send_queue.push(enc_a1[cur_batch + offset]);
+                break;
+            }
+            }
+        }
+        delete[] ai;
+        delete[] bi;
+        offset += parm.batchsize;
+        offset = 0;
+    }
+
+    vector<vector<seal::Ciphertext>> M(total_batches);
+    vector<Tensor<uint64_t>> C(total_batches);
+    offset = 0;
+    for (size_t n = 0; n < parms.size(); ++n) {
+        auto& parm = parms[n];
+        auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                           parm.n_filters, parm.stride, parm.padding);
+        meta.is_shared_input = is_shared_input;
+        for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
+            switch (party) {
+            case emp::ALICE: {
+                enc_a2[cur_batch + offset] = recv_queue.pop().value();
+                result.ret                 = hom_conv.conv2DSS(
+                    enc_a2[cur_batch + offset], enc_a[cur_batch + offset], enc_b[n], meta,
+                    M[cur_batch + offset], C[cur_batch + offset], threads, true, false, true);
+                send_queue.push(M[cur_batch]);
+                break;
+            }
+            }
+        }
+        enc_a[n].clear();
+        enc_b[n].clear();
+        enc_a2[n].clear();
+        offset += parm.batchsize;
+    }
+    enc_a.clear();
+    enc_b.clear();
+    enc_a2.clear();
+
+    offset          = 0;
+    size_t c_offset = 0;
+    for (size_t n = 0; n < parms.size(); ++n) {
+        auto& parm = parms[n];
+        auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                           parm.n_filters, parm.stride, parm.padding);
+        meta.is_shared_input = is_shared_input;
+
+        for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
+            switch (party) {
+            case emp::BOB: {
+                M[cur_batch + offset] = recv_queue.pop().value();
+                result.ret            = hom_conv.decryptToTensor(M[cur_batch + offset], meta,
+                                                                 C[cur_batch + offset], threads);
+                break;
+            }
+            }
+
+            for (long i = 0; i < C[cur_batch + offset].NumElements(); ++i)
+                c[c_offset + i] = C[cur_batch + offset].data()[i];
+            c_offset += C[cur_batch + offset].NumElements();
+        }
+        offset += parm.batchsize;
+    }
+
+    send_thread.join();
+    recv_thread.join();
+
+    auto time = Utils::to_sec(Utils::time_diff(start));
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV triple time + NTT[s]: ", time);
+    std::string unit;
+    double data = 0;
+    for (int i = 0; i < threads; ++i) {
+        data += Utils::to_MB(ios[i]->counter, unit);
+        ios[i]->counter = 0;
+    }
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": CONV triple data[", unit, "]: ", data);
 }
 
 } // namespace Iface
