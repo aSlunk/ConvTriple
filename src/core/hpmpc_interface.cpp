@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <seal/ciphertext.h>
 #include <seal/serializable.h>
+#include <sstream>
+#include <thread>
 
 #include "protocols/bn_direct_proto.hpp"
 #include "protocols/conv_proto.hpp"

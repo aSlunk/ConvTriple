@@ -7,7 +7,6 @@
 #include <queue>
 #include <seal/ciphertext.h>
 #include <sstream>
-#include <thread>
 
 namespace Thread {
 
@@ -30,35 +29,6 @@ class Queue {
     std::mutex _mutex;
     std::condition_variable _cv;
 };
-
-template <class Layer, class Send>
-std::thread start_send(Queue<Layer>& queue, Send send);
-
-template <class Layer, class Recv>
-std::thread start_recv(Queue<Layer>& queue, Recv send);
-
-template <class Layer, class Send>
-std::thread start_send(const size_t rounds, Queue<Layer>& queue, Send send) {
-    return std::thread([&]() {
-        for (size_t i = 0; i < rounds; ++i) {
-            if (auto l = queue.pop())
-                send(std::move(l.value()));
-            else
-                break;
-        }
-    });
-}
-
-template <class Layer, class Recv>
-std::thread start_recv(const size_t rounds, Queue<Layer>& queue, Recv recv) {
-    return std::thread([&]() {
-        for (size_t i = 0; i < rounds; ++i) {
-            Layer l;
-            recv(l);
-            queue.push(l);
-        }
-    });
-}
 
 template <class Layer>
 void Queue<Layer>::push(const Layer& l) {
