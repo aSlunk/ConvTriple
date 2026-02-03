@@ -305,7 +305,7 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     vector<vector<seal::Serializable<seal::Ciphertext>>> enc_a1(total_batches);
 
     auto& hom_conv = keys.get_conv();
-    auto** ios     = keys.get_ios(1);
+    auto** ios     = keys.get_ios(threads);
 
     auto pool = seal::MemoryPoolHandle::New();
     auto pg   = seal::MMProfGuard(std::make_unique<seal::MMProfFixed>(std::move(pool)));
@@ -974,19 +974,28 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
     auto start = measure::now();
 
     auto& hom_conv = keys.get_conv();
-    auto** ios     = keys.get_ios(threads);
+    auto** ios     = keys.get_ios(2);
 
     Thread::Queue<std::tuple<std::stringstream, size_t>> send_queue;
-    auto send_thread = Thread::start_send(
-        parms.size(), send_queue, [&](std::tuple<std::stringstream, size_t>& s) {
-            IO::send_encrypted_vector(*ios[0], std::get<0>(s), std::get<1>(s));
-        });
+    auto send_thread = std::thread([&]() {
+        for (size_t i = 0; i < total_batches; ++i) {
+            if (auto l = send_queue.pop()) {
+                auto s = std::move(l.value());
+                IO::send_encrypted_vector(*ios[party - 1], std::get<0>(s),
+                                          uint32_t(std::get<1>(s)));
+            } else
+                break;
+        }
+    });
 
     Thread::Queue<vector<seal::Ciphertext>> recv_queue;
-    auto recv_thread
-        = Thread::start_recv(parms.size(), recv_queue, [&](vector<seal::Ciphertext>& ct) {
-              IO::recv_encrypted_vector(*ios[0], hom_conv.getContext(), ct);
-          });
+    auto recv_thread = std::thread([&]() {
+        for (size_t i = 0; i < total_batches; ++i) {
+            std::vector<seal::Ciphertext> l;
+            IO::recv_encrypted_vector(*ios[(OTHER_PARTY(party) - 1)], hom_conv.getContext(), l);
+            recv_queue.push(l);
+        }
+    });
 
     vector<vector<seal::Plaintext>> enc_a(total_batches);
     vector<vector<vector<seal::Plaintext>>> enc_b(parms.size());

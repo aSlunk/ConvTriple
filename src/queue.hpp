@@ -38,30 +38,26 @@ template <class Layer, class Recv>
 std::thread start_recv(Queue<Layer>& queue, Recv send);
 
 template <class Layer, class Send>
-std::thread start_send(const size_t& rounds, Queue<Layer>& queue, Send send) {
-    std::thread thread([&]() {
+std::thread start_send(const size_t rounds, Queue<Layer>& queue, Send send) {
+    return std::thread([&]() {
         for (size_t i = 0; i < rounds; ++i) {
             if (auto l = queue.pop())
-                send(l.value());
+                send(std::move(l.value()));
             else
                 break;
         }
     });
-
-    return thread;
 }
 
 template <class Layer, class Recv>
 std::thread start_recv(const size_t rounds, Queue<Layer>& queue, Recv recv) {
-    std::thread thread([&]() {
+    return std::thread([&]() {
         for (size_t i = 0; i < rounds; ++i) {
             Layer l;
             recv(l);
             queue.push(l);
         }
     });
-
-    return thread;
 }
 
 template <class Layer>

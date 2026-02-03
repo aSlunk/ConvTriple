@@ -173,8 +173,8 @@ int main(int argc, char** argv) {
         // Iface::generateConvTriplesCheetahWrapper(keys, a, b, c, conv, PARTY, threads,
         //                                          Utils::PROTO::AB2, 1, true);
 
-        Iface::generateConvTriplesCheetah(keys, 1, vec, nullptr, bb.data(), c, Utils::PROTO::AB2,
-                                          PARTY, threads, 1);
+        Iface::generateConvTriplesCheetah(keys, batchSize, vec, nullptr, bb.data(), c,
+                                          Utils::PROTO::AB2, PARTY, threads, 1);
 
         for (size_t i = 0; i < Utils::getOutDim(conv).num_elements() * batchSize; ++i) {
             std::cout << "P" << PARTY << ": res" << c[i] << "\n";
