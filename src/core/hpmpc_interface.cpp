@@ -6,6 +6,7 @@
 #include <sstream>
 #include <thread>
 
+#include "emp-tool/utils/constants.h"
 #include "protocols/bn_direct_proto.hpp"
 #include "protocols/conv_proto.hpp"
 #include "protocols/fc_proto.hpp"
@@ -1058,6 +1059,10 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
         delete[] bi;
         offset += parm.batchsize;
     }
+
+    if (party == emp::ALICE)
+        Utils::log(Utils::Level::INFO, "P", party - 1,
+                ": CONV NTT preprocessing time[s]:", Utils::to_sec(Utils::time_diff(start)));
 
     vector<vector<seal::Ciphertext>> M(total_batches);
     vector<Tensor<uint64_t>> C(total_batches);
