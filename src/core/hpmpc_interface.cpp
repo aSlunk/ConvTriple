@@ -1074,7 +1074,7 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
                 result.ret                 = hom_conv.conv2DSS(
                     enc_a2[cur_batch + offset], enc_a[cur_batch + offset], enc_b[n], meta,
                     M[cur_batch + offset], C[cur_batch + offset], threads, true, false, true);
-                send_queue.push(M[cur_batch]);
+                send_queue.push(M[cur_batch + offset]);
                 break;
             }
             }
