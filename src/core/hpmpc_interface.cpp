@@ -299,7 +299,6 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
                                 UINT_TYPE* c, Utils::PROTO proto, int party, int threads,
                                 int factor, bool is_shared_input) {
     auto start = measure::now();
-    threads -= 2;
 
     vector<vector<seal::Plaintext>> enc_a(total_batches);
     vector<vector<vector<seal::Plaintext>>> enc_b(parms.size());
@@ -974,6 +973,7 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
                                  UINT_TYPE* c, Utils::PROTO proto, int party, int threads,
                                  int factor, bool is_shared_input) {
     auto start = measure::now();
+    threads -= 2;
 
     auto& hom_conv = keys.get_conv();
     auto** ios     = keys.get_ios(2);
