@@ -1057,7 +1057,6 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
         delete[] ai;
         delete[] bi;
         offset += parm.batchsize;
-        offset = 0;
     }
 
     vector<vector<seal::Ciphertext>> M(total_batches);
