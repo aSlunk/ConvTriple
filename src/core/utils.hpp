@@ -148,7 +148,7 @@ gemini::HomBNSS::Meta init_meta_bn(const long& image_h, const long& filter_h, co
 gemini::HomConv2DSS::Meta init_meta_conv(const long& ic, const long& ih, const long& iw,
                                          const long& fc, const long& fh, const long& fw,
                                          const size_t& n_filter, const size_t& stride,
-                                         const size_t& padding);
+                                         const size_t& padding, bool is_shared = true);
 
 std::vector<gemini::HomFCSS::Meta> init_layers_fc();
 

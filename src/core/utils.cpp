@@ -79,7 +79,7 @@ gemini::HomFCSS::Meta Utils::init_meta_fc(const long& common, const long& filter
 gemini::HomConv2DSS::Meta Utils::init_meta_conv(const long& ic, const long& ih, const long& iw,
                                                 const long& fc, const long& fh, const long& fw,
                                                 const size_t& n_filter, const size_t& stride,
-                                                const size_t& padding) {
+                                                const size_t& padding, bool is_shared) {
     if (ic != fc) {
         Utils::log(Level::ERROR, "Filter Channel and Image Channel must match");
     }
@@ -87,7 +87,7 @@ gemini::HomConv2DSS::Meta Utils::init_meta_conv(const long& ic, const long& ih, 
 
     meta.ishape          = {ic, ih, iw};
     meta.fshape          = {fc, fh, fw};
-    meta.is_shared_input = true;
+    meta.is_shared_input = is_shared;
     meta.n_filters       = n_filter;
     meta.padding         = padding == 0 ? gemini::Padding::VALID : gemini::Padding::SAME;
     meta.stride          = stride;

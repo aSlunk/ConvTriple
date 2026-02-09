@@ -266,8 +266,7 @@ void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const UINT_TYPE* a
     }
 #endif
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
-                                      parm.n_filters, parm.stride, parm.padding);
-    meta.is_shared_input = is_shared_input;
+                                      parm.n_filters, parm.stride, parm.padding, is_shared_input);
 
     Utils::log(Utils::Level::INFO, "P", party - 1, " CONV: ", meta.ishape, " x ", meta.fshape,
                " x ", parm.n_filters, ", ", parm.stride, ", ", parm.padding, ", ",
@@ -317,12 +316,12 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     Result result;
     for (size_t n = 0; n < parms.size(); ++n) {
         auto& parm = parms[n];
-        auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
-                                           parm.n_filters, parm.stride, parm.padding);
+        auto meta
+            = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                    parm.n_filters, parm.stride, parm.padding, is_shared_input);
 
-        meta.is_shared_input = is_shared_input;
-        uint64_t* ai         = new uint64_t[meta.ishape.num_elements() * parm.batchsize];
-        if (party == emp::BOB || is_shared_input)
+        uint64_t* ai = new uint64_t[meta.ishape.num_elements() * parm.batchsize];
+        if (party == emp::BOB || meta.is_shared_input)
             for (long i = 0; i < meta.ishape.num_elements() * parm.batchsize; ++i) ai[i] = a[n][i];
 
         uint64_t* bi = new uint64_t[meta.fshape.num_elements() * meta.n_filters * factor];
@@ -408,9 +407,9 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     offset = 0;
     for (size_t n = 0; n < parms.size(); ++n) {
         auto& parm = parms[n];
-        auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
-                                           parm.n_filters, parm.stride, parm.padding);
-        meta.is_shared_input = is_shared_input;
+        auto meta
+            = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                    parm.n_filters, parm.stride, parm.padding, is_shared_input);
         for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
             switch (party) {
             case emp::ALICE: {
@@ -475,9 +474,9 @@ void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,
     size_t c_offset = 0;
     for (size_t n = 0; n < parms.size(); ++n) {
         auto& parm = parms[n];
-        auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
-                                           parm.n_filters, parm.stride, parm.padding);
-        meta.is_shared_input = is_shared_input;
+        auto meta
+            = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                    parm.n_filters, parm.stride, parm.padding, is_shared_input);
 
         for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
             switch (party) {
@@ -1086,9 +1085,9 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
     for (size_t n = 0; (proto == Utils::PROTO::AB || party == emp::ALICE) && n < parms.size();
          ++n) {
         auto& parm = parms[n];
-        auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
-                                           parm.n_filters, parm.stride, parm.padding);
-        meta.is_shared_input = is_shared_input;
+        auto meta
+            = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                    parm.n_filters, parm.stride, parm.padding, is_shared_input);
         for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
             switch (party) {
             case emp::ALICE: {
@@ -1122,9 +1121,9 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
     size_t c_offset = 0;
     for (size_t n = 0; n < parms.size(); ++n) {
         auto& parm = parms[n];
-        auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
-                                           parm.n_filters, parm.stride, parm.padding);
-        meta.is_shared_input = is_shared_input;
+        auto meta
+            = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
+                                    parm.n_filters, parm.stride, parm.padding, is_shared_input);
 
         for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
             switch (party) {
