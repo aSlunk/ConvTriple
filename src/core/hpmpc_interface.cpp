@@ -979,9 +979,11 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
     auto& hom_conv = keys.get_conv();
     auto** ios     = keys.get_ios(2);
 
+    size_t rounds = proto == Utils::PROTO::AB ? total_batches * 2 : total_batches;
+
     Thread::Queue<std::tuple<std::stringstream, size_t>> send_queue;
     auto send_thread = std::thread([&]() {
-        for (size_t i = 0; i < total_batches; ++i) {
+        for (size_t i = 0; i < rounds; ++i) {
             if (auto l = send_queue.pop()) {
                 auto s = std::move(l.value());
                 IO::send_encrypted_vector(*ios[party - 1], std::get<0>(s),
@@ -993,7 +995,7 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
 
     Thread::Queue<vector<seal::Ciphertext>> recv_queue;
     auto recv_thread = std::thread([&]() {
-        for (size_t i = 0; i < total_batches; ++i) {
+        for (size_t i = 0; i < rounds; ++i) {
             std::vector<seal::Ciphertext> l;
             IO::recv_encrypted_vector(*ios[(OTHER_PARTY(party) - 1)], hom_conv.getContext(), l);
             recv_queue.push(l);
@@ -1040,8 +1042,14 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
 
             switch (party) {
             case emp::ALICE: {
-                if (meta.is_shared_input)
-                    hom_conv.encodeImage(A, meta, enc_a[cur_batch + offset], threads);
+                if (proto == Utils::PROTO::AB) {
+                    hom_conv.encryptImage(A, meta, enc_a1[cur_batch + offset],
+                                          enc_a[cur_batch + offset], threads);
+                    send_queue.push(enc_a1[cur_batch + offset]);
+                } else {
+                    if (meta.is_shared_input)
+                        hom_conv.encodeImage(A, meta, enc_a[cur_batch + offset], threads);
+                }
                 if (cur_batch == 0) {
                     hom_conv.encodeFilters(B, meta, enc_b[n], threads);
                     hom_conv.filtersToNtt(enc_b[n], threads);
@@ -1049,7 +1057,16 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
                 break;
             }
             case emp::BOB: {
-                hom_conv.encryptImage(A, meta, enc_a1[cur_batch + offset], threads);
+                if (proto == Utils::PROTO::AB) {
+                    if (cur_batch == 0) {
+                        hom_conv.encodeFilters(B, meta, enc_b[n], threads);
+                        hom_conv.filtersToNtt(enc_b[n], threads);
+                    }
+                    hom_conv.encryptImage(A, meta, enc_a1[cur_batch + offset],
+                                          enc_a[cur_batch + offset], threads);
+                } else {
+                    hom_conv.encryptImage(A, meta, enc_a1[cur_batch + offset], threads);
+                }
                 send_queue.push(enc_a1[cur_batch + offset]);
                 break;
             }
@@ -1060,14 +1077,14 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
         offset += parm.batchsize;
     }
 
-    if (party == emp::ALICE)
-        Utils::log(Utils::Level::INFO, "P", party - 1,
-                ": CONV NTT preprocessing time[s]:", Utils::to_sec(Utils::time_diff(start)));
+    Utils::log(Utils::Level::INFO, "P", party - 1,
+               ": CONV NTT preprocessing time[s]:", Utils::to_sec(Utils::time_diff(start)));
 
     vector<vector<seal::Ciphertext>> M(total_batches);
     vector<Tensor<uint64_t>> C(total_batches);
     offset = 0;
-    for (size_t n = 0; n < parms.size(); ++n) {
+    for (size_t n = 0; (proto == Utils::PROTO::AB || party == emp::ALICE) && n < parms.size();
+         ++n) {
         auto& parm = parms[n];
         auto meta  = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                            parm.n_filters, parm.stride, parm.padding);
@@ -1075,6 +1092,14 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
         for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
             switch (party) {
             case emp::ALICE: {
+                enc_a2[cur_batch + offset] = recv_queue.pop().value();
+                result.ret                 = hom_conv.conv2DSS(
+                    enc_a2[cur_batch + offset], enc_a[cur_batch + offset], enc_b[n], meta,
+                    M[cur_batch + offset], C[cur_batch + offset], threads, true, false, true);
+                send_queue.push(M[cur_batch + offset]);
+                break;
+            }
+            case emp::BOB: {
                 enc_a2[cur_batch + offset] = recv_queue.pop().value();
                 result.ret                 = hom_conv.conv2DSS(
                     enc_a2[cur_batch + offset], enc_a[cur_batch + offset], enc_b[n], meta,
@@ -1103,10 +1128,31 @@ void generateConvTriplesCheetah2(Keys<IO::NetIO>& keys, size_t total_batches,
 
         for (int cur_batch = 0; cur_batch < parm.batchsize; ++cur_batch) {
             switch (party) {
+            case emp::ALICE: {
+                if (proto == Utils::PROTO::AB2)
+                    break;
+
+                Tensor<uint64_t> tmp;
+                M[cur_batch + offset] = recv_queue.pop().value();
+                result.ret = hom_conv.decryptToTensor(M[cur_batch + offset], meta, tmp, threads);
+                Utils::op_inplace<uint64_t>(
+                    C[cur_batch + offset], tmp,
+                    [](uint64_t a, uint64_t b) -> uint64_t { return Utils::add(a, b); });
+                break;
+            }
             case emp::BOB: {
                 M[cur_batch + offset] = recv_queue.pop().value();
-                result.ret            = hom_conv.decryptToTensor(M[cur_batch + offset], meta,
-                                                                 C[cur_batch + offset], threads);
+                if (proto == Utils::PROTO::AB) {
+                    Tensor<uint64_t> tmp;
+                    result.ret
+                        = hom_conv.decryptToTensor(M[cur_batch + offset], meta, tmp, threads);
+                    Utils::op_inplace<uint64_t>(
+                        C[cur_batch + offset], tmp,
+                        [](uint64_t a, uint64_t b) -> uint64_t { return Utils::add(a, b); });
+                } else {
+                    result.ret = hom_conv.decryptToTensor(M[cur_batch + offset], meta,
+                                                          C[cur_batch + offset], threads);
+                }
                 break;
             }
             }
