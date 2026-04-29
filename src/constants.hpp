@@ -76,8 +76,7 @@ std::tuple<int, int> Utils::pad_zero(const T* src, std::vector<INT>& dest, const
             for (int h = 0; h < height; ++h) {
                 for (int w = 0; w < width; ++w) {
                     dest[b * new_dim * channels + c * new_dim + padding * new_w + h * new_w
-                         + padding + w]
-                        = src[b * old_dim * channels + c * old_dim + h * width + w];
+                         + padding + w] = src[b * old_dim * channels + c * old_dim + h * width + w];
                 }
             }
         }

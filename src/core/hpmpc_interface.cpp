@@ -741,8 +741,8 @@ void tmp(int party, int threads) {
     delete[] io;
 }
 
-void do_multiplex(int num_input, UINT_TYPE* x32, uint8_t* sel_packed, UINT_TYPE* y32, int party,
-                  const std::string& ip, int port, int io_offset, int threads) {
+void do_multiplex(int num_input, const UINT_TYPE* x32, const uint8_t* sel_packed, UINT_TYPE* y32,
+                  int party, const std::string& ip, int port, int io_offset, int threads) {
     int bitlen = BIT_LEN;
 
     auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
@@ -808,7 +808,7 @@ void do_multiplex(int num_input, UINT_TYPE* x32, uint8_t* sel_packed, UINT_TYPE*
         bool passed = true;
         for (int i = 0; i < num_input; ++i) {
             if (((y32[i] + y_b[i]) & moduloMask)
-                != ((x32[i] + x_b[i]) & moduloMask) * ((sel[i] + sel_b[i]) & 1)) {
+                != ((x32[i] + x_b[i]) & moduloMask) * ((sel[i] ^ sel_b[i]))) {
                 passed = false;
                 break;
             }
@@ -894,8 +894,9 @@ void generateOT(int party, const std::string& ip, int port, int threads, int io_
     keys.disconnect();
 }
 
-void generateCOT(int party, UINT_TYPE* a, uint8_t* b, UINT_TYPE* c, const unsigned& num_triples,
-                 const std::string& ip, int port, int threads, int io_offset) {
+void generateCOT(int party, const UINT_TYPE* a, const uint8_t* b, UINT_TYPE* c,
+                 const unsigned& num_triples, const std::string& ip, int port, int threads,
+                 int io_offset) {
     Utils::log(Utils::Level::DEBUG, "COT: ", num_triples);
     auto& keys = Keys<IO::NetIO>::instance(party, ip, port, threads, io_offset);
 

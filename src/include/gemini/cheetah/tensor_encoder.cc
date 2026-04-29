@@ -472,7 +472,7 @@ Code TensorEncoder::EncodeTensor(const U64Tensor& tensor, const TensorShape& ish
                     }
 
                     A2H(coeffs.data(), coeffs.size(), enc_tensor[cid++], Role::none,
-                               need_ntt_form_ct);
+                        need_ntt_form_ct);
 
                     woffset += slice_shape.width();
                 }

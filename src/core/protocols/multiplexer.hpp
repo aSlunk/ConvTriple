@@ -7,8 +7,8 @@
 namespace Aux {
 
 template <class OT>
-void multiplexer(OT* otpack, int party, uint8_t* sel, uint64_t* x, uint64_t* y, const size_t& size,
-                 int32_t bw_x, int32_t bw_y) {
+void multiplexer(OT* otpack, int party, const uint8_t* sel, const uint64_t* x, uint64_t* y,
+                 const size_t& size, int32_t bw_x, int32_t bw_y) {
     assert(bw_x <= 64 && bw_y <= 64 && bw_y <= bw_x);
     uint64_t mask_x = (bw_x == 64 ? -1 : ((1ULL << bw_x) - 1));
     uint64_t mask_y = (bw_y == 64 ? -1 : ((1ULL << bw_y) - 1));

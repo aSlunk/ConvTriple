@@ -9,7 +9,7 @@
 namespace TROY {
 
 static unsigned char ALICE = 1;
-static unsigned char BOB = 2;
+static unsigned char BOB   = 2;
 
 constexpr size_t MAX_BATCHSIZE = 10;
 
@@ -500,8 +500,8 @@ void conv2d_ab2_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT
 }
 
 void conv2d_ab_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w,
-                        INT_TYPE* c, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
-                        size_t kw, size_t oc, size_t stride, bool mod_switch) {
+                       INT_TYPE* c, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
+                       size_t kw, size_t oc, size_t stride, bool mod_switch) {
     using namespace troy;
     auto he = setup();
     linear::PolynomialEncoderRing2k<INT_TYPE> encoder(he, BIT_LEN);
@@ -565,7 +565,7 @@ void conv2d_ab_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_
             auto recveived_y = recv(ios);
             send(ios, y_serialized);
 
-            y_encrypted  = helper.deserialize_outputs(evaluator, recveived_y);
+            y_encrypted = helper.deserialize_outputs(evaluator, recveived_y);
             vector<INT_TYPE> y_decrypted
                 = helper.decrypt_outputs_ring2k(encoder, decryptor, y_encrypted);
 

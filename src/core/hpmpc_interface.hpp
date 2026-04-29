@@ -72,13 +72,14 @@ void generateBNTriplesCheetah(Keys<IO::NetIO>& keys, const UINT_TYPE* a, const U
                               UINT_TYPE* c, int batch, size_t num_ele, size_t h, size_t w,
                               int party, int threads, Utils::PROTO proto, int factor = 1);
 
-void do_multiplex(int num_input, UINT_TYPE* x32, uint8_t* sel_packed, UINT_TYPE* y32, int party,
-                  const std::string& ip, int port, int io_offset, int threads);
+void do_multiplex(int num_input, const UINT_TYPE* x32, const uint8_t* sel_packed, UINT_TYPE* y32,
+                  int party, const std::string& ip, int port, int io_offset, int threads);
 
 void generateOT(int party, const std::string& ip, int port, int threads, int io_offset);
 
-void generateCOT(int party, UINT_TYPE* a, uint8_t* b, UINT_TYPE* c, const unsigned& num_triples,
-                 const std::string& ip, int port, int threads, int io_offset);
+void generateCOT(int party, const UINT_TYPE* a, const uint8_t* b, UINT_TYPE* c,
+                 const unsigned& num_triples, const std::string& ip, int port, int threads,
+                 int io_offset);
 
 void tmp(int party, int threads);
 
