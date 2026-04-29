@@ -761,8 +761,8 @@ void do_multiplex(int num_input, const UINT_TYPE* x32, const uint8_t* sel_packed
 
         for (size_t i = start; i < end; ++i) {
             sel[i] = get_nth(sel_packed, i);
-            if (party == emp::ALICE)
-                sel[i] = sel[i] ^ 1;
+            // if (party == emp::ALICE)
+            //     sel[i] = sel[i] ^ 1;
             x[i] = x32[i];
         }
 
