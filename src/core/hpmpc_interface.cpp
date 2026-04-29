@@ -808,8 +808,11 @@ void do_multiplex(int num_input, const UINT_TYPE* x32, const uint8_t* sel_packed
         bool passed = true;
         for (int i = 0; i < num_input; ++i) {
             if (((y32[i] + y_b[i]) & moduloMask)
-                != ((x32[i] + x_b[i]) & moduloMask) * ((sel[i] ^ sel_b[i]))) {
+                != ((x32[i] + x_b[i]) & moduloMask) * ((get_nth(sel_packed, i) ^ sel_b[i]))) {
                 passed = false;
+                Utils::log(Utils::Level::FAILED, "(", y32[i], " + ", y_b[i], ") = (", x32[i], " + ",
+                           x_b[i], ") (", (uint32_t)get_nth(sel_packed, i), " ^ ",
+                           (uint32_t)sel_b[i], ")");
                 break;
             }
         }
