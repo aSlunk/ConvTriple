@@ -40,6 +40,10 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[], int bitle
                                 int threads = 1, TripleGenMethod method = _16KKOT_to_4OT,
                                 unsigned io_offset = 1);
 
+/// Generate packed Boolean shares (a, b) such that a0 & a1 = b0 ^ b1.
+void generateRandomMultiplicationsCheetah(uint8_t a[], uint8_t b[], uint64_t num_muls,
+                                          const std::string& ip, int port, int party);
+
 void generateArithTriplesCheetah(const UINT_TYPE a[], const UINT_TYPE b[], UINT_TYPE c[],
                                  int bitlength, uint64_t num_triples, const std::string& ip,
                                  int port, int party, int threads = 1,
