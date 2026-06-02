@@ -6,6 +6,7 @@
 #include <sstream>
 #include <thread>
 
+#include "core/utils.hpp"
 #include "emp-tool/utils/constants.h"
 #include "protocols/bn_direct_proto.hpp"
 #include "protocols/conv_proto.hpp"
@@ -258,13 +259,11 @@ void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const UINT_TYPE* a
                                        int party, int threads, Utils::PROTO proto, int factor,
                                        bool is_shared_input) {
 #if USE_CONV_CUDA
-    if (proto == Utils::PROTO::AB2) {
-        TROY::conv2d(keys.get_ios(threads), OTHER_PARTY(party), a, b, c, parm.batchsize, parm.ic,
-                     parm.ih, parm.iw, parm.fh, parm.fw, parm.n_filters, parm.stride, parm.padding,
-                     true, factor);
-        return;
-    }
-#endif
+    TROY::conv2d(keys.get_ios(threads), OTHER_PARTY(party), a, b, c, parm.batchsize, parm.ic,
+                 parm.ih, parm.iw, parm.fh, parm.fw, parm.n_filters, parm.stride, parm.padding,
+                 true, factor, proto == Utils::PROTO::AB);
+    return;
+#else
     auto meta = Utils::init_meta_conv(parm.ic, parm.ih, parm.iw, parm.fc, parm.fh, parm.fw,
                                       parm.n_filters, parm.stride, parm.padding, is_shared_input);
 
@@ -292,6 +291,7 @@ void generateConvTriplesCheetahWrapper(Keys<IO::NetIO>& keys, const UINT_TYPE* a
         generateConvTriplesCheetah(keys, ai.data(), b, c, meta, parm.batchsize, party, threads,
                                    proto, factor);
     }
+#endif
 }
 
 void generateConvTriplesCheetah(Keys<IO::NetIO>& keys, size_t total_batches,

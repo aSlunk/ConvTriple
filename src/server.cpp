@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
             .fw        = 7,
             .fh        = 7,
             .n_filters = 1,
-            .stride    = 2,
+            .stride    = 1,
             .padding   = 0,
         };
 
@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
         UINT_TYPE* a = new UINT_TYPE[meta.ishape.num_elements() * batchSize];
         memset(a, 0, meta.ishape.num_elements() * sizeof(UINT_TYPE) * batchSize);
         for (size_t i = 0; i < meta.ishape.num_elements() * batchSize; ++i) {
-            a[i] = 1;
+            a[i] = i;
         }
         UINT_TYPE* b = new UINT_TYPE[meta.n_filters * meta.fshape.num_elements()];
         memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(UINT_TYPE));
@@ -172,8 +172,8 @@ int main(int argc, char** argv) {
         std::vector<UINT_TYPE*> aa       = {a};
         std::vector<UINT_TYPE*> bb       = {b};
 
-        Iface::generateConvTriplesCheetahWrapper(keys, nullptr, b, c, conv, PARTY, threads,
-                                                 Utils::PROTO::AB2, 1, false);
+        Iface::generateConvTriplesCheetahWrapper(keys, a, b, c, conv, PARTY, threads,
+                                                 Utils::PROTO::AB, 1, true);
         // Iface::generateConvTriplesCheetah2(keys, batchSize, vec, nullptr, bb.data(), c,
         //                                   Utils::PROTO::AB2, PARTY, threads, 1, false);
 

@@ -20,7 +20,8 @@ std::shared_ptr<troy::HeContext> setup();
 
 void conv2d(IO::NetIO** ios, int party, const INT_TYPE* a, const INT_TYPE* b, INT_TYPE* c,
             size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
-            size_t stride, size_t padding, bool mod_switch = false, int factor = 1);
+            size_t stride, size_t padding, bool mod_switch = false, int factor = 1,
+            bool ab = false);
 
 void conv2d_dummy(IO::NetIO** ios, int party, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
                   size_t kw, size_t oc, size_t stride, size_t padding, bool mod_switch = false);
@@ -32,6 +33,10 @@ void conv2d_ab2(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w
 void conv2d_ab2_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w,
                         INT_TYPE* c, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
                         size_t kw, size_t oc, size_t stride, bool mod_switch);
+
+void conv2d_ab_reverse(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w,
+                       INT_TYPE* c, size_t bs, size_t ic, size_t ih, size_t iw, size_t kh,
+                       size_t kw, size_t oc, size_t stride, bool mod_switch);
 
 void conv2d_ab(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w, INT_TYPE* c,
                size_t bs, size_t ic, size_t ih, size_t iw, size_t kh, size_t kw, size_t oc,
