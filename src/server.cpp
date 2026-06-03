@@ -1,4 +1,5 @@
 #include "core/utils.hpp"
+#include "net_io_channel.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -11,6 +12,213 @@
 #define PARTY 1
 
 using Iface::UINT_TYPE;
+
+namespace {
+
+void test_cot_multiplexer(int num_triples, int threads, int port) {
+    UINT_TYPE a[num_triples * 8];
+    uint8_t b[num_triples];
+    UINT_TYPE c[num_triples * 8];
+
+    for (int i = 0; i < num_triples; ++i) {
+        b[i] = 0xff;
+        for (size_t j = 0; j < 8; ++j) {
+            a[i * 8 + j] = 10;
+        }
+    }
+
+    Iface::do_multiplex(num_triples * 8, a, b, c, PARTY, std::string(""), port, 1, threads);
+    Iface::generateCOT(PARTY, a, nullptr, c, num_triples * 8, std::string(""), port, threads, 1);
+}
+
+void test_bool_triples(int threads, int port) {
+#ifndef VERIFY
+    Utils::log(Utils::Level::ERROR, "Compile with TRIPLE_VERIFY");
+#else
+    int tmp = 37'996'272;
+    tmp     = 9'000'000 / 8;
+    // tmp = 37'500'000;
+    uint8_t* a = new uint8_t[tmp];
+    uint8_t* b = new uint8_t[tmp];
+    uint8_t* c = new uint8_t[tmp];
+
+    Iface::generateBoolTriplesCheetah(a, b, c, 1, tmp, std::string("127.0.0.1"), port, PARTY,
+                                      threads, _16KKOT_to_4OT);
+
+    delete[] a;
+    delete[] b;
+    delete[] c;
+#endif
+}
+
+void test_arith_triples(int port, int threads, Utils::PROTO proto) {
+    // num_triples = 9'006'592;
+    int num_triples = 22;
+    std::vector<UINT_TYPE> a_cp(num_triples * 1);
+    std::vector<UINT_TYPE> b_cp(num_triples * 1);
+    std::vector<UINT_TYPE> c_cp(num_triples * 1);
+
+    for (int i = 0; i < 1; ++i) {
+        // num_triples = 48'168'448;
+        std::vector<UINT_TYPE> a(num_triples, 0);
+        std::vector<UINT_TYPE> b(num_triples, 0);
+        std::vector<UINT_TYPE> c(num_triples, 0);
+
+        Iface::generateArithTriplesCheetah(proto == Utils::PROTO::AB ? a.data() : nullptr, b.data(),
+                                           c.data(), 32, num_triples, std::string(""), port, PARTY,
+                                           threads, proto);
+
+        if (!IO::save_to_file("arith.triple", a.data(), b.data(), c.data(), num_triples)) {
+            Utils::log(Utils::Level::FAILED, "Failed to save triples");
+        } else {
+            Utils::log(Utils::Level::PASSED, "Saved triples");
+        }
+        std::memcpy(a_cp.data() + num_triples * i, a.data(), num_triples * sizeof(UINT_TYPE));
+        std::memcpy(b_cp.data() + num_triples * i, b.data(), num_triples * sizeof(UINT_TYPE));
+        std::memcpy(c_cp.data() + num_triples * i, c.data(), num_triples * sizeof(UINT_TYPE));
+    }
+
+    for (size_t round = 0; round < 1; ++round) {
+        std::vector<UINT_TYPE> a(num_triples);
+        std::vector<UINT_TYPE> b(num_triples);
+        std::vector<UINT_TYPE> c(num_triples);
+        if (IO::read_from_file("arith.triple", a.data(), b.data(), c.data(), num_triples, true)) {
+            Utils::log(Utils::Level::PASSED, "Read triples");
+
+            bool passed = true;
+            for (int i = 0; i < num_triples; ++i) {
+                if (a[i] != a_cp[i + round * num_triples] || b[i] != b_cp[i + round * num_triples]
+                    || c[i] != c_cp[i + round * num_triples]) {
+                    passed = false;
+                    break;
+                }
+            }
+            if (passed)
+                Utils::log(Utils::Level::PASSED, "Read CORRECT triples");
+            else
+                Utils::log(Utils::Level::FAILED, "Triples mismatch");
+        }
+    }
+}
+
+void test_fc_triples(Iface::Keys<IO::NetIO>& keys, int port, int threads, size_t batchSize,
+                     Utils::PROTO proto) {
+    int n        = 3;
+    int out      = 2;
+    UINT_TYPE* a = new UINT_TYPE[n * batchSize];
+    UINT_TYPE* b = new UINT_TYPE[n * batchSize * out];
+    UINT_TYPE* c = new UINT_TYPE[out * batchSize];
+
+    for (size_t j = 0; j < batchSize; ++j) {
+        for (int i = 0; i < n * out; ++i) {
+            a[i % n + n * j]   = 0;
+            b[i + n * out * j] = i + j;
+        }
+    }
+
+    Iface::generateFCTriplesCheetah(keys, proto == Utils::PROTO::AB2 ? nullptr : a, b, c, batchSize,
+                                    n, out, PARTY, threads, proto);
+
+    delete[] a;
+    delete[] b;
+    delete[] c;
+}
+
+[[maybe_unused]] void test_conv_triples1(Iface::Keys<IO::NetIO>& keys, int threads,
+                                         size_t batchSize, Utils::PROTO proto) {
+    Utils::ConvParm conv{
+        .batchsize = static_cast<int>(batchSize),
+        .ic        = 1,
+        .iw        = 10,
+        .ih        = 10,
+        .fc        = 1,
+        .fw        = 7,
+        .fh        = 7,
+        .n_filters = 1,
+        .stride    = 1,
+        .padding   = 0,
+    };
+
+    auto meta    = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
+                                         conv.n_filters, conv.stride, conv.padding);
+    UINT_TYPE* a = new UINT_TYPE[meta.ishape.num_elements() * batchSize];
+    memset(a, 0, meta.ishape.num_elements() * sizeof(UINT_TYPE) * batchSize);
+    for (size_t i = 0; i < meta.ishape.num_elements() * batchSize; ++i) {
+        a[i] = i;
+    }
+    UINT_TYPE* b = new UINT_TYPE[meta.n_filters * meta.fshape.num_elements()];
+    memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(UINT_TYPE));
+    for (size_t i = 0; i < meta.n_filters; ++i)
+        for (int j = 0; j < meta.fshape.num_elements(); ++j)
+            b[i * meta.fshape.num_elements() + j] = 3;
+    UINT_TYPE* c = new UINT_TYPE[Utils::getOutDim(conv).num_elements() * batchSize];
+
+    Iface::generateConvTriplesCheetahWrapper(keys, proto == Utils::PROTO::AB ? a : nullptr, b, c,
+                                             conv, PARTY, threads, proto, 1,
+                                             proto == Utils::PROTO::AB);
+
+    delete[] a;
+    delete[] b;
+    delete[] c;
+}
+
+[[maybe_unused]] void test_conv_triples2(Iface::Keys<IO::NetIO>& keys, int threads,
+                                         size_t batchSize, Utils::PROTO proto) {
+    Utils::ConvParm conv{
+        .batchsize = static_cast<int>(batchSize),
+        .ic        = 1,
+        .iw        = 10,
+        .ih        = 10,
+        .fc        = 1,
+        .fw        = 7,
+        .fh        = 7,
+        .n_filters = 1,
+        .stride    = 2,
+        .padding   = 0,
+    };
+
+    auto meta    = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
+                                         conv.n_filters, conv.stride, conv.padding);
+    UINT_TYPE* a = new UINT_TYPE[meta.ishape.num_elements() * batchSize];
+    memset(a, 0, meta.ishape.num_elements() * sizeof(UINT_TYPE) * batchSize);
+    for (size_t i = 0; i < meta.ishape.num_elements() * batchSize; ++i) {
+        a[i] = i;
+    }
+    UINT_TYPE* b = new UINT_TYPE[meta.n_filters * meta.fshape.num_elements()];
+    memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(UINT_TYPE));
+    for (size_t i = 0; i < meta.n_filters; ++i)
+        for (int j = 0; j < meta.fshape.num_elements(); ++j)
+            b[i * meta.fshape.num_elements() + j] = 3;
+    UINT_TYPE* c = new UINT_TYPE[Utils::getOutDim(conv).num_elements() * batchSize];
+
+    std::vector<Utils::ConvParm> vec = {conv};
+    std::vector<UINT_TYPE*> aa       = {a};
+    std::vector<UINT_TYPE*> bb       = {b};
+
+    Iface::generateConvTriplesCheetah2(keys, batchSize, vec,
+                                       proto == Utils::PROTO::AB2 ? nullptr : aa.data(), bb.data(),
+                                       c, proto, PARTY, threads, 1, proto == Utils::PROTO::AB);
+
+    delete[] a;
+    delete[] b;
+    delete[] c;
+}
+
+void test_bn_triples(Iface::Keys<IO::NetIO>& keys, int threads, size_t batchSize,
+                     Utils::PROTO proto) {
+    int rows = 2;
+    int h    = 2;
+    int w    = 2;
+
+    std::vector<UINT_TYPE> A(rows * h * w * batchSize, 3);
+    std::vector<UINT_TYPE> B(rows * batchSize, 0);
+    std::vector<UINT_TYPE> C(rows * h * w * batchSize);
+
+    Iface::generateBNTriplesCheetah(keys, A.data(), B.data(), C.data(), batchSize, rows, h, w,
+                                    PARTY, threads, proto);
+}
+
+} // namespace
 
 int main(int argc, char** argv) {
     Utils::log(Utils::Level::DEBUG, "BITLEN = ", sizeof(UINT_TYPE) * 8);
@@ -30,172 +238,20 @@ int main(int argc, char** argv) {
 
     int num_triples = 1;
 
-    {
-        UINT_TYPE a[num_triples * 8];
-        uint8_t b[num_triples];
-        UINT_TYPE c[num_triples * 8];
+    test_cot_multiplexer(num_triples, threads, port);
 
-        for (int i = 0; i < num_triples; ++i) {
-            b[i] = 0xff;
-            for (size_t j = 0; j < 8; ++j) {
-                a[i * 8 + j] = 10;
-            }
-        }
+    test_bool_triples(threads, port);
 
-        Iface::do_multiplex(num_triples * 8, a, b, c, PARTY, std::string(""), port, 1, threads);
-        Iface::generateCOT(PARTY, a, nullptr, c, num_triples * 8, std::string(""), port, threads,
-                           1);
-    }
-
-    {
-        int tmp = 37'996'272;
-        tmp     = 9'000'000 / 8;
-        // tmp = 37'500'000;
-        uint8_t* a = new uint8_t[tmp];
-        uint8_t* b = new uint8_t[tmp];
-        uint8_t* c = new uint8_t[tmp];
-
-        Iface::generateBoolTriplesCheetah(a, b, c, 1, tmp, std::string("127.0.0.1"), port, PARTY,
-                                          threads, _16KKOT_to_4OT);
-
-        delete[] a;
-        delete[] b;
-        delete[] c;
-    }
+    test_arith_triples(port, threads, Utils::PROTO::AB2);
 
     auto& keys = Iface::Keys<IO::NetIO>::instance(PARTY, std::string(), port, threads, 1);
     keys.disconnect();
 
-    {
-        // num_triples = 9'006'592;
-        num_triples = 22;
-        std::vector<UINT_TYPE> a_cp(num_triples * 1);
-        std::vector<UINT_TYPE> b_cp(num_triples * 1);
-        std::vector<UINT_TYPE> c_cp(num_triples * 1);
+    test_fc_triples(keys, port, threads, batchSize, Utils::PROTO::AB);
 
-        for (int i = 0; i < 1; ++i) {
-            // num_triples = 48'168'448;
-            std::vector<UINT_TYPE> a(num_triples, 0);
-            std::vector<UINT_TYPE> b(num_triples, 0);
-            std::vector<UINT_TYPE> c(num_triples, 0);
+    test_conv_triples1(keys, threads, batchSize, Utils::PROTO::AB2);
 
-            Iface::generateArithTriplesCheetah(a.data(), b.data(), c.data(), 32, num_triples,
-                                               std::string(""), port, PARTY, threads,
-                                               Utils::PROTO::AB);
+    test_bn_triples(keys, threads, batchSize, Utils::PROTO::AB2);
 
-            if (!IO::save_to_file("arith.triple", a.data(), b.data(), c.data(), num_triples)) {
-                Utils::log(Utils::Level::FAILED, "Failed to save triples");
-            } else {
-                Utils::log(Utils::Level::PASSED, "Saved triples");
-            }
-            std::memcpy(a_cp.data() + num_triples * i, a.data(), num_triples * sizeof(UINT_TYPE));
-            std::memcpy(b_cp.data() + num_triples * i, b.data(), num_triples * sizeof(UINT_TYPE));
-            std::memcpy(c_cp.data() + num_triples * i, c.data(), num_triples * sizeof(UINT_TYPE));
-        }
-
-        for (size_t round = 0; round < 1; ++round) {
-            std::vector<UINT_TYPE> a(num_triples);
-            std::vector<UINT_TYPE> b(num_triples);
-            std::vector<UINT_TYPE> c(num_triples);
-            if (IO::read_from_file("arith.triple", a.data(), b.data(), c.data(), num_triples,
-                                   true)) {
-                Utils::log(Utils::Level::PASSED, "Read triples");
-
-                bool passed = true;
-                for (int i = 0; i < num_triples; ++i) {
-                    if (a[i] != a_cp[i + round * num_triples]
-                        || b[i] != b_cp[i + round * num_triples]
-                        || c[i] != c_cp[i + round * num_triples]) {
-                        passed = false;
-                        break;
-                    }
-                }
-                if (passed)
-                    Utils::log(Utils::Level::PASSED, "Read CORRECT triples");
-                else
-                    Utils::log(Utils::Level::FAILED, "Triples mismatch");
-            }
-        }
-    }
-
-    {
-        int n        = 3;
-        int out      = 2;
-        UINT_TYPE* a = new UINT_TYPE[n * batchSize];
-        UINT_TYPE* b = new UINT_TYPE[n * batchSize * out];
-        UINT_TYPE* c = new UINT_TYPE[out * batchSize];
-
-        for (size_t j = 0; j < batchSize; ++j) {
-            for (int i = 0; i < n * out; ++i) {
-                a[i % n + n * j]   = 0;
-                b[i + n * out * j] = i + j;
-            }
-        }
-
-        Iface::generateFCTriplesCheetah(keys, nullptr, b, c, batchSize, n, out, PARTY, threads,
-                                        Utils::PROTO::AB2);
-
-        delete[] a;
-        delete[] b;
-        delete[] c;
-    }
-
-    {
-        Utils::ConvParm conv{
-            .batchsize = static_cast<int>(batchSize),
-            .ic        = 1,
-            .iw        = 10,
-            .ih        = 10,
-            .fc        = 1,
-            .fw        = 7,
-            .fh        = 7,
-            .n_filters = 1,
-            .stride    = 1,
-            .padding   = 0,
-        };
-
-        auto meta    = Utils::init_meta_conv(conv.ic, conv.ih, conv.iw, conv.fc, conv.fh, conv.fw,
-                                             conv.n_filters, conv.stride, conv.padding);
-        UINT_TYPE* a = new UINT_TYPE[meta.ishape.num_elements() * batchSize];
-        memset(a, 0, meta.ishape.num_elements() * sizeof(UINT_TYPE) * batchSize);
-        for (size_t i = 0; i < meta.ishape.num_elements() * batchSize; ++i) {
-            a[i] = i;
-        }
-        UINT_TYPE* b = new UINT_TYPE[meta.n_filters * meta.fshape.num_elements()];
-        memset(b, 0, meta.n_filters * meta.fshape.num_elements() * sizeof(UINT_TYPE));
-        for (size_t i = 0; i < meta.n_filters; ++i)
-            for (int j = 0; j < meta.fshape.num_elements(); ++j)
-                b[i * meta.fshape.num_elements() + j] = 3;
-        UINT_TYPE* c = new UINT_TYPE[Utils::getOutDim(conv).num_elements() * batchSize];
-
-        std::vector<Utils::ConvParm> vec = {conv};
-        std::vector<UINT_TYPE*> aa       = {a};
-        std::vector<UINT_TYPE*> bb       = {b};
-
-        Iface::generateConvTriplesCheetahWrapper(keys, a, b, c, conv, PARTY, threads,
-                                                 Utils::PROTO::AB, 1, true);
-        // Iface::generateConvTriplesCheetah2(keys, batchSize, vec, nullptr, bb.data(), c,
-        //                                   Utils::PROTO::AB2, PARTY, threads, 1, false);
-
-        for (size_t i = 0; i < Utils::getOutDim(conv).num_elements() * batchSize; ++i) {
-            std::cout << "P" << PARTY << ": res" << c[i] << "\n";
-        }
-
-        delete[] a;
-        delete[] b;
-        delete[] c;
-    }
-    {
-        int rows = 2;
-        int h    = 2;
-        int w    = 2;
-
-        std::vector<UINT_TYPE> A(rows * h * w * batchSize, 3);
-        std::vector<UINT_TYPE> B(rows * batchSize, 0);
-        std::vector<UINT_TYPE> C(rows * h * w * batchSize);
-
-        Iface::generateBNTriplesCheetah(keys, A.data(), B.data(), C.data(), batchSize, rows, h, w,
-                                        PARTY, threads, Utils::PROTO::AB2);
-    }
     keys.disconnect();
 }
