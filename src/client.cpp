@@ -236,7 +236,7 @@ int main(int argc, char** argv) {
 
     test_fc_triples(keys, batchSize, threads, Utils::PROTO::AB);
 
-    test_conv_triples1(keys, batchSize, threads, Utils::PROTO::AB2);
+    test_conv_triples1(keys, batchSize, threads, Utils::PROTO::AB);
 
     test_bn_triples(keys, batchSize, threads, Utils::PROTO::AB2);
 

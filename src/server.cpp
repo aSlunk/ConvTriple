@@ -32,9 +32,6 @@ void test_cot_multiplexer(int num_triples, int threads, int port) {
 }
 
 void test_bool_triples(int threads, int port) {
-#ifndef VERIFY
-    Utils::log(Utils::Level::ERROR, "Compile with TRIPLE_VERIFY");
-#else
     int tmp = 37'996'272;
     tmp     = 9'000'000 / 8;
     // tmp = 37'500'000;
@@ -48,7 +45,6 @@ void test_bool_triples(int threads, int port) {
     delete[] a;
     delete[] b;
     delete[] c;
-#endif
 }
 
 void test_arith_triples(int port, int threads, Utils::PROTO proto) {
@@ -249,7 +245,7 @@ int main(int argc, char** argv) {
 
     test_fc_triples(keys, port, threads, batchSize, Utils::PROTO::AB);
 
-    test_conv_triples1(keys, threads, batchSize, Utils::PROTO::AB2);
+    test_conv_triples1(keys, threads, batchSize, Utils::PROTO::AB);
 
     test_bn_triples(keys, threads, batchSize, Utils::PROTO::AB2);
 

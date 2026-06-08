@@ -256,7 +256,7 @@ void conv2d_ab(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w,
         x_encrypted.save(a1_serialized, he);
         vector<INT_TYPE> R1 = random_polynomial(bs * oc * oh * ow);
 
-        linear::Plain2d a_encoded  = helper.encode_inputs_ring2k(encoder, x, std::nullopt, false);
+        linear::Plain2d a_encoded  = helper.encode_inputs_ring2k(encoder, x, std::nullopt, true);
         linear::Plain2d w_encoded  = helper.encode_weights_ring2k(encoder, w, std::nullopt, false);
         linear::Plain2d R1_encoded = helper.encode_outputs_ring2k(encoder, R1.data(), std::nullopt);
 
@@ -319,7 +319,7 @@ void conv2d_ab(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w,
 
         vector<INT_TYPE> R2 = random_polynomial(bs * oc * oh * ow);
 
-        linear::Plain2d a_encoded  = helper.encode_inputs_ring2k(encoder, x, std::nullopt, false);
+        linear::Plain2d a_encoded  = helper.encode_inputs_ring2k(encoder, x, std::nullopt, true);
         linear::Plain2d w_encoded  = helper.encode_weights_ring2k(encoder, w, std::nullopt, false);
         linear::Plain2d R2_encoded = helper.encode_outputs_ring2k(encoder, R2.data(), std::nullopt);
 
