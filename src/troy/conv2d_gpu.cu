@@ -281,7 +281,7 @@ void conv2d_ab(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w,
         add_inplace(y_decrypted, R1.data(), PLAIN_MOD);
 
         [[maybe_unused]] auto size
-            = apply_stride(c, y_decrypted.data(), stride, bs, ic, ih, iw, kh, kw, oc);
+            = bs * apply_stride(c, y_decrypted.data(), stride, bs, ic, ih, iw, kh, kw, oc);
 
 #ifdef VERIFY
         std::cout << PURPLE << "Verifying CONV" << NC << "\n";
@@ -347,7 +347,7 @@ void conv2d_ab(IO::NetIO** ios, int party, const INT_TYPE* x, const INT_TYPE* w,
         add_inplace(y_decrypted, R2.data(), PLAIN_MOD);
 
         [[maybe_unused]] auto size
-            = apply_stride(c, y_decrypted.data(), stride, bs, ic, ih, iw, kh, kw, oc);
+            = bs * apply_stride(c, y_decrypted.data(), stride, bs, ic, ih, iw, kh, kw, oc);
 #ifdef VERIFY
         ios[0]->send_data(x, bs * ic * ih * iw * sizeof(INT_TYPE));
         ios[0]->send_data(w, oc * ic * kh * kw * sizeof(INT_TYPE));
