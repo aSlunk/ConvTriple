@@ -113,6 +113,43 @@ void generateBoolTriplesCheetah(uint8_t a[], uint8_t b[], uint8_t c[],
     // keys.disconnect();
 }
 
+void generateRandomMultiplicationsCheetah(uint8_t a[], uint8_t b[], uint64_t num_muls,
+                                          const std::string& ip, int port, int party) {
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": num_muls (BOOL MUL): ", num_muls);
+
+    const char* addr = party == emp::ALICE ? nullptr : ip.c_str();
+
+    auto setup_start = measure::now();
+    IO::NetIO io(addr, port);
+    IO::NetIO* ios[] = {&io};
+    sci::OTPack<IO::NetIO> otpack(ios, 1, party, true, false);
+
+    std::string unit;
+    Utils::log(Utils::Level::INFO, "P", party - 1,
+               ": Mul OT setup time[s]: ", Utils::to_sec(Utils::time_diff(setup_start)));
+    const auto setup_data = Utils::to_MB(io.counter, unit);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": Mul OT setup data[", unit, "]: ", setup_data);
+
+    io.counter             = 0;
+    auto start             = measure::now();
+
+    switch (party) {
+    case emp::ALICE:
+        Server::mul_gen(&otpack, a, b, num_muls);
+        break;
+    case emp::BOB:
+        Client::mul_gen(&otpack, a, b, num_muls);
+        break;
+    default:
+        Utils::log(Utils::Level::ERROR, "Unknown party: P", party - 1);
+    }
+
+    Utils::log(Utils::Level::INFO, "P", party - 1,
+               ": Bool mul time[s]: ", Utils::to_sec(Utils::time_diff(start)));
+    const auto data = Utils::to_MB(io.counter, unit);
+    Utils::log(Utils::Level::INFO, "P", party - 1, ": Bool mul data[", unit, "]: ", data);
+}
+
 void generateArithTriplesCheetah(const UINT_TYPE a[], const UINT_TYPE b[], UINT_TYPE c[],
                                  int bitlength, uint64_t num_triples, const std::string& ip,
                                  int port, int party, int threads, Utils::PROTO proto,

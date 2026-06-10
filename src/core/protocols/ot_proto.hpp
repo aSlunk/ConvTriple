@@ -2,13 +2,14 @@
 #define OT_PROTO_HPP_
 
 #include <iostream>
+#include <memory>
+
+#include "core/utils.hpp"
 
 #include <io/net_io_channel.hpp>
 
 #include <ot/bit-triple-generator.h>
 #include <ot/silent_ot.h>
-
-#include "core/utils.hpp"
 
 static constexpr size_t LEN(const size_t& numTriple, const bool& packed) {
     return numTriple / (packed ? 8 : 1);
@@ -33,6 +34,11 @@ void triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b, uint8_
 template <class Channel>
 void RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, const bool& packed);
 
+/// Generate random (a, u), (b, v) with ab = u ^ v. See also `Client::mul_gen`.
+/// Implements Algorithm 1 from https://ia.cr/2013/552.
+template <class IO>
+void mul_gen(const sci::OTPack<IO>* otpack, uint8_t* a, uint8_t* u, size_t num_muls);
+
 } // namespace Server
 
 namespace Client {
@@ -43,6 +49,11 @@ void triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b, uint8_
 
 template <class Channel>
 void RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, const bool& packed);
+
+/// Generate random (a, u), (b, v) with ab = u ^ v. See also `Server::mul_gen`.
+/// Implements Algorithm 1 from https://ia.cr/2013/552.
+template <class IO>
+void mul_gen(const sci::OTPack<IO>* otpack, uint8_t* b, uint8_t* v, size_t num_muls);
 
 } // namespace Client
 
@@ -103,6 +114,22 @@ void Server::RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, c
     delete[] c;
 }
 
+template <class IO>
+void Server::mul_gen(const sci::OTPack<IO>* otpack, uint8_t* a, uint8_t* u, size_t num_muls){
+    auto a_buf = std::make_unique<bool[]>(num_muls);
+    auto x_a = std::make_unique<uint8_t[]>(num_muls);
+    otpack->silent_ot_reversed->template recv_ot_rm_rc<uint8_t>(x_a.get(), a_buf.get(), num_muls, 1);
+    otpack->io->flush();
+
+    // pack `bool`s
+    for (size_t i = 0; i < num_muls; i++) {
+        size_t byte_idx = i / 8;
+        size_t bit_idx = i % 8;
+        u[byte_idx] |= x_a[i] << bit_idx;
+        a[byte_idx] |= static_cast<uint8_t>(a_buf[i]) << bit_idx;
+    }
+}
+
 template <class Channel>
 void Client::triple_gen(TripleGenerator<Channel>& triple, uint8_t* a, uint8_t* b, uint8_t* c,
                         size_t numTriple, const bool& packed, TripleGenMethod method) {
@@ -135,6 +162,22 @@ void Client::RunGen(TripleGenerator<Channel>& triple, const size_t& numTriple, c
     delete[] a;
     delete[] b;
     delete[] c;
+}
+
+template <class IO>
+void Client::mul_gen(const sci::OTPack<IO>* otpack, uint8_t* b, uint8_t* v, size_t num_muls){
+    auto x0 = std::make_unique<uint8_t[]>(num_muls);
+    auto x1 = std::make_unique<uint8_t[]>(num_muls);
+    otpack->silent_ot_reversed->template send_ot_rm_rc<uint8_t>(x0.get(), x1.get(), num_muls, 1);
+    otpack->io->flush();
+
+    for (size_t i = 0; i < num_muls; ++i) {
+        size_t byte_idx = i / 8;
+        size_t bit_idx = i % 8;
+        uint8_t x0_bit = x0[i] << bit_idx;
+        b[byte_idx] |= x0_bit ^ (x1[i] << bit_idx); 
+        v[byte_idx] |= x0_bit;
+    }
 }
 
 #endif
